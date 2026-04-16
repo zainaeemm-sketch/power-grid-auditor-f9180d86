@@ -82,10 +82,12 @@ function PresetsPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Experiment Presets</h1>
+        <h1 className="text-2xl font-extrabold animate-fade-up">
+          <span className="gradient-text">Experiment Presets</span>
+        </h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-gradient-to-r from-primary to-[oklch(0.72_0.14_200)] text-primary-foreground font-semibold shadow-lg hover:shadow-[0_0_25px_oklch(0.696_0.17_162.48/0.3)] transition-shadow duration-300">
               <Plus className="mr-2 h-4 w-4" />
               New Preset
             </Button>
@@ -127,7 +129,7 @@ function PresetsPage() {
                 <Label>Default Prompt Text</Label>
                 <Textarea value={defaultPrompt} onChange={(e) => setDefaultPrompt(e.target.value)} rows={3} placeholder="Template prompt text…" />
               </div>
-              <Button type="submit" className="w-full" disabled={submitting}>
+              <Button type="submit" className="w-full bg-gradient-to-r from-primary to-[oklch(0.72_0.14_200)] text-primary-foreground font-semibold" disabled={submitting}>
                 {submitting ? "Creating…" : "Create Preset"}
               </Button>
             </form>
@@ -136,11 +138,15 @@ function PresetsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {presets.map((preset: ExperimentPreset) => (
-          <Card key={preset.id} className="border-border/60 bg-card/60">
+        {presets.map((preset: ExperimentPreset, i: number) => (
+          <Card
+            key={preset.id}
+            className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up"
+            style={{ animationDelay: `${i * 80}ms` }}
+          >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FlaskConical className="h-4 w-4 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <FlaskConical className="h-4 w-4 gradient-text" />
                 {preset.name}
               </CardTitle>
             </CardHeader>
