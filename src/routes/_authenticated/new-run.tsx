@@ -10,7 +10,7 @@ import { listPresets, createRun } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
 import type { ExperimentPreset } from "@/types/grid-arena";
 
-export const Route = createFileRoute("/new-run")({
+export const Route = createFileRoute("/_authenticated/new-run")({
   head: () => ({
     meta: [
       { title: "New Run — GridArena" },

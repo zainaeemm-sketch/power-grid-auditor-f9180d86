@@ -1,5 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { NavHeader } from "@/components/NavHeader";
+import { AuthProvider } from "@/hooks/useAuth";
 
 import appCss from "../styles.css?url";
 
@@ -58,9 +59,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <NavHeader />
-      <Outlet />
-    </div>
+    <AuthProvider>
+      <div className="min-h-screen bg-background text-foreground">
+        <NavHeader />
+        <Outlet />
+      </div>
+    </AuthProvider>
   );
 }

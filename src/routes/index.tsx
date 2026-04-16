@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Play, List, FlaskConical, Layers, GitCompare } from "lucide-react";
+import { Zap, Play, List, FlaskConical, Layers, GitCompare, LogIn } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,9 +22,10 @@ const overviewCards = [
 ];
 
 function HomePage() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-12">
-      {/* Hero */}
       <section className="mb-16 text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
           <Zap className="h-4 w-4" />
@@ -39,22 +40,34 @@ function HomePage() {
           and automated evaluation.
         </p>
         <div className="flex items-center justify-center gap-4">
-          <Button asChild size="lg">
-            <Link to="/new-run">
-              <Play className="mr-2 h-4 w-4" />
-              Start New Run
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link to="/runs">
-              <List className="mr-2 h-4 w-4" />
-              View Runs
-            </Link>
-          </Button>
+          {isAuthenticated ? (
+            <>
+              <Button asChild size="lg">
+                <Link to="/new-run">
+                  <Play className="mr-2 h-4 w-4" />
+                  Start New Run
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <Link to="/runs">
+                  <List className="mr-2 h-4 w-4" />
+                  View Runs
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild size="lg">
+                <Link to="/login">
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Sign In to Get Started
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </section>
 
-      {/* Overview cards */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {overviewCards.map(({ icon: Icon, label, description }) => (
           <Card key={label} className="border-border/60 bg-card/60">
