@@ -106,7 +106,29 @@ function BatchDetailPage() {
     router.invalidate();
   }, [runs, router]);
 
-  if (!data || !batch) {
+  const handleRetryRun = useCallback(async (runId: string) => {
+    setRetryingRunId(runId);
+    try {
+      const res = await executeRunLlm({ data: { run_id: runId } });
+      setExecutionProgress((prev) => {
+        if (!prev) return prev;
+        const updated = prev.results.map((r) =>
+          r.runId === runId ? { runId, success: res.success, error: res.error } : r
+        );
+        return { ...prev, results: updated };
+      });
+      if (res.success) {
+        toast.success("Run retried successfully");
+      } else {
+        toast.error(`Retry failed: ${res.error}`);
+      }
+      router.invalidate();
+    } catch (err: any) {
+      toast.error(`Retry failed: ${err.message}`);
+    } finally {
+      setRetryingRunId(null);
+    }
+  }, [router]);
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
         <p className="text-muted-foreground">Loading batch…</p>
