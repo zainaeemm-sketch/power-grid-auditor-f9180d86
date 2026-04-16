@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { NavHeader } from "@/components/NavHeader";
 import { AuthProvider } from "@/hooks/useAuth";
+import { PwaSplashScreen } from "@/components/PwaSplashScreen";
 
 import appCss from "../styles.css?url";
 
