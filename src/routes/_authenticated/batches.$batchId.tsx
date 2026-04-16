@@ -68,6 +68,8 @@ function BatchDetailPage() {
   const [executing, setExecuting] = useState(false);
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null);
   const [retryingAll, setRetryingAll] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
+  const [notifOn, setNotifOn] = useState(() => isBrowserNotifEnabled());
   const [executionProgress, setExecutionProgress] = useState<{
     current: number;
     total: number;
