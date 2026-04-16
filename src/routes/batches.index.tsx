@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Layers } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/batches")({
+export const Route = createFileRoute("/batches/")({
   head: () => ({
     meta: [
       { title: "Batches — GridArena" },

@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Search, Plus } from "lucide-react";
 import { useState } from "react";
 
-export const Route = createFileRoute("/runs")({
+export const Route = createFileRoute("/runs/")({
   head: () => ({
     meta: [
       { title: "Runs — GridArena" },
