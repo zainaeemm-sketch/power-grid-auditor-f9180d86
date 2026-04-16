@@ -16,14 +16,23 @@ export const Route = createFileRoute("/_authenticated/runs/")({
     ],
   }),
   loader: async () => {
-    if (typeof window === "undefined") return { runs: [] };
+    if (typeof window === "undefined") return { runs: [], error: null };
     try {
-      return await listRuns();
-    } catch {
-      return { runs: [] };
+      const result = await listRuns();
+      return { ...result, error: null };
+    } catch (err: any) {
+      return { runs: [], error: err.message ?? "Failed to load runs" };
     }
   },
   component: RunsPage,
+  errorComponent: ({ error }) => (
+    <main className="mx-auto max-w-6xl px-4 py-8">
+      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
+        <p className="text-destructive font-medium">Failed to load runs</p>
+        <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
+      </div>
+    </main>
+  ),
 });
 
 function RunsPage() {
