@@ -350,6 +350,10 @@ function BatchDetailPage() {
     exportComparisonCsv(runs);
   };
 
+  // Wire refs for keyboard shortcuts
+  handlersRef.current.exportBatch = handleExportBatch;
+  handlersRef.current.exportComparison = handleExportComparison;
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       {/* Header */}
