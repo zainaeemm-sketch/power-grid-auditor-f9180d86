@@ -118,6 +118,53 @@ export type Database = {
           },
         ]
       }
+      run_parse_results: {
+        Row: {
+          action_type: string | null
+          created_at: string
+          enabled: boolean
+          id: string
+          parser_notes: string | null
+          run_id: string
+          source_text: string | null
+          target_index: number | null
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          action_type?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          parser_notes?: string | null
+          run_id: string
+          source_text?: string | null
+          target_index?: number | null
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          action_type?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          parser_notes?: string | null
+          run_id?: string
+          source_text?: string | null
+          target_index?: number | null
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_parse_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: true
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       run_prompt_logs: {
         Row: {
           created_at: string
@@ -146,6 +193,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "run_prompt_logs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: true
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      run_recommendations: {
+        Row: {
+          created_at: string
+          id: string
+          recommendation_text: string | null
+          run_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recommendation_text?: string | null
+          run_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recommendation_text?: string | null
+          run_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_recommendations_run_id_fkey"
             columns: ["run_id"]
             isOneToOne: true
             referencedRelation: "runs"
