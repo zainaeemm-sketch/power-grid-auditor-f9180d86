@@ -65,6 +65,34 @@ function BatchDetailPage() {
   const batch = data?.batch;
   const runs = data?.runs ?? [];
 
+  // Extract run IDs for realtime filtering
+  const runIds = useMemo(() => runs.map((r) => r.run.id), [runs]);
+
+  // Realtime subscription for run status updates
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (runIds.length === 0 || !batch) return;
+    const channel = supabase
+      .channel(`batch-${batch.id}-runs`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'runs' },
+        (payload: any) => {
+          if (runIds.includes(payload.new?.id)) {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            debounceRef.current = setTimeout(() => {
+              router.invalidate();
+            }, 300);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [batch?.id, runIds, router]);
+
   const handleRunAll = useCallback(async () => {
     const pendingRuns = runs.filter((r) => r.run.status !== "completed");
     if (pendingRuns.length === 0) {
