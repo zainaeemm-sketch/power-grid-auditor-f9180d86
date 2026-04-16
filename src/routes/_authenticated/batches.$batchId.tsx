@@ -338,9 +338,24 @@ function BatchDetailPage() {
               </p>
             )}
             {!executing && executionProgress.results.some((r) => !r.success) && (
-              <p className="mb-3 text-sm font-medium text-muted-foreground">
-                Completed — {executionProgress.results.filter((r) => !r.success).length} failed run(s)
-              </p>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Completed — {executionProgress.results.filter((r) => !r.success).length} failed run(s)
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={retryingAll || retryingRunId !== null}
+                  onClick={handleRetryAllFailed}
+                >
+                  {retryingAll ? (
+                    <><Loader2 className="mr-1 h-3 w-3 animate-spin" />Retrying…</>
+                  ) : (
+                    <><RotateCcw className="mr-1 h-3 w-3" />Retry All Failed</>
+                  )}
+                </Button>
+              </div>
             )}
             {executionProgress.results.length > 0 && (
               <div className="space-y-1">
