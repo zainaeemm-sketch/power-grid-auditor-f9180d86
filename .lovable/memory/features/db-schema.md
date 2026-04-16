@@ -13,5 +13,7 @@ type: feature
 - **run_parse_results** — id, run_id (unique FK → runs CASCADE), source_text, parser_notes, action_type, target_index, value, enabled. RLS: via runs.user_id.
 - **run_evaluations** — id, run_id (unique FK → runs CASCADE), feasibility, violations_found, baseline_violations, post_action_violations, violation_improvement, confidence, grounding_quality, action_applied, notes. RLS: via runs.user_id.
 - **experiment_presets** — id, name, provider/model fields, prompt/dataset version, random_seed, notes, default_prompt_text, user_id. RLS: user_id = auth.uid().
+- **batches** — id, name, task, research_question, status (text: queued/running/completed), user_id. RLS: user_id = auth.uid().
+- **batch_run_links** — id, batch_id (FK → batches CASCADE), run_id (FK → runs CASCADE), UNIQUE(batch_id, run_id). RLS: via batches.user_id.
 
 All tables have created_at, updated_at with auto-update triggers.

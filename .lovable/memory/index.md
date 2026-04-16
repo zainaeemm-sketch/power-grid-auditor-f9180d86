@@ -9,4 +9,4 @@ Protected routes under src/routes/_authenticated/. Login at /login.
 Auth middleware chain: withAuthHeaders (client) → requireSupabaseAuth (server).
 
 ## Memories
-- [DB Schema](mem://features/db-schema) — runs, run_metadata, run_prompt_logs, run_recommendations, run_parse_results, experiment_presets with user-scoped RLS
+- [DB Schema](mem://features/db-schema) — runs, run_metadata, run_prompt_logs, experiment_presets, batches, batch_run_links tables with user-scoped RLS
