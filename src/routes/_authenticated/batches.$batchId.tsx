@@ -55,6 +55,7 @@ function BatchDetailPage() {
   const router = useRouter();
   const [executing, setExecuting] = useState(false);
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null);
+  const [retryingAll, setRetryingAll] = useState(false);
   const [executionProgress, setExecutionProgress] = useState<{
     current: number;
     total: number;
@@ -158,6 +159,46 @@ function BatchDetailPage() {
       setRetryingRunId(null);
     }
   }, [router]);
+
+  const handleRetryAllFailed = useCallback(async () => {
+    if (!executionProgress) return;
+    const failedResults = executionProgress.results.filter((r) => !r.success);
+    if (failedResults.length === 0) return;
+
+    setRetryingAll(true);
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const fr of failedResults) {
+      setRetryingRunId(fr.runId);
+      try {
+        const res = await executeRunLlm({ data: { run_id: fr.runId } });
+        setExecutionProgress((prev) => {
+          if (!prev) return prev;
+          const updated = prev.results.map((r) =>
+            r.runId === fr.runId ? { runId: fr.runId, success: res.success, error: res.error } : r
+          );
+          return { ...prev, results: updated };
+        });
+        if (res.success) succeeded++;
+        else failed++;
+      } catch (err: any) {
+        setExecutionProgress((prev) => {
+          if (!prev) return prev;
+          const updated = prev.results.map((r) =>
+            r.runId === fr.runId ? { runId: fr.runId, success: false, error: err.message } : r
+          );
+          return { ...prev, results: updated };
+        });
+        failed++;
+      }
+    }
+
+    setRetryingRunId(null);
+    setRetryingAll(false);
+    toast.success(`Retry complete: ${succeeded} succeeded, ${failed} still failed`);
+    router.invalidate();
+  }, [executionProgress, router]);
 
   if (!data || !batch) {
     return (
@@ -297,9 +338,24 @@ function BatchDetailPage() {
               </p>
             )}
             {!executing && executionProgress.results.some((r) => !r.success) && (
-              <p className="mb-3 text-sm font-medium text-muted-foreground">
-                Completed — {executionProgress.results.filter((r) => !r.success).length} failed run(s)
-              </p>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Completed — {executionProgress.results.filter((r) => !r.success).length} failed run(s)
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={retryingAll || retryingRunId !== null}
+                  onClick={handleRetryAllFailed}
+                >
+                  {retryingAll ? (
+                    <><Loader2 className="mr-1 h-3 w-3 animate-spin" />Retrying…</>
+                  ) : (
+                    <><RotateCcw className="mr-1 h-3 w-3" />Retry All Failed</>
+                  )}
+                </Button>
+              </div>
             )}
             {executionProgress.results.length > 0 && (
               <div className="space-y-1">
