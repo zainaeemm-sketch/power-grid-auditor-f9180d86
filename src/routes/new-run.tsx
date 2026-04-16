@@ -6,6 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
+import { listPresets, createRun } from "@/server/runs.functions";
+import { useServerFn } from "@tanstack/react-start";
+import type { ExperimentPreset } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/new-run")({
   head: () => ({
@@ -14,21 +17,52 @@ export const Route = createFileRoute("/new-run")({
       { name: "description", content: "Create a new experiment run." },
     ],
   }),
+  loader: () => listPresets(),
   component: NewRunPage,
 });
 
 function NewRunPage() {
+  const { presets } = Route.useLoaderData() as { presets: ExperimentPreset[] };
   const navigate = useNavigate();
+  const createRunFn = useServerFn(createRun);
+
   const [title, setTitle] = useState("");
   const [task, setTask] = useState("");
   const [agent, setAgent] = useState("");
   const [caseName, setCaseName] = useState("");
   const [researchQuestion, setResearchQuestion] = useState("");
+  const [presetId, setPresetId] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePresetChange = (value: string) => {
+    setPresetId(value === "none" ? "" : value);
+    if (value !== "none") {
+      const preset = presets.find((p: ExperimentPreset) => p.id === value);
+      if (preset) {
+        setAgent(preset.model_name || "");
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Phase 2: will create run via server function
-    navigate({ to: "/runs" });
+    setSubmitting(true);
+    try {
+      const result = await createRunFn({
+        data: {
+          title,
+          task,
+          agent,
+          case_name: caseName,
+          research_question: researchQuestion || undefined,
+          preset_id: presetId || undefined,
+        },
+      });
+      navigate({ to: "/runs/$runId", params: { runId: result.run.id } });
+    } catch (err) {
+      console.error("Failed to create run:", err);
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -41,13 +75,15 @@ function NewRunPage() {
             <CardTitle className="text-base">Run Configuration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Preset selector */}
             <div className="space-y-2">
               <Label>Preset (optional)</Label>
-              <Select>
+              <Select value={presetId || "none"} onValueChange={handlePresetChange}>
                 <SelectTrigger><SelectValue placeholder="Select a preset..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No preset</SelectItem>
+                  {presets.map((p: ExperimentPreset) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -78,7 +114,9 @@ function NewRunPage() {
               <Textarea id="rq" value={researchQuestion} onChange={(e) => setResearchQuestion(e.target.value)} placeholder="What is this experiment trying to answer?" rows={3} />
             </div>
 
-            <Button type="submit" className="w-full">Create Run</Button>
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? "Creating…" : "Create Run"}
+            </Button>
           </CardContent>
         </Card>
       </form>

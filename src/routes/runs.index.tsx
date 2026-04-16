@@ -1,11 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Search, Plus } from "lucide-react";
 import { useState } from "react";
+import { listRuns } from "@/server/runs.functions";
+import type { Run, RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/runs/")({
   head: () => ({
@@ -14,31 +15,16 @@ export const Route = createFileRoute("/runs/")({
       { name: "description", content: "Browse and search experiment runs." },
     ],
   }),
+  loader: () => listRuns(),
   component: RunsPage,
 });
 
-type RunStatus = "queued" | "running" | "completed";
-
-interface RunItem {
-  id: string;
-  title: string;
-  task: string;
-  agent: string;
-  case_name: string;
-  status: RunStatus;
-  created_at: string;
-}
-
-const sampleRuns: RunItem[] = [
-  { id: "1", title: "Load Scaling Test - IEEE 14", task: "load_scaling", agent: "gpt-4o", case_name: "ieee14", status: "completed", created_at: "2026-04-15T10:30:00Z" },
-  { id: "2", title: "Generator Dispatch - IEEE 39", task: "dispatch", agent: "claude-3.5", case_name: "ieee39", status: "running", created_at: "2026-04-15T14:00:00Z" },
-  { id: "3", title: "Line Outage Recovery", task: "contingency", agent: "gpt-4o", case_name: "ieee118", status: "queued", created_at: "2026-04-16T08:00:00Z" },
-];
-
 function RunsPage() {
+  const { runs } = Route.useLoaderData() as { runs: Run[] };
   const [search, setSearch] = useState("");
-  const filtered = sampleRuns.filter(
-    (r) =>
+
+  const filtered = runs.filter(
+    (r: Run) =>
       r.title.toLowerCase().includes(search.toLowerCase()) ||
       r.agent.toLowerCase().includes(search.toLowerCase()) ||
       r.task.toLowerCase().includes(search.toLowerCase())
@@ -56,7 +42,6 @@ function RunsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="mb-6">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -69,9 +54,8 @@ function RunsPage() {
         </div>
       </div>
 
-      {/* Run list */}
       <div className="space-y-3">
-        {filtered.map((run) => (
+        {filtered.map((run: Run) => (
           <Link key={run.id} to="/runs/$runId" params={{ runId: run.id }} className="block">
             <Card className="border-border/60 bg-card/60 transition-colors hover:border-primary/40">
               <CardContent className="flex items-center justify-between p-4">
@@ -82,7 +66,7 @@ function RunsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <StatusBadge status={run.status} />
+                  <StatusBadge status={run.status as RunStatus} />
                   <span className="text-xs text-muted-foreground">
                     {new Date(run.created_at).toLocaleDateString()}
                   </span>
