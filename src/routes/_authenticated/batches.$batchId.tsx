@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw } from "lucide-react";
 import { useState, useCallback } from "react";
 import { getBatchDetails } from "@/server/batch.functions";
 import { executeRunLlm } from "@/server/llm.functions";
@@ -53,6 +53,7 @@ function BatchDetailPage() {
   const data = Route.useLoaderData() as BatchDetails | null;
   const router = useRouter();
   const [executing, setExecuting] = useState(false);
+  const [retryingRunId, setRetryingRunId] = useState<string | null>(null);
   const [executionProgress, setExecutionProgress] = useState<{
     current: number;
     total: number;
@@ -104,6 +105,30 @@ function BatchDetailPage() {
     setExecuting(false);
     router.invalidate();
   }, [runs, router]);
+
+  const handleRetryRun = useCallback(async (runId: string) => {
+    setRetryingRunId(runId);
+    try {
+      const res = await executeRunLlm({ data: { run_id: runId } });
+      setExecutionProgress((prev) => {
+        if (!prev) return prev;
+        const updated = prev.results.map((r) =>
+          r.runId === runId ? { runId, success: res.success, error: res.error } : r
+        );
+        return { ...prev, results: updated };
+      });
+      if (res.success) {
+        toast.success("Run retried successfully");
+      } else {
+        toast.error(`Retry failed: ${res.error}`);
+      }
+      router.invalidate();
+    } catch (err: any) {
+      toast.error(`Retry failed: ${err.message}`);
+    } finally {
+      setRetryingRunId(null);
+    }
+  }, [router]);
 
   if (!data || !batch) {
     return (
@@ -227,17 +252,24 @@ function BatchDetailPage() {
       </div>
 
       {/* Live Execution Progress */}
-      {executionProgress && executing && (
+      {executionProgress && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
           <CardContent className="p-4">
-            <div className="mb-3 flex items-center justify-between text-sm">
-              <span className="font-medium">Executing: {executionProgress.current}/{executionProgress.total}</span>
-              <span className="text-muted-foreground">{Math.round((executionProgress.current / executionProgress.total) * 100)}%</span>
-            </div>
-            {executionProgress.currentRunTitle && (
+            {executing && (
+              <div className="mb-3 flex items-center justify-between text-sm">
+                <span className="font-medium">Executing: {executionProgress.current}/{executionProgress.total}</span>
+                <span className="text-muted-foreground">{Math.round((executionProgress.current / executionProgress.total) * 100)}%</span>
+              </div>
+            )}
+            {executing && executionProgress.currentRunTitle && (
               <p className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                 {executionProgress.currentRunTitle}
+              </p>
+            )}
+            {!executing && executionProgress.results.some((r) => !r.success) && (
+              <p className="mb-3 text-sm font-medium text-muted-foreground">
+                Completed — {executionProgress.results.filter((r) => !r.success).length} failed run(s)
               </p>
             )}
             {executionProgress.results.length > 0 && (
@@ -250,7 +282,23 @@ function BatchDetailPage() {
                       <XCircle className="h-3.5 w-3.5 text-destructive" />
                     )}
                     <span className="truncate">{r.runId.slice(0, 8)}…</span>
-                    {r.error && <span className="text-destructive">{r.error.slice(0, 60)}</span>}
+                    {r.error && <span className="truncate text-destructive">{r.error.slice(0, 60)}</span>}
+                    {!r.success && !executing && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto h-6 px-2 text-xs"
+                        disabled={retryingRunId === r.runId}
+                        onClick={() => handleRetryRun(r.runId)}
+                      >
+                        {retryingRunId === r.runId ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                        )}
+                        Retry
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
