@@ -1,127 +1,65 @@
 
 
-# Phase 6: Batch Experiments, Comparison, Charts, and CSV Export
+# Design Modernization: Gradient Accents + Bold Style
 
-## Overview
+Applies the "Gradient Accents + Bold" design system across the app with animated interactions, gradient backgrounds, colorful card accents, and hover reveals.
 
-This phase adds batch experiment management, multi-run execution, comparison analytics with charts, and CSV export. It builds on the existing run/evaluation pipeline from Phases 1-5.
+## Changes
 
-## Step 1: Database — `batches` and `batch_run_links` tables
+### 1. Global styles (`src/styles.css`)
+- Add CSS keyframes for `fade-up`, `glow-pulse`, and `float` animations
+- Add utility classes: `.animate-fade-up`, `.card-glow`, `.hover-lift`
+- Deepen background to `#0a0e1a`, adjust card surfaces for gradient-friendly tones
+- Add a subtle radial gradient glow behind hero sections via a utility class
 
-Two new tables via migration:
+### 2. NavHeader (`src/components/NavHeader.tsx`)
+- Gradient logo text: "Grid" white + "Arena" emerald-to-cyan gradient
+- Active nav link gets a gradient underline indicator instead of background highlight
+- Subtle backdrop-blur glass effect on the header bar
+- Hover: nav items slide-up slightly with color transition
 
-```sql
-CREATE TABLE public.batches (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  task text NOT NULL,
-  research_question text,
-  status text NOT NULL DEFAULT 'queued',  -- queued | running | completed
-  user_id uuid NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
+### 3. Homepage (`src/routes/index.tsx`)
+- Hero badge: gradient background (emerald-to-teal) with border glow
+- Title: "Grid" in white + "Arena" as gradient text (emerald → teal → cyan)
+- Decorative gradient accent line below the title
+- CTA button: gradient background (emerald → teal) with animated glow shadow on hover
+- Feature cards: each card gets a unique accent color (emerald, purple, amber, cyan)
+  - Gradient icon backgrounds
+  - On hover: border changes to accent color, "Explore →" text fades in
+  - Subtle translate-y lift on hover
+- Staggered fade-up entrance animation on cards (CSS animation-delay)
 
-CREATE TABLE public.batch_run_links (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  batch_id uuid NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
-  run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(batch_id, run_id)
-);
-```
+### 4. Runs list (`src/routes/_authenticated/runs.index.tsx`)
+- Run cards: gradient left-border accent on hover
+- Hover lift effect (`translate-y-[-2px]`)
+- Status badge gets a subtle glow matching its color
 
-Both tables get RLS policies scoped via `user_id` (batches) or via `batches.user_id` (batch_run_links). Auto-update trigger on `batches.updated_at`.
+### 5. Batches list (`src/routes/_authenticated/batches.index.tsx`)
+- Same card hover treatment as Runs
+- Batch icon gets gradient coloring
 
-## Step 2: Types — `src/types/grid-arena.ts`
+### 6. StatusBadge (`src/components/StatusBadge.tsx`)
+- Add a small animated dot (pulse) for "running" status
+- Slightly bolder styling with gradient-tinted borders
 
-Add `Batch` and `BatchRunLink` interfaces. Add `BatchDetails` type containing batch, linked runs with their evaluations.
+### 7. Run detail header (`src/components/run-details/RunHeader.tsx`)
+- Gradient accent on the run title
+- Subtle background gradient behind the header area
 
-## Step 3: Server functions — `src/server/batch.functions.ts`
+### 8. Card component (`src/components/ui/card.tsx`)
+- Add `transition-all duration-300` to base card class for smooth hover effects across the app
 
-New file with:
+## Files touched
+| File | Type |
+|------|------|
+| `src/styles.css` | Add animations + utility classes + darker bg |
+| `src/components/NavHeader.tsx` | Gradient logo, active indicator, glass header |
+| `src/routes/index.tsx` | Full hero redesign with gradients + animated cards |
+| `src/routes/_authenticated/runs.index.tsx` | Card hover effects |
+| `src/routes/_authenticated/batches.index.tsx` | Card hover effects |
+| `src/components/StatusBadge.tsx` | Running pulse dot |
+| `src/components/run-details/RunHeader.tsx` | Gradient title accent |
+| `src/components/ui/card.tsx` | Base transition class |
 
-- **`listBatches`** — fetch user's batches with run count
-- **`getBatchDetails`** — fetch batch + linked runs + their evaluations (joined)
-- **`createBatch`** — accepts name, task, research_question, agents[], cases[], preset_id?; creates batch record, then creates N runs (agents x cases) and links them
-- **`executeBatchRuns`** — sequentially executes `executeRunLlm` for each incomplete run in the batch; updates batch status; returns progress/results
-- **`getBatchAnalytics`** — computes comparison metrics (feasibility rate, avg improvement, per-agent/per-case breakdowns) from evaluations
-
-## Step 4: Batch list page — `src/routes/_authenticated/batches.index.tsx`
-
-Replace sample data with real loader calling `listBatches`. Show batch cards with name, task, run count, status badge. "New Batch" button links to `/batches/new`.
-
-## Step 5: Batch creation page — `src/routes/_authenticated/batches.new.tsx`
-
-New route with form:
-- Batch name, task, research question inputs
-- Multi-select for agents (text input, comma-separated or chip-style)
-- Multi-select for cases
-- Optional preset selector
-- "Create Batch" button that calls `createBatch` and navigates to batch detail
-
-## Step 6: Batch details page — `src/routes/_authenticated/batches.$batchId.tsx`
-
-Full rewrite with:
-- **Header**: batch name, task, research question, status badge, created date
-- **Progress bar**: completed/total runs
-- **"Run All Experiments" button**: calls `executeBatchRuns`, shows progress
-- **Summary cards**: total runs, completed, avg feasibility, avg improvement, best/worst agent
-- **Run table**: columns for run title, agent, case, status, feasibility, violation improvement, confidence — each row links to run detail
-- **Comparison table**: agent-level aggregation (runs, feasibility %, avg improvement, avg confidence, avg grounding)
-- **Charts section** (4 charts using recharts + existing chart.tsx wrapper):
-  1. Violation improvement by agent (bar)
-  2. Feasibility rate by agent (bar)
-  3. Confidence vs grounding scatter
-  4. Case-level performance (bar)
-- **Export buttons**: Export Batch CSV, Export Comparison CSV
-
-## Step 7: CSV Export utilities — `src/lib/csv-export.ts`
-
-Pure client-side functions:
-- `exportBatchCsv(runs, evaluations)` — generates batch CSV with all specified fields
-- `exportRunCsv(runDetails)` — generates single-run CSV
-- `exportComparisonCsv(runs, evaluations)` — generates comparison CSV
-- Helper: `downloadCsv(content, filename)` — creates blob and triggers download
-
-Add "Export Run CSV" button to the run detail page.
-
-## Step 8: Compare page update — `src/routes/_authenticated/compare.tsx`
-
-Wire up with real data:
-- Load runs list via `listRuns`
-- When two runs selected, fetch both via `getRunDetails`
-- Display side-by-side: metadata, recommendation, parsed action, evaluation
-- Add "Export Comparison CSV" button
-
-## Step 9: Update memory
-
-Update `mem://features/db-schema` with new tables.
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| New migration | `batches` + `batch_run_links` tables with RLS |
-| `src/types/grid-arena.ts` | Add Batch, BatchRunLink, BatchDetails types |
-| `src/server/batch.functions.ts` | New: all batch server functions |
-| `src/lib/csv-export.ts` | New: CSV generation utilities |
-| `src/routes/_authenticated/batches.index.tsx` | Real data, loader |
-| `src/routes/_authenticated/batches.new.tsx` | New: batch creation form |
-| `src/routes/_authenticated/batches.$batchId.tsx` | Full batch detail with analytics + charts |
-| `src/routes/_authenticated/compare.tsx` | Wire up with real data |
-| `src/routes/_authenticated/runs.$runId.tsx` | Add "Export Run CSV" button |
-| `mem://features/db-schema` | Add batch tables |
-
-## Implementation Order
-
-1. Migration (tables + RLS)
-2. Types
-3. Server functions
-4. CSV utilities
-5. Batch list page (with loader)
-6. Batch creation page
-7. Batch details page (runs table + execution + analytics + charts)
-8. Compare page update
-9. Run detail CSV export button
+No database changes. No new dependencies needed (recharts already installed for charts).
 
