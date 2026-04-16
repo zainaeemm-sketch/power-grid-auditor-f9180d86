@@ -51,3 +51,31 @@ export interface RunDetails {
   parseResult: RunParseResult | null;
   evaluation: RunEvaluation | null;
 }
+
+export interface Batch {
+  id: string;
+  name: string;
+  task: string;
+  research_question: string | null;
+  status: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BatchRunLink {
+  id: string;
+  batch_id: string;
+  run_id: string;
+  created_at: string;
+}
+
+export interface BatchRunWithEvaluation {
+  run: Run;
+  evaluation: RunEvaluation | null;
+}
+
+export interface BatchDetails {
+  batch: Batch;
+  runs: BatchRunWithEvaluation[];
+}
