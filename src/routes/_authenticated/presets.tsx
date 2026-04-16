@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/presets")({
     ],
   }),
   loader: async () => {
+    if (typeof window === "undefined") return { presets: [] };
     try {
       return await listPresets();
     } catch {

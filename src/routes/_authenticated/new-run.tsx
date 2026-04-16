@@ -18,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/new-run")({
     ],
   }),
   loader: async () => {
+    if (typeof window === "undefined") return { presets: [] };
     try {
       return await listPresets();
     } catch {

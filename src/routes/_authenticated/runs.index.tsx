@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/runs/")({
     ],
   }),
   loader: async () => {
+    if (typeof window === "undefined") return { runs: [] };
     try {
       return await listRuns();
     } catch {
