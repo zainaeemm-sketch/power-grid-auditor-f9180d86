@@ -9,38 +9,186 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RunsRouteImport } from './routes/runs'
+import { Route as PresetsRouteImport } from './routes/presets'
+import { Route as NewRunRouteImport } from './routes/new-run'
+import { Route as CompareRouteImport } from './routes/compare'
+import { Route as BatchesRouteImport } from './routes/batches'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RunsIndexRouteImport } from './routes/runs.index'
+import { Route as BatchesIndexRouteImport } from './routes/batches.index'
+import { Route as RunsRunIdRouteImport } from './routes/runs.$runId'
+import { Route as BatchesBatchIdRouteImport } from './routes/batches.$batchId'
 
+const RunsRoute = RunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PresetsRoute = PresetsRouteImport.update({
+  id: '/presets',
+  path: '/presets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewRunRoute = NewRunRouteImport.update({
+  id: '/new-run',
+  path: '/new-run',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompareRoute = CompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BatchesRoute = BatchesRouteImport.update({
+  id: '/batches',
+  path: '/batches',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RunsIndexRoute = RunsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RunsRoute,
+} as any)
+const BatchesIndexRoute = BatchesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BatchesRoute,
+} as any)
+const RunsRunIdRoute = RunsRunIdRouteImport.update({
+  id: '/$runId',
+  path: '/$runId',
+  getParentRoute: () => RunsRoute,
+} as any)
+const BatchesBatchIdRoute = BatchesBatchIdRouteImport.update({
+  id: '/$batchId',
+  path: '/$batchId',
+  getParentRoute: () => BatchesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/batches': typeof BatchesRouteWithChildren
+  '/compare': typeof CompareRoute
+  '/new-run': typeof NewRunRoute
+  '/presets': typeof PresetsRoute
+  '/runs': typeof RunsRouteWithChildren
+  '/batches/$batchId': typeof BatchesBatchIdRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/batches/': typeof BatchesIndexRoute
+  '/runs/': typeof RunsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/compare': typeof CompareRoute
+  '/new-run': typeof NewRunRoute
+  '/presets': typeof PresetsRoute
+  '/batches/$batchId': typeof BatchesBatchIdRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/batches': typeof BatchesIndexRoute
+  '/runs': typeof RunsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/batches': typeof BatchesRouteWithChildren
+  '/compare': typeof CompareRoute
+  '/new-run': typeof NewRunRoute
+  '/presets': typeof PresetsRoute
+  '/runs': typeof RunsRouteWithChildren
+  '/batches/$batchId': typeof BatchesBatchIdRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/batches/': typeof BatchesIndexRoute
+  '/runs/': typeof RunsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/batches'
+    | '/compare'
+    | '/new-run'
+    | '/presets'
+    | '/runs'
+    | '/batches/$batchId'
+    | '/runs/$runId'
+    | '/batches/'
+    | '/runs/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/compare'
+    | '/new-run'
+    | '/presets'
+    | '/batches/$batchId'
+    | '/runs/$runId'
+    | '/batches'
+    | '/runs'
+  id:
+    | '__root__'
+    | '/'
+    | '/batches'
+    | '/compare'
+    | '/new-run'
+    | '/presets'
+    | '/runs'
+    | '/batches/$batchId'
+    | '/runs/$runId'
+    | '/batches/'
+    | '/runs/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BatchesRoute: typeof BatchesRouteWithChildren
+  CompareRoute: typeof CompareRoute
+  NewRunRoute: typeof NewRunRoute
+  PresetsRoute: typeof PresetsRoute
+  RunsRoute: typeof RunsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/runs': {
+      id: '/runs'
+      path: '/runs'
+      fullPath: '/runs'
+      preLoaderRoute: typeof RunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/presets': {
+      id: '/presets'
+      path: '/presets'
+      fullPath: '/presets'
+      preLoaderRoute: typeof PresetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/new-run': {
+      id: '/new-run'
+      path: '/new-run'
+      fullPath: '/new-run'
+      preLoaderRoute: typeof NewRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compare': {
+      id: '/compare'
+      path: '/compare'
+      fullPath: '/compare'
+      preLoaderRoute: typeof CompareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/batches': {
+      id: '/batches'
+      path: '/batches'
+      fullPath: '/batches'
+      preLoaderRoute: typeof BatchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +196,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/runs/': {
+      id: '/runs/'
+      path: '/'
+      fullPath: '/runs/'
+      preLoaderRoute: typeof RunsIndexRouteImport
+      parentRoute: typeof RunsRoute
+    }
+    '/batches/': {
+      id: '/batches/'
+      path: '/'
+      fullPath: '/batches/'
+      preLoaderRoute: typeof BatchesIndexRouteImport
+      parentRoute: typeof BatchesRoute
+    }
+    '/runs/$runId': {
+      id: '/runs/$runId'
+      path: '/$runId'
+      fullPath: '/runs/$runId'
+      preLoaderRoute: typeof RunsRunIdRouteImport
+      parentRoute: typeof RunsRoute
+    }
+    '/batches/$batchId': {
+      id: '/batches/$batchId'
+      path: '/$batchId'
+      fullPath: '/batches/$batchId'
+      preLoaderRoute: typeof BatchesBatchIdRouteImport
+      parentRoute: typeof BatchesRoute
+    }
   }
 }
 
+interface BatchesRouteChildren {
+  BatchesBatchIdRoute: typeof BatchesBatchIdRoute
+  BatchesIndexRoute: typeof BatchesIndexRoute
+}
+
+const BatchesRouteChildren: BatchesRouteChildren = {
+  BatchesBatchIdRoute: BatchesBatchIdRoute,
+  BatchesIndexRoute: BatchesIndexRoute,
+}
+
+const BatchesRouteWithChildren =
+  BatchesRoute._addFileChildren(BatchesRouteChildren)
+
+interface RunsRouteChildren {
+  RunsRunIdRoute: typeof RunsRunIdRoute
+  RunsIndexRoute: typeof RunsIndexRoute
+}
+
+const RunsRouteChildren: RunsRouteChildren = {
+  RunsRunIdRoute: RunsRunIdRoute,
+  RunsIndexRoute: RunsIndexRoute,
+}
+
+const RunsRouteWithChildren = RunsRoute._addFileChildren(RunsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BatchesRoute: BatchesRouteWithChildren,
+  CompareRoute: CompareRoute,
+  NewRunRoute: NewRunRoute,
+  PresetsRoute: PresetsRoute,
+  RunsRoute: RunsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
