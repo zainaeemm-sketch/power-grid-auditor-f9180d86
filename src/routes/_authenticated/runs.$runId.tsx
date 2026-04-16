@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
+import { Download } from "lucide-react";
 import { getRunDetails } from "@/server/runs.functions";
 import type { RunDetails, RunStatus } from "@/types/grid-arena";
+import { exportRunCsv } from "@/lib/csv-export";
 
 import { RunHeader } from "@/components/run-details/RunHeader";
 import { RunStatusControls } from "@/components/run-details/RunStatusControls";
@@ -61,7 +63,13 @@ function RunDetailPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <RunHeader run={run} />
-      <RunStatusControls runId={run.id} status={run.status as RunStatus} />
+      <div className="mb-4 flex items-center justify-between">
+        <RunStatusControls runId={run.id} status={run.status as RunStatus} />
+        <Button variant="outline" size="sm" onClick={() => exportRunCsv(details)}>
+          <Download className="mr-1.5 h-3.5 w-3.5" />
+          Export Run CSV
+        </Button>
+      </div>
 
       {/* 2-column grid for editable + read-only panels */}
       <div className="grid gap-4 lg:grid-cols-2">

@@ -20,6 +20,7 @@ import { Route as AuthenticatedBatchesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRunsIndexRouteImport } from './routes/_authenticated/runs.index'
 import { Route as AuthenticatedBatchesIndexRouteImport } from './routes/_authenticated/batches.index'
 import { Route as AuthenticatedRunsRunIdRouteImport } from './routes/_authenticated/runs.$runId'
+import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches.new'
 import { Route as AuthenticatedBatchesBatchIdRouteImport } from './routes/_authenticated/batches.$batchId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -77,6 +78,11 @@ const AuthenticatedRunsRunIdRoute = AuthenticatedRunsRunIdRouteImport.update({
   path: '/$runId',
   getParentRoute: () => AuthenticatedRunsRoute,
 } as any)
+const AuthenticatedBatchesNewRoute = AuthenticatedBatchesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AuthenticatedBatchesRoute,
+} as any)
 const AuthenticatedBatchesBatchIdRoute =
   AuthenticatedBatchesBatchIdRouteImport.update({
     id: '/$batchId',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/presets': typeof AuthenticatedPresetsRoute
   '/runs': typeof AuthenticatedRunsRouteWithChildren
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
+  '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/batches/': typeof AuthenticatedBatchesIndexRoute
   '/runs/': typeof AuthenticatedRunsIndexRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
+  '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/batches': typeof AuthenticatedBatchesIndexRoute
   '/runs': typeof AuthenticatedRunsIndexRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/runs': typeof AuthenticatedRunsRouteWithChildren
   '/_authenticated/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
+  '/_authenticated/batches/new': typeof AuthenticatedBatchesNewRoute
   '/_authenticated/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/_authenticated/batches/': typeof AuthenticatedBatchesIndexRoute
   '/_authenticated/runs/': typeof AuthenticatedRunsIndexRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/presets'
     | '/runs'
     | '/batches/$batchId'
+    | '/batches/new'
     | '/runs/$runId'
     | '/batches/'
     | '/runs/'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
     | '/new-run'
     | '/presets'
     | '/batches/$batchId'
+    | '/batches/new'
     | '/runs/$runId'
     | '/batches'
     | '/runs'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '/_authenticated/presets'
     | '/_authenticated/runs'
     | '/_authenticated/batches/$batchId'
+    | '/_authenticated/batches/new'
     | '/_authenticated/runs/$runId'
     | '/_authenticated/batches/'
     | '/_authenticated/runs/'
@@ -249,6 +261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRunsRunIdRouteImport
       parentRoute: typeof AuthenticatedRunsRoute
     }
+    '/_authenticated/batches/new': {
+      id: '/_authenticated/batches/new'
+      path: '/new'
+      fullPath: '/batches/new'
+      preLoaderRoute: typeof AuthenticatedBatchesNewRouteImport
+      parentRoute: typeof AuthenticatedBatchesRoute
+    }
     '/_authenticated/batches/$batchId': {
       id: '/_authenticated/batches/$batchId'
       path: '/$batchId'
@@ -261,11 +280,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedBatchesRouteChildren {
   AuthenticatedBatchesBatchIdRoute: typeof AuthenticatedBatchesBatchIdRoute
+  AuthenticatedBatchesNewRoute: typeof AuthenticatedBatchesNewRoute
   AuthenticatedBatchesIndexRoute: typeof AuthenticatedBatchesIndexRoute
 }
 
 const AuthenticatedBatchesRouteChildren: AuthenticatedBatchesRouteChildren = {
   AuthenticatedBatchesBatchIdRoute: AuthenticatedBatchesBatchIdRoute,
+  AuthenticatedBatchesNewRoute: AuthenticatedBatchesNewRoute,
   AuthenticatedBatchesIndexRoute: AuthenticatedBatchesIndexRoute,
 }
 

@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      batch_run_links: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          run_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          run_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_run_links_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_run_links_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      batches: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          research_question: string | null
+          status: string
+          task: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          research_question?: string | null
+          status?: string
+          task: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          research_question?: string | null
+          status?: string
+          task?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       experiment_presets: {
         Row: {
           created_at: string
