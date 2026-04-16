@@ -80,8 +80,14 @@ function BatchDetailPage() {
   // Extract run IDs for realtime filtering
   const runIds = useMemo(() => runs.map((r) => r.run.id), [runs]);
 
-  // Realtime subscription for run status updates
+  // Realtime subscription for run status updates with toast notifications
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completedCountRef = useRef(runs.filter((r) => r.run.status === "completed").length);
+
+  useEffect(() => {
+    completedCountRef.current = runs.filter((r) => r.run.status === "completed").length;
+  }, [runs]);
+
   useEffect(() => {
     if (runIds.length === 0 || !batch) return;
     const channel = supabase
@@ -91,6 +97,21 @@ function BatchDetailPage() {
         { event: 'UPDATE', schema: 'public', table: 'runs' },
         (payload: any) => {
           if (runIds.includes(payload.new?.id)) {
+            const newStatus = payload.new?.status;
+            const runTitle = payload.new?.title ?? payload.new?.id?.slice(0, 8);
+
+            if (newStatus === 'completed') {
+              const newCount = completedCountRef.current + 1;
+              completedCountRef.current = newCount;
+              toast.success(`Run completed: ${runTitle}`, {
+                description: `${newCount}/${runIds.length} runs finished`,
+              });
+            } else if (newStatus === 'running') {
+              toast(`Run started: ${runTitle}`, {
+                description: 'LLM execution in progress…',
+              });
+            }
+
             if (debounceRef.current) clearTimeout(debounceRef.current);
             debounceRef.current = setTimeout(() => {
               router.invalidate();
