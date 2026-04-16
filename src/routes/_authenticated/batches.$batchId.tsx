@@ -238,6 +238,31 @@ function BatchDetailPage() {
     router.invalidate();
   }, [executionProgress, router]);
 
+  // Keyboard shortcuts (use refs to avoid forward-reference issues with export handlers)
+  const handlersRef = useRef<{ exportBatch?: () => void; exportComparison?: () => void }>({});
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const mod = e.metaKey || e.ctrlKey;
+
+      if (mod && e.key === 'Enter' && !executing) {
+        e.preventDefault();
+        handleRunAll();
+      }
+      if (mod && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+        e.preventDefault();
+        handlersRef.current.exportComparison?.();
+      } else if (mod && e.key === 'e') {
+        e.preventDefault();
+        handlersRef.current.exportBatch?.();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [executing, handleRunAll]);
+
   if (!data || !batch) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
@@ -325,6 +350,10 @@ function BatchDetailPage() {
     exportComparisonCsv(runs);
   };
 
+  // Wire refs for keyboard shortcuts
+  handlersRef.current.exportBatch = handleExportBatch;
+  handlersRef.current.exportComparison = handleExportComparison;
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       {/* Header */}
@@ -350,7 +379,7 @@ function BatchDetailPage() {
           </div>
           <Progress value={executing && executionProgress ? (executionProgress.current / executionProgress.total) * 100 : progressPct} />
         </div>
-        <Button onClick={handleRunAll} disabled={executing}>
+        <Button onClick={handleRunAll} disabled={executing} title="Run All Experiments (Ctrl+Enter)">
           {executing ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Running…</>
           ) : (
