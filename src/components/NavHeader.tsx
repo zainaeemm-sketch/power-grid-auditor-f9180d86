@@ -2,13 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList } from "lucide-react";
 
 const navLinks = [
-  { to: "/", label: "Home", icon: Zap, exact: true },
-  { to: "/runs", label: "Runs", icon: LayoutList },
-  { to: "/new-run", label: "New Run", icon: Plus },
-  { to: "/presets", label: "Presets", icon: FlaskConical },
-  { to: "/batches", label: "Batches", icon: Layers },
-  { to: "/compare", label: "Compare", icon: GitCompare },
-] as const;
+  { to: "/" as const, label: "Home", icon: Zap, exact: true },
+  { to: "/runs" as const, label: "Runs", icon: LayoutList, exact: false },
+  { to: "/new-run" as const, label: "New Run", icon: Plus, exact: false },
+  { to: "/presets" as const, label: "Presets", icon: FlaskConical, exact: false },
+  { to: "/batches" as const, label: "Batches", icon: Layers, exact: false },
+  { to: "/compare" as const, label: "Compare", icon: GitCompare, exact: false },
+];
 
 export function NavHeader() {
   return (
