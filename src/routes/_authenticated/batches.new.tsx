@@ -140,12 +140,12 @@ function NewBatchPage() {
 
           <div className="space-y-2">
             <Label>Preset (optional)</Label>
-            <Select value={presetId ?? ""} onValueChange={(v) => setPresetId(v || undefined)}>
+            <Select value={presetId ?? "none"} onValueChange={(v) => setPresetId(v === "none" ? undefined : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="No preset" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No preset</SelectItem>
+                <SelectItem value="none">No preset</SelectItem>
                 {presets.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
