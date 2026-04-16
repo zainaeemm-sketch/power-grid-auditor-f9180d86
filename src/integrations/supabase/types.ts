@@ -112,7 +112,7 @@ export type Database = {
           {
             foreignKeyName: "run_metadata_run_id_fkey"
             columns: ["run_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "runs"
             referencedColumns: ["id"]
           },
@@ -147,7 +147,7 @@ export type Database = {
           {
             foreignKeyName: "run_prompt_logs_run_id_fkey"
             columns: ["run_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "runs"
             referencedColumns: ["id"]
           },
