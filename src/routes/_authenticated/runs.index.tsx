@@ -38,7 +38,6 @@ export const Route = createFileRoute("/_authenticated/runs/")({
 function RunsPage() {
   const { runs, error } = Route.useLoaderData() as { runs: Run[]; error: string | null };
   const [search, setSearch] = useState("");
-  const [search, setSearch] = useState("");
 
   const filtered = runs.filter(
     (r: Run) =>
