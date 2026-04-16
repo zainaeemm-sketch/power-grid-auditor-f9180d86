@@ -52,6 +52,14 @@ function RunDetailPage() {
   const updateRecFn = useServerFn(updateRecommendation);
   const updateStatusFn = useServerFn(updateRunStatus);
 
+  if (!details.run) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <p className="text-muted-foreground">Loading run details…</p>
+      </main>
+    );
+  }
+
   const { run, metadata, promptLog, recommendation, parseResult } = details;
 
   // Metadata state
