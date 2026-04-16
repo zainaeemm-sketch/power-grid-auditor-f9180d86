@@ -21,6 +21,7 @@ import { getBatchDetails } from "@/server/batch.functions";
 import { executeRunLlm } from "@/server/llm.functions";
 import type { BatchDetails, RunStatus, RunEvaluation } from "@/types/grid-arena";
 import { exportBatchCsv, exportComparisonCsv } from "@/lib/csv-export";
+import { requestNotificationPermission, notifyBatchComplete } from "@/lib/notifications";
 import { toast } from "sonner";
 import {
   ChartContainer,
@@ -133,6 +134,7 @@ function BatchDetailPage() {
       return;
     }
 
+    await requestNotificationPermission();
     setExecuting(true);
     setExecutionProgress({ current: 0, total: pendingRuns.length, currentRunTitle: "", results: [] });
 
@@ -163,6 +165,7 @@ function BatchDetailPage() {
     const succeeded = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
     toast.success(`Batch complete: ${succeeded} succeeded, ${failed} failed`);
+    notifyBatchComplete(succeeded, failed);
 
     setExecuting(false);
     router.invalidate();
@@ -229,6 +232,7 @@ function BatchDetailPage() {
     setRetryingRunId(null);
     setRetryingAll(false);
     toast.success(`Retry complete: ${succeeded} succeeded, ${failed} still failed`);
+    notifyBatchComplete(succeeded, failed);
     router.invalidate();
   }, [executionProgress, router]);
 
