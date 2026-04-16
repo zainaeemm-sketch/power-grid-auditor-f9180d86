@@ -94,22 +94,35 @@ function ComparePage() {
     },
   ];
 
+  const sectionAccents = [
+    "from-primary to-[oklch(0.72_0.14_200)]",
+    "from-[oklch(0.627_0.265_303.9)] to-[oklch(0.72_0.14_200)]",
+    "from-[oklch(0.769_0.188_70.08)] to-primary",
+    "from-[oklch(0.72_0.14_200)] to-primary",
+  ];
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <GitCompare className="h-6 w-6 text-primary" />
-          Compare Runs
+      <div className="mb-6 flex items-center justify-between animate-fade-up">
+        <h1 className="flex items-center gap-2 text-2xl font-extrabold">
+          <GitCompare className="h-6 w-6 gradient-text" />
+          <span className="gradient-text">Compare Runs</span>
         </h1>
-        <Button variant="outline" size="sm" onClick={handleExport} disabled={!detailsA && !detailsB}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={!detailsA && !detailsB}
+          className="border-border/40 hover:border-primary/40 transition-colors duration-300"
+        >
           <Download className="mr-1.5 h-3.5 w-3.5" />
           Export Comparison CSV
         </Button>
       </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-4">
+      <div className="mb-8 grid grid-cols-2 gap-4 animate-fade-up" style={{ animationDelay: "100ms" }}>
         <div className="space-y-2">
-          <Label>Run A</Label>
+          <Label className="font-semibold">Run A</Label>
           <Select value={runAId} onValueChange={setRunAId}>
             <SelectTrigger><SelectValue placeholder="Select run..." /></SelectTrigger>
             <SelectContent>
@@ -120,7 +133,7 @@ function ComparePage() {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Run B</Label>
+          <Label className="font-semibold">Run B</Label>
           <Select value={runBId} onValueChange={setRunBId}>
             <SelectTrigger><SelectValue placeholder="Select run..." /></SelectTrigger>
             <SelectContent>
@@ -135,13 +148,22 @@ function ComparePage() {
       {loading && <p className="mb-4 text-sm text-muted-foreground">Loading details…</p>}
 
       <div className="grid gap-4">
-        {sections.map((section) => (
-          <Card key={section.title} className="border-border/60 bg-card/60">
-            <CardHeader><CardTitle className="text-base">{section.title}</CardTitle></CardHeader>
+        {sections.map((section, i) => (
+          <Card
+            key={section.title}
+            className="gradient-border-left border-border/40 bg-card/60 hover-lift animate-fade-up"
+            style={{ animationDelay: `${200 + i * 80}ms` }}
+          >
+            <CardHeader>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <span className={`inline-block h-2 w-2 rounded-full bg-gradient-to-r ${sectionAccents[i]}`} />
+                {section.title}
+              </CardTitle>
+            </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-md bg-muted/50 p-3 text-sm">{section.renderA}</div>
-                <div className="rounded-md bg-muted/50 p-3 text-sm">{section.renderB}</div>
+                <div className="rounded-lg border border-border/30 bg-muted/30 p-3 text-sm">{section.renderA}</div>
+                <div className="rounded-lg border border-border/30 bg-muted/30 p-3 text-sm">{section.renderB}</div>
               </div>
             </CardContent>
           </Card>

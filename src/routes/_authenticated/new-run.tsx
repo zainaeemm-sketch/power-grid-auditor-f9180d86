@@ -9,6 +9,7 @@ import { useState } from "react";
 import { listPresets, createRun } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
 import type { ExperimentPreset } from "@/types/grid-arena";
+import { Play } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/new-run")({
   head: () => ({
@@ -74,12 +75,14 @@ function NewRunPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">New Experiment Run</h1>
+      <h1 className="mb-6 text-2xl font-extrabold animate-fade-up">
+        <span className="gradient-text">New Experiment Run</span>
+      </h1>
 
       <form onSubmit={handleSubmit}>
-        <Card className="border-border/60 bg-card/60">
+        <Card className="border-border/40 bg-card/60 card-glow animate-fade-up" style={{ animationDelay: "100ms" }}>
           <CardHeader>
-            <CardTitle className="text-base">Run Configuration</CardTitle>
+            <CardTitle className="text-base font-bold">Run Configuration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -121,7 +124,12 @@ function NewRunPage() {
               <Textarea id="rq" value={researchQuestion} onChange={(e) => setResearchQuestion(e.target.value)} placeholder="What is this experiment trying to answer?" rows={3} />
             </div>
 
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-primary to-[oklch(0.72_0.14_200)] text-primary-foreground font-semibold shadow-lg hover:shadow-[0_0_25px_oklch(0.696_0.17_162.48/0.3)] transition-shadow duration-300"
+              disabled={submitting}
+            >
+              <Play className="mr-2 h-4 w-4" />
               {submitting ? "Creating…" : "Create Run"}
             </Button>
           </CardContent>
