@@ -1,0 +1,16 @@
+---
+name: Database Schema
+description: All tables with RLS, FKs, and relationships for GridArena
+type: feature
+---
+
+## Tables
+
+- **runs** — id, title, task, agent, case_name, research_question, status (enum: queued/running/completed), user_id, timestamps. RLS: user_id = auth.uid().
+- **run_metadata** — id, run_id (unique FK → runs CASCADE), provider fields, model fields, prompt/dataset version, random_seed, notes. RLS: via runs.user_id.
+- **run_prompt_logs** — id, run_id (unique FK → runs CASCADE), prompt_text, response_text. RLS: via runs.user_id.
+- **run_recommendations** — id, run_id (unique FK → runs CASCADE), recommendation_text. RLS: via runs.user_id.
+- **run_parse_results** — id, run_id (unique FK → runs CASCADE), source_text, parser_notes, action_type, target_index, value, enabled. RLS: via runs.user_id.
+- **experiment_presets** — id, name, provider/model fields, prompt/dataset version, random_seed, notes, default_prompt_text, user_id. RLS: user_id = auth.uid().
+
+All tables have created_at, updated_at with auto-update triggers.
