@@ -215,13 +215,49 @@ function BatchDetailPage() {
             <span>{completedRuns.length}/{runs.length} completed</span>
             <span>{Math.round(progressPct)}%</span>
           </div>
-          <Progress value={progressPct} />
+          <Progress value={executing && executionProgress ? (executionProgress.current / executionProgress.total) * 100 : progressPct} />
         </div>
         <Button onClick={handleRunAll} disabled={executing}>
-          <Play className="mr-2 h-4 w-4" />
-          {executing ? "Running…" : "Run All Experiments"}
+          {executing ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Running…</>
+          ) : (
+            <><Play className="mr-2 h-4 w-4" />Run All Experiments</>
+          )}
         </Button>
       </div>
+
+      {/* Live Execution Progress */}
+      {executionProgress && executing && (
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center justify-between text-sm">
+              <span className="font-medium">Executing: {executionProgress.current}/{executionProgress.total}</span>
+              <span className="text-muted-foreground">{Math.round((executionProgress.current / executionProgress.total) * 100)}%</span>
+            </div>
+            {executionProgress.currentRunTitle && (
+              <p className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                {executionProgress.currentRunTitle}
+              </p>
+            )}
+            {executionProgress.results.length > 0 && (
+              <div className="space-y-1">
+                {executionProgress.results.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    {r.success ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 text-destructive" />
+                    )}
+                    <span className="truncate">{r.runId.slice(0, 8)}…</span>
+                    {r.error && <span className="text-destructive">{r.error.slice(0, 60)}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
