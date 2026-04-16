@@ -196,6 +196,25 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       await (supabase as any).from("run_parse_results").insert({ run_id: runId, ...parseResult });
     }
 
+    // 8b. Save structured action to run_actions (upsert)
+    const actionFields = {
+      action_type: parseResult.action_type,
+      target_index: parseResult.target_index,
+      value: parseResult.value,
+      enabled: parseResult.enabled,
+    };
+    const { data: existingAction } = await (supabase as any)
+      .from("run_actions")
+      .select("id")
+      .eq("run_id", runId)
+      .maybeSingle();
+
+    if (existingAction) {
+      await (supabase as any).from("run_actions").update(actionFields).eq("run_id", runId);
+    } else {
+      await (supabase as any).from("run_actions").insert({ run_id: runId, ...actionFields });
+    }
+
     // 9. Evaluate run
     let evaluationResult = null;
     try {
