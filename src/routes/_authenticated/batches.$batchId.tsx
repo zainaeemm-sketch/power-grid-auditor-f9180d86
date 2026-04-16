@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download } from "lucide-react";
-import { useState } from "react";
-import { getBatchDetails, executeBatchRuns } from "@/server/batch.functions";
-import type { BatchDetails, RunStatus } from "@/types/grid-arena";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { getBatchDetails } from "@/server/batch.functions";
+import { executeRunLlm } from "@/server/llm.functions";
+import type { BatchDetails, RunStatus, RunEvaluation } from "@/types/grid-arena";
 import { exportBatchCsv, exportComparisonCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
 import {
