@@ -16,21 +16,30 @@ export type Database = {
     Tables: {
       batch_run_links: {
         Row: {
+          agent: string | null
           batch_id: string
+          case_name: string | null
           created_at: string
           id: string
+          recommendation_text: string | null
           run_id: string
         }
         Insert: {
+          agent?: string | null
           batch_id: string
+          case_name?: string | null
           created_at?: string
           id?: string
+          recommendation_text?: string | null
           run_id: string
         }
         Update: {
+          agent?: string | null
           batch_id?: string
+          case_name?: string | null
           created_at?: string
           id?: string
+          recommendation_text?: string | null
           run_id?: string
         }
         Relationships: [
@@ -131,6 +140,39 @@ export type Database = {
           random_seed?: number | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      run_actions: {
+        Row: {
+          action_type: string | null
+          created_at: string
+          enabled: boolean
+          id: string
+          run_id: string
+          target_index: number | null
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          action_type?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          run_id: string
+          target_index?: number | null
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          action_type?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          run_id?: string
+          target_index?: number | null
+          updated_at?: string
+          value?: number | null
         }
         Relationships: []
       }
