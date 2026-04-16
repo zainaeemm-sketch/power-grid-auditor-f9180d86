@@ -196,7 +196,29 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       await (supabase as any).from("run_parse_results").insert({ run_id: runId, ...parseResult });
     }
 
-    // 9. Mark run as completed
+    // 9. Evaluate run
+    let evaluationResult = null;
+    try {
+      const { applyParsedAction, computeEvaluation } = await import("./evaluation.functions");
+      const fullParseResult = { ...parseResult, id: "", run_id: runId, created_at: "", updated_at: "" };
+      const actionResult = applyParsedAction(fullParseResult as any);
+      const evalFields = computeEvaluation(fullParseResult as any, actionResult);
+
+      const { data: existingEval } = await (supabase as any)
+        .from("run_evaluations").select("id").eq("run_id", runId).maybeSingle();
+
+      if (existingEval) {
+        const { data } = await (supabase as any).from("run_evaluations").update(evalFields).eq("run_id", runId).select("*").single();
+        evaluationResult = data;
+      } else {
+        const { data } = await (supabase as any).from("run_evaluations").insert({ run_id: runId, ...evalFields }).select("*").single();
+        evaluationResult = data;
+      }
+    } catch (evalErr: any) {
+      console.error("Evaluation failed:", evalErr.message);
+    }
+
+    // 10. Mark run as completed
     await supabase.from("runs").update({ status: "completed" as const }).eq("id", runId);
 
     return {
@@ -204,5 +226,6 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       response_text: responseText,
       recommendation_text: responseText,
       parseResult,
+      evaluation: evaluationResult,
     };
   });
