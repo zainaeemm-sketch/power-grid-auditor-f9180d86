@@ -160,6 +160,45 @@ function BatchDetailPage() {
     }
   }, [router]);
 
+  const handleRetryAllFailed = useCallback(async () => {
+    if (!executionProgress) return;
+    const failedResults = executionProgress.results.filter((r) => !r.success);
+    if (failedResults.length === 0) return;
+
+    setRetryingAll(true);
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const fr of failedResults) {
+      setRetryingRunId(fr.runId);
+      try {
+        const res = await executeRunLlm({ data: { run_id: fr.runId } });
+        setExecutionProgress((prev) => {
+          if (!prev) return prev;
+          const updated = prev.results.map((r) =>
+            r.runId === fr.runId ? { runId: fr.runId, success: res.success, error: res.error } : r
+          );
+          return { ...prev, results: updated };
+        });
+        if (res.success) succeeded++;
+        else failed++;
+      } catch (err: any) {
+        setExecutionProgress((prev) => {
+          if (!prev) return prev;
+          const updated = prev.results.map((r) =>
+            r.runId === fr.runId ? { runId: fr.runId, success: false, error: err.message } : r
+          );
+          return { ...prev, results: updated };
+        });
+        failed++;
+      }
+    }
+
+    setRetryingRunId(null);
+    setRetryingAll(false);
+    toast.success(`Retry complete: ${succeeded} succeeded, ${failed} still failed`);
+    router.invalidate();
+
   if (!data || !batch) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
