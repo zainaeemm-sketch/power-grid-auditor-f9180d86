@@ -3,6 +3,7 @@ import { NavHeader } from "@/components/NavHeader";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PwaSplashScreen } from "@/components/PwaSplashScreen";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
+import { OfflineFallback } from "@/components/OfflineFallback";
 
 import appCss from "../styles.css?url";
 
@@ -69,6 +70,7 @@ function RootComponent() {
     <AuthProvider>
       <PwaSplashScreen />
       <PwaInstallBanner />
+      <OfflineFallback />
       <div className="min-h-screen bg-background text-foreground">
         <NavHeader />
         <Outlet />
