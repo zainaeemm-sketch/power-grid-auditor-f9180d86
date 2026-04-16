@@ -14,14 +14,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getBatchDetails } from "@/server/batch.functions";
 import { executeRunLlm } from "@/server/llm.functions";
 import type { BatchDetails, RunStatus, RunEvaluation } from "@/types/grid-arena";
 import { exportBatchCsv, exportComparisonCsv } from "@/lib/csv-export";
-import { requestNotificationPermission, notifyBatchComplete } from "@/lib/notifications";
+import { requestNotificationPermission, notifyBatchComplete, isSoundEnabled, setSoundEnabled, isBrowserNotifEnabled, setBrowserNotifEnabled } from "@/lib/notifications";
 import { toast } from "sonner";
 import {
   ChartContainer,
@@ -68,6 +68,8 @@ function BatchDetailPage() {
   const [executing, setExecuting] = useState(false);
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null);
   const [retryingAll, setRetryingAll] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
+  const [notifOn, setNotifOn] = useState(() => isBrowserNotifEnabled());
   const [executionProgress, setExecutionProgress] = useState<{
     current: number;
     total: number;
@@ -354,6 +356,29 @@ function BatchDetailPage() {
           ) : (
             <><Play className="mr-2 h-4 w-4" />Run All Experiments</>
           )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          title={soundOn ? "Mute completion sound" : "Enable completion sound"}
+          onClick={() => { const next = !soundOn; setSoundOn(next); setSoundEnabled(next); }}
+        >
+          {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          title={notifOn ? "Disable browser notifications" : "Enable browser notifications"}
+          onClick={async () => {
+            const next = !notifOn;
+            setNotifOn(next);
+            setBrowserNotifEnabled(next);
+            if (next) await requestNotificationPermission();
+          }}
+        >
+          {notifOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
         </Button>
       </div>
 
