@@ -1,65 +1,63 @@
 
 
-# Design Modernization: Gradient Accents + Bold Style
+# PWA: Add to Home Screen Support
 
-Applies the "Gradient Accents + Bold" design system across the app with animated interactions, gradient backgrounds, colorful card accents, and hover reveals.
+## What this does
+Adds a web app manifest so users on mobile (iOS/Android) and desktop (Chrome) can tap "Add to Home Screen" and launch GridArena as a standalone app with its own icon — no browser chrome.
+
+## Approach: Manifest-only (no service worker)
+Since offline support isn't needed, we skip `vite-plugin-pwa` and service workers entirely. This avoids caching issues in the Lovable preview and keeps things simple.
 
 ## Changes
 
-### 1. Global styles (`src/styles.css`)
-- Add CSS keyframes for `fade-up`, `glow-pulse`, and `float` animations
-- Add utility classes: `.animate-fade-up`, `.card-glow`, `.hover-lift`
-- Deepen background to `#0a0e1a`, adjust card surfaces for gradient-friendly tones
-- Add a subtle radial gradient glow behind hero sections via a utility class
+### 1. Create `public/manifest.json`
+```json
+{
+  "name": "GridArena — LLM Agent Research Platform",
+  "short_name": "GridArena",
+  "description": "Evaluate and audit LLM agents on power-system tasks",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#10b981",
+  "icons": [...]
+}
+```
 
-### 2. NavHeader (`src/components/NavHeader.tsx`)
-- Gradient logo text: "Grid" white + "Arena" emerald-to-cyan gradient
-- Active nav link gets a gradient underline indicator instead of background highlight
-- Subtle backdrop-blur glass effect on the header bar
-- Hover: nav items slide-up slightly with color transition
+### 2. Generate app icons
+Create simple SVG-based PNG icons at 192x192 and 512x512 in `public/icons/` using a script. The icon will use the GridArena gradient style (emerald-to-cyan) with "GA" text.
 
-### 3. Homepage (`src/routes/index.tsx`)
-- Hero badge: gradient background (emerald-to-teal) with border glow
-- Title: "Grid" in white + "Arena" as gradient text (emerald → teal → cyan)
-- Decorative gradient accent line below the title
-- CTA button: gradient background (emerald → teal) with animated glow shadow on hover
-- Feature cards: each card gets a unique accent color (emerald, purple, amber, cyan)
-  - Gradient icon backgrounds
-  - On hover: border changes to accent color, "Explore →" text fades in
-  - Subtle translate-y lift on hover
-- Staggered fade-up entrance animation on cards (CSS animation-delay)
+### 3. Update `src/routes/__root.tsx`
+Add manifest and theme-color meta links to the `head()` function:
+```ts
+links: [
+  { rel: "stylesheet", href: appCss },
+  { rel: "manifest", href: "/manifest.json" },
+  { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
+],
+meta: [
+  ...,
+  { name: "theme-color", content: "#10b981" },
+  { name: "apple-mobile-web-app-capable", content: "yes" },
+  { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+]
+```
 
-### 4. Runs list (`src/routes/_authenticated/runs.index.tsx`)
-- Run cards: gradient left-border accent on hover
-- Hover lift effect (`translate-y-[-2px]`)
-- Status badge gets a subtle glow matching its color
+### 4. No service worker
+No `vite-plugin-pwa`, no service worker registration. This ensures the Lovable preview stays stable and no caching issues occur.
 
-### 5. Batches list (`src/routes/_authenticated/batches.index.tsx`)
-- Same card hover treatment as Runs
-- Batch icon gets gradient coloring
-
-### 6. StatusBadge (`src/components/StatusBadge.tsx`)
-- Add a small animated dot (pulse) for "running" status
-- Slightly bolder styling with gradient-tinted borders
-
-### 7. Run detail header (`src/components/run-details/RunHeader.tsx`)
-- Gradient accent on the run title
-- Subtle background gradient behind the header area
-
-### 8. Card component (`src/components/ui/card.tsx`)
-- Add `transition-all duration-300` to base card class for smooth hover effects across the app
+## How users install it
+- **Android (Chrome)**: Menu → "Add to Home Screen" or automatic install prompt
+- **iOS (Safari)**: Share → "Add to Home Screen"
+- **Desktop (Chrome/Edge)**: Address bar install icon
 
 ## Files touched
-| File | Type |
-|------|------|
-| `src/styles.css` | Add animations + utility classes + darker bg |
-| `src/components/NavHeader.tsx` | Gradient logo, active indicator, glass header |
-| `src/routes/index.tsx` | Full hero redesign with gradients + animated cards |
-| `src/routes/_authenticated/runs.index.tsx` | Card hover effects |
-| `src/routes/_authenticated/batches.index.tsx` | Card hover effects |
-| `src/components/StatusBadge.tsx` | Running pulse dot |
-| `src/components/run-details/RunHeader.tsx` | Gradient title accent |
-| `src/components/ui/card.tsx` | Base transition class |
+| File | Change |
+|------|--------|
+| `public/manifest.json` | New: web app manifest |
+| `public/icons/icon-192.png` | New: generated app icon |
+| `public/icons/icon-512.png` | New: generated app icon |
+| `src/routes/__root.tsx` | Add manifest + apple meta tags |
 
-No database changes. No new dependencies needed (recharts already installed for charts).
+No database changes. No new dependencies.
 
