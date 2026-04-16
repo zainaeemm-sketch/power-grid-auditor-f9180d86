@@ -16,18 +16,27 @@ export const Route = createFileRoute("/_authenticated/runs/")({
     ],
   }),
   loader: async () => {
-    if (typeof window === "undefined") return { runs: [] };
+    if (typeof window === "undefined") return { runs: [], error: null };
     try {
-      return await listRuns();
-    } catch {
-      return { runs: [] };
+      const result = await listRuns();
+      return { ...result, error: null };
+    } catch (err: any) {
+      return { runs: [], error: err.message ?? "Failed to load runs" };
     }
   },
   component: RunsPage,
+  errorComponent: ({ error }) => (
+    <main className="mx-auto max-w-6xl px-4 py-8">
+      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
+        <p className="text-destructive font-medium">Failed to load runs</p>
+        <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
+      </div>
+    </main>
+  ),
 });
 
 function RunsPage() {
-  const { runs } = Route.useLoaderData() as { runs: Run[] };
+  const { runs, error } = Route.useLoaderData() as { runs: Run[]; error: string | null };
   const [search, setSearch] = useState("");
 
   const filtered = runs.filter(
@@ -39,6 +48,12 @@ function RunsPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      {error && (
+        <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-center">
+          <p className="text-destructive font-medium">Failed to load runs</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+        </div>
+      )}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Experiment Runs</h1>
         <Button asChild>
