@@ -1,23 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Run, ExperimentPreset } from "@/types/grid-arena";
 
-export const listRuns = createServerFn({ method: "GET" }).handler(async (): Promise<{ runs: Run[] }> => {
-  const { data, error } = await supabaseAdmin
-    .from("runs")
-    .select("*")
-    .order("created_at", { ascending: false });
+export const listRuns = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ runs: Run[] }> => {
+    const { data, error } = await context.supabase
+      .from("runs")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  if (error) {
-    throw new Error(`Failed to fetch runs: ${error.message}`);
-  }
-  return { runs: data ?? [] };
-});
+    if (error) {
+      throw new Error(`Failed to fetch runs: ${error.message}`);
+    }
+    return { runs: data ?? [] };
+  });
 
 export const getRun = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: { runId: string }) => input)
-  .handler(async ({ data }): Promise<{ run: Run }> => {
-    const { data: run, error } = await supabaseAdmin
+  .handler(async ({ data, context }): Promise<{ run: Run }> => {
+    const { data: run, error } = await context.supabase
       .from("runs")
       .select("*")
       .eq("id", data.runId)
@@ -30,6 +33,7 @@ export const getRun = createServerFn({ method: "GET" })
   });
 
 export const createRun = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: {
     title: string;
     task: string;
@@ -38,8 +42,10 @@ export const createRun = createServerFn({ method: "POST" })
     research_question?: string;
     preset_id?: string;
   }) => input)
-  .handler(async ({ data }): Promise<{ run: Run }> => {
-    const { data: run, error: runError } = await supabaseAdmin
+  .handler(async ({ data, context }): Promise<{ run: Run }> => {
+    const { supabase, userId } = context;
+
+    const { data: run, error: runError } = await supabase
       .from("runs")
       .insert({
         title: data.title,
@@ -47,6 +53,7 @@ export const createRun = createServerFn({ method: "POST" })
         agent: data.agent,
         case_name: data.case_name,
         research_question: data.research_question || null,
+        user_id: userId,
       })
       .select()
       .single();
@@ -56,14 +63,14 @@ export const createRun = createServerFn({ method: "POST" })
     }
 
     if (data.preset_id) {
-      const { data: preset } = await supabaseAdmin
+      const { data: preset } = await supabase
         .from("experiment_presets")
         .select("*")
         .eq("id", data.preset_id)
         .single();
 
       if (preset) {
-        await supabaseAdmin.from("run_metadata").insert({
+        await supabase.from("run_metadata").insert({
           run_id: run.id,
           provider_name: preset.provider_name,
           provider_base_url: preset.provider_base_url,
@@ -76,28 +83,30 @@ export const createRun = createServerFn({ method: "POST" })
         });
 
         if (preset.default_prompt_text) {
-          await supabaseAdmin.from("run_prompt_logs").insert({
+          await supabase.from("run_prompt_logs").insert({
             run_id: run.id,
             prompt_text: preset.default_prompt_text,
           });
         }
       }
     } else {
-      await supabaseAdmin.from("run_metadata").insert({ run_id: run.id });
-      await supabaseAdmin.from("run_prompt_logs").insert({ run_id: run.id });
+      await supabase.from("run_metadata").insert({ run_id: run.id });
+      await supabase.from("run_prompt_logs").insert({ run_id: run.id });
     }
 
     return { run };
   });
 
-export const listPresets = createServerFn({ method: "GET" }).handler(async (): Promise<{ presets: ExperimentPreset[] }> => {
-  const { data, error } = await supabaseAdmin
-    .from("experiment_presets")
-    .select("*")
-    .order("created_at", { ascending: false });
+export const listPresets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ presets: ExperimentPreset[] }> => {
+    const { data, error } = await context.supabase
+      .from("experiment_presets")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  if (error) {
-    throw new Error(`Failed to fetch presets: ${error.message}`);
-  }
-  return { presets: data ?? [] };
-});
+    if (error) {
+      throw new Error(`Failed to fetch presets: ${error.message}`);
+    }
+    return { presets: data ?? [] };
+  });
