@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Run, ExperimentPreset } from "@/types/grid-arena";
 
-export const listRuns = createServerFn({ method: "GET" }).handler(async () => {
+export const listRuns = createServerFn({ method: "GET" }).handler(async (): Promise<{ runs: Run[] }> => {
   const { data, error } = await supabaseAdmin
     .from("runs")
     .select("*")
@@ -15,7 +16,7 @@ export const listRuns = createServerFn({ method: "GET" }).handler(async () => {
 
 export const getRun = createServerFn({ method: "GET" })
   .inputValidator((input: { runId: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<{ run: Run }> => {
     const { data: run, error } = await supabaseAdmin
       .from("runs")
       .select("*")
@@ -37,8 +38,7 @@ export const createRun = createServerFn({ method: "POST" })
     research_question?: string;
     preset_id?: string;
   }) => input)
-  .handler(async ({ data }) => {
-    // Create the run
+  .handler(async ({ data }): Promise<{ run: Run }> => {
     const { data: run, error: runError } = await supabaseAdmin
       .from("runs")
       .insert({
@@ -55,7 +55,6 @@ export const createRun = createServerFn({ method: "POST" })
       throw new Error(`Failed to create run: ${runError?.message}`);
     }
 
-    // If a preset was selected, copy its metadata and prompt
     if (data.preset_id) {
       const { data: preset } = await supabaseAdmin
         .from("experiment_presets")
@@ -84,7 +83,6 @@ export const createRun = createServerFn({ method: "POST" })
         }
       }
     } else {
-      // Create empty metadata and prompt log entries
       await supabaseAdmin.from("run_metadata").insert({ run_id: run.id });
       await supabaseAdmin.from("run_prompt_logs").insert({ run_id: run.id });
     }
@@ -92,7 +90,7 @@ export const createRun = createServerFn({ method: "POST" })
     return { run };
   });
 
-export const listPresets = createServerFn({ method: "GET" }).handler(async () => {
+export const listPresets = createServerFn({ method: "GET" }).handler(async (): Promise<{ presets: ExperimentPreset[] }> => {
   const { data, error } = await supabaseAdmin
     .from("experiment_presets")
     .select("*")
