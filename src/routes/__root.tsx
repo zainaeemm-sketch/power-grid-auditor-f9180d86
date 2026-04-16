@@ -66,6 +66,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   return (
     <AuthProvider>
+      <PwaSplashScreen />
       <div className="min-h-screen bg-background text-foreground">
         <NavHeader />
         <Outlet />
