@@ -43,7 +43,8 @@ export function NavHeader() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <AccentSwitcher />
           {isAuthenticated ? (
             <>
               <span className="text-xs text-muted-foreground">{user?.email}</span>
