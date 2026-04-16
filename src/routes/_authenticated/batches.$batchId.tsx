@@ -165,6 +165,7 @@ function BatchDetailPage() {
     const succeeded = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
     toast.success(`Batch complete: ${succeeded} succeeded, ${failed} failed`);
+    notifyBatchComplete(succeeded, failed);
 
     setExecuting(false);
     router.invalidate();
