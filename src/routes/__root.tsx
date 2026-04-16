@@ -1,4 +1,5 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
+import { PageTransition } from "@/components/PageTransition";
 import { NavHeader } from "@/components/NavHeader";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PwaSplashScreen } from "@/components/PwaSplashScreen";
@@ -73,7 +74,9 @@ function RootComponent() {
       <OfflineFallback />
       <div className="min-h-screen bg-background text-foreground">
         <NavHeader />
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </div>
     </AuthProvider>
   );

@@ -497,3 +497,38 @@
   opacity: 0.9;
   transform: scale(1.03);
 }
+
+/* Page Transitions */
+.page-transition {
+  will-change: opacity, transform;
+}
+
+.page-enter {
+  animation: page-enter 0.3s ease-out both;
+}
+
+.page-exit {
+  animation: page-exit 0.15s ease-in both;
+}
+
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes page-exit {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
