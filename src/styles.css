@@ -422,3 +422,78 @@
   background: oklch(1 0 0 / 8%);
   color: oklch(0.95 0.006 247);
 }
+
+/* Offline Fallback Overlay */
+.offline-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(0.08 0.035 264 / 0.92);
+  backdrop-filter: blur(16px);
+  padding: 1.5rem;
+}
+
+.offline-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  max-width: 360px;
+  text-align: center;
+  padding: 2.5rem 2rem;
+  background: oklch(0.15 0.03 264);
+  border: 1px solid oklch(1 0 0 / 10%);
+  border-radius: 1rem;
+  box-shadow: 0 20px 60px oklch(0 0 0 / 0.5);
+}
+
+.offline-icon-ring {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, oklch(0.696 0.17 162.48 / 0.15), oklch(0.72 0.14 200 / 0.15));
+  color: oklch(0.696 0.17 162.48);
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.offline-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: linear-gradient(135deg, oklch(0.696 0.17 162.48), oklch(0.72 0.14 200));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.offline-desc {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: oklch(0.60 0.03 257);
+}
+
+.offline-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: oklch(0.13 0.04 265);
+  background: linear-gradient(135deg, oklch(0.696 0.17 162.48), oklch(0.72 0.14 200));
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.offline-retry-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.03);
+}
