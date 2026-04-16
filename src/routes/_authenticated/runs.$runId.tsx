@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
+import { Download } from "lucide-react";
 import { getRunDetails } from "@/server/runs.functions";
 import type { RunDetails, RunStatus } from "@/types/grid-arena";
+import { exportRunCsv } from "@/lib/csv-export";
 
 import { RunHeader } from "@/components/run-details/RunHeader";
 import { RunStatusControls } from "@/components/run-details/RunStatusControls";
