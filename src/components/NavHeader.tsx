@@ -3,6 +3,7 @@ import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn 
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AccentSwitcher } from "@/components/AccentSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navLinks = [
   { to: "/" as const, label: "Home", icon: Zap, exact: true },
