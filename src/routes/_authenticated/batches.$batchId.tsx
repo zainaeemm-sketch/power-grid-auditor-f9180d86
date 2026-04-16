@@ -198,8 +198,8 @@ function BatchDetailPage() {
     setRetryingAll(false);
     toast.success(`Retry complete: ${succeeded} succeeded, ${failed} still failed`);
     router.invalidate();
+  }, [executionProgress, router]);
 
-  if (!data || !batch) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
         <p className="text-muted-foreground">Loading batch…</p>
