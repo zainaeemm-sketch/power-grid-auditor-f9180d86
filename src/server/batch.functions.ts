@@ -129,11 +129,15 @@ export const createBatch = createServerFn({ method: "POST" })
 
         if (runErr || !run) continue;
 
-        // Link run to batch
+        // Link run to batch with denormalized fields
         await (supabase as any)
           .from("batch_run_links")
-          .insert({ batch_id: batch.id, run_id: run.id });
-
+          .insert({
+            batch_id: batch.id,
+            run_id: run.id,
+            agent,
+            case_name: caseName,
+          });
         // Create metadata and prompt log
         if (presetData) {
           await supabase.from("run_metadata").insert({
