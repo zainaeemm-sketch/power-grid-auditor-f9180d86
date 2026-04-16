@@ -67,6 +67,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var a=localStorage.getItem('gridarena-accent');if(a&&a!=='emerald')document.documentElement.setAttribute('data-accent',a)}catch(e){}})()` }} />
         {children}
         <Scripts />
       </body>
