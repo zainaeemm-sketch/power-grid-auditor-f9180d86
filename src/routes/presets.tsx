@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, FlaskConical } from "lucide-react";
 import { listPresets } from "@/server/runs.functions";
+import type { ExperimentPreset } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/presets")({
   head: () => ({
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/presets")({
 });
 
 function PresetsPage() {
-  const { presets } = Route.useLoaderData();
+  const { presets } = Route.useLoaderData() as { presets: ExperimentPreset[] };
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -29,7 +30,7 @@ function PresetsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {presets.map((preset) => (
+        {presets.map((preset: ExperimentPreset) => (
           <Card key={preset.id} className="border-border/60 bg-card/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">

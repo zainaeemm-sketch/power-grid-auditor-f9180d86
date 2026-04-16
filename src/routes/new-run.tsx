@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState } from "react";
 import { listPresets, createRun } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
+import type { ExperimentPreset } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/new-run")({
   head: () => ({
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/new-run")({
 });
 
 function NewRunPage() {
-  const { presets } = Route.useLoaderData();
+  const { presets } = Route.useLoaderData() as { presets: ExperimentPreset[] };
   const navigate = useNavigate();
   const createRunFn = useServerFn(createRun);
 
@@ -36,7 +37,7 @@ function NewRunPage() {
   const handlePresetChange = (value: string) => {
     setPresetId(value === "none" ? "" : value);
     if (value !== "none") {
-      const preset = presets.find((p) => p.id === value);
+      const preset = presets.find((p: ExperimentPreset) => p.id === value);
       if (preset) {
         setAgent(preset.model_name || "");
       }
@@ -80,7 +81,7 @@ function NewRunPage() {
                 <SelectTrigger><SelectValue placeholder="Select a preset..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No preset</SelectItem>
-                  {presets.map((p) => (
+                  {presets.map((p: ExperimentPreset) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>
