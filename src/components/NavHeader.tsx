@@ -18,9 +18,12 @@ export function NavHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/60 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4">
-        <Link to="/" className="flex items-center gap-2 font-bold text-lg">
-          <Zap className="h-5 w-5 text-primary" />
-          <span className="text-foreground">Grid</span>
+        <Link to="/" className="group/logo flex items-center gap-2 font-bold text-lg">
+          <span className="relative flex items-center justify-center">
+            <Zap className="h-5 w-5 text-primary transition-transform duration-300 group-hover/logo:scale-125 group-hover/logo:rotate-12" />
+            <span className="absolute inset-0 rounded-full bg-primary/0 transition-all duration-300 group-hover/logo:bg-primary/10 group-hover/logo:scale-[2] group-hover/logo:animate-ping" />
+          </span>
+          <span className="text-foreground transition-colors duration-300 group-hover/logo:text-primary">Grid</span>
           <span className="-ml-1.5 gradient-text">Arena</span>
         </Link>
         <nav className="flex flex-1 items-center gap-1">
