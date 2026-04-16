@@ -320,3 +320,105 @@
     opacity: 1;
   }
 }
+
+/* PWA Install Banner */
+.pwa-install-banner {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  width: calc(100% - 2rem);
+  max-width: 440px;
+}
+
+.pwa-install-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: oklch(0.15 0.03 264);
+  border: 1px solid oklch(1 0 0 / 10%);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 40px oklch(0 0 0 / 0.5);
+  backdrop-filter: blur(12px);
+}
+
+.pwa-install-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, oklch(0.696 0.17 162.48 / 0.2), oklch(0.72 0.14 200 / 0.2));
+  color: oklch(0.696 0.17 162.48);
+}
+
+.pwa-install-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.pwa-install-text strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: oklch(0.95 0.006 247);
+}
+
+.pwa-install-text span {
+  font-size: 0.75rem;
+  color: oklch(0.60 0.03 257);
+}
+
+.pwa-install-highlight {
+  color: oklch(0.696 0.17 162.48);
+  font-weight: 500;
+}
+
+.pwa-install-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pwa-install-btn {
+  padding: 0.375rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: oklch(0.13 0.04 265);
+  background: linear-gradient(135deg, oklch(0.696 0.17 162.48), oklch(0.72 0.14 200));
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.pwa-install-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.03);
+}
+
+.pwa-install-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: oklch(0.60 0.03 257);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.pwa-install-close:hover {
+  background: oklch(1 0 0 / 8%);
+  color: oklch(0.95 0.006 247);
+}

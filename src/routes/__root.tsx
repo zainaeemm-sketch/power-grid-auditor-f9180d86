@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import { NavHeader } from "@/components/NavHeader";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PwaSplashScreen } from "@/components/PwaSplashScreen";
+import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 
 import appCss from "../styles.css?url";
 
@@ -67,6 +68,7 @@ function RootComponent() {
   return (
     <AuthProvider>
       <PwaSplashScreen />
+      <PwaInstallBanner />
       <div className="min-h-screen bg-background text-foreground">
         <NavHeader />
         <Outlet />
