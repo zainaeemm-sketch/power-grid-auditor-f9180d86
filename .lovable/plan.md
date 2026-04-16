@@ -1,83 +1,81 @@
 
 
-# Phase 3: Run Details Research Workspace
+# Phase 4: Secure LLM Execution & Parser Integration
 
 ## Overview
 
-Refactor the monolithic `runs.$runId.tsx` into a well-structured research workspace with 10 distinct panels, each as a reusable component. The existing editable panels (metadata, prompt log, recommendation, status controls) stay but move into dedicated component files. Five new panels are added: Structured Action, Results Summary, Tool Trace, Provenance Timeline, and an enhanced Parser Provenance.
+Add a server-side `executeRunLlm` function that orchestrates the full LLM pipeline (prompt → call → save response → save recommendation → parse → save parse result), and wire it to a "Run LLM Automatically" button on the Prompt Log panel.
 
-## New Components (all in `src/components/run-details/`)
+## Architecture Decision: LLM Provider
 
-| Component | Data Source | Editable? |
-|-----------|------------|-----------|
-| `RunHeader.tsx` | run | No (display + back link + export placeholder) |
-| `RunStatusControls.tsx` | run.status | Yes (status transitions) |
-| `RunMetadataPanel.tsx` | run_metadata | Yes (upsert form) |
-| `RunPromptLogPanel.tsx` | run_prompt_logs | Yes (upsert form) |
-| `RunRecommendationPanel.tsx` | run_recommendations | Yes (upsert form) |
-| `ParserProvenancePanel.tsx` | run_parse_results | No (read-only display) |
-| `StructuredActionPanel.tsx` | run_parse_results | No (derived display) |
-| `ResultsSummaryPanel.tsx` | Placeholder/derived | No (mock badges/chips) |
-| `ToolTracePanel.tsx` | Mock based on status | No (mock trace entries) |
-| `ProvenanceTimelinePanel.tsx` | Derived from run state | No (lifecycle timeline) |
+The user's spec requires configurable provider URLs and model names from run metadata, with fallback to environment secrets (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`). This is appropriate for a research platform where users experiment with different providers.
 
-## Implementation Details
+Three secrets need to be added: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`.
 
-### 1. RunHeader
-Shows title, agent, StatusBadge, run ID (monospace truncated), created_at, export button (disabled placeholder), and a back-to-runs link.
+## Implementation
 
-### 2. RunStatusControls
-Extracts the status transition logic. Shows current status badge and a "Mark [next]" button. Uses `updateRunStatus` server function + `router.invalidate()`.
+### Step 1: Add Secrets
 
-### 3-5. Editable Panels (Metadata, Prompt Log, Recommendation)
-Extract existing inline form logic from `runs.$runId.tsx` into standalone components. Each receives the initial data + `run_id` as props. Uses `useServerFn` + `useState` internally. Adds `toast.success`/`toast.error` (sonner) for save feedback.
+Use `add_secret` to request `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` from the user.
 
-### 6. ParserProvenancePanel
-Extracts existing read-only parser display. Shows source_text, parser_notes, action_type, target_index, value, enabled. Graceful "No parse results yet" fallback.
+### Step 2: Server Function — `executeRunLlm`
 
-### 7. StructuredActionPanel
-New panel. Reads `parseResult` and renders a human-friendly action description:
-- `none` → "No structured action was derived"
-- `scale_all_loads` → "Scale all loads with factor {value}"
-- `set_generator_p_mw` → "Set generator {target_index} to {value} MW"
-- `line_outage` → "Take line {target_index} out of service"
-Falls back to "No parse result available" when null.
+Add to `src/server/runs.functions.ts`:
 
-### 8. ResultsSummaryPanel
-New placeholder panel with a grid of evaluation metrics displayed as labeled stat cards with badge/chip styling:
-- feasibility, violations_found, baseline_violations, post_action_violations, violation_improvement, confidence, grounding_quality, action_applied, notes
-All show "—" or "Pending" placeholder values. Structured so a real evaluation table can replace mock data later.
+```
+executeRunLlm(run_id: string) → { success, response_text, recommendation_text, parseResult, error? }
+```
 
-### 9. ToolTracePanel
-New panel. Generates mock tool-trace entries based on run status (queued → 2 entries, running → 4, completed → 6). Each entry: tool_name, purpose, input_summary, output_summary, status (done/running/pending), timestamp. Rendered as a vertical list of trace cards.
+Pipeline:
+1. Load run, run_metadata, run_prompt_logs
+2. Determine prompt (from prompt_logs, or generate fallback from run.task/case_name/research_question)
+3. Determine provider settings (metadata first, then env fallbacks)
+4. Call LLM via `fetch()` to `{base_url}/chat/completions` with Bearer token — all server-side via `process.env`
+5. Extract response_text from OpenAI-compatible response
+6. Upsert `run_prompt_logs.response_text`
+7. Upsert `run_recommendations.recommendation_text` (same text)
+8. Run parser, upsert `run_parse_results`
+9. Update run status to `completed`
+10. Return all updated data
 
-### 10. ProvenanceTimelinePanel
-New panel. Generates a lifecycle timeline from run state:
-- Steps: Experiment created, Benchmark prepared, Agent configured, Recommendation parsed, Research question registered, Analysis started, Analysis completed, Validation completed
-- Each step gets a status: `done`, `current`, or `pending` based on run.status and data availability
-- Rendered as a vertical timeline with status badges (emerald for done, blue for current, muted for pending)
+Error handling: wrap in try/catch, return `{ success: false, error: "..." }`. 60s timeout via AbortController.
 
-### Route File Changes (`runs.$runId.tsx`)
-- Strip all inline panel logic
-- Import all 10 components
-- Pass data as props from loader
-- Layout: full-width header → status controls → 2-column grid for panels → full-width panels for Results Summary, Tool Trace, and Timeline
+### Step 3: Parser Function
+
+Add `parseRecommendationText(text: string)` as a pure helper in `src/server/runs.functions.ts`:
+
+- Regex match "scale all loads" → `scale_all_loads`, extract numeric value
+- Regex match "set generator" → `set_generator_p_mw`, extract generator index + MW value
+- Regex match "line outage" / "take line" → `line_outage`, extract line number
+- Default → `action_type: "none"`
+
+Returns `{ source_text, parser_notes, action_type, target_index, value, enabled }`.
+
+### Step 4: UI — Run LLM Button
+
+Update `RunPromptLogPanel.tsx`:
+- Add "Run LLM Automatically" button (emerald accent)
+- `useState` for `executing` flag
+- On click: call `executeRunLlm` via `useServerFn`, show loading spinner
+- On success: update local state for promptText/responseText, toast success, trigger page data refresh via `router.invalidate()`
+- On error: toast error message
+- Callback prop `onExecutionComplete` to let parent know data changed
+
+### Step 5: Wire Refresh in Route
+
+Update `runs.$runId.tsx`: pass an `onExecutionComplete` callback or rely on `router.invalidate()` to re-run the loader and refresh all panels (recommendation, parser provenance, structured action, timeline).
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| `src/components/run-details/RunHeader.tsx` | Create |
-| `src/components/run-details/RunStatusControls.tsx` | Create |
-| `src/components/run-details/RunMetadataPanel.tsx` | Create |
-| `src/components/run-details/RunPromptLogPanel.tsx` | Create |
-| `src/components/run-details/RunRecommendationPanel.tsx` | Create |
-| `src/components/run-details/ParserProvenancePanel.tsx` | Create |
-| `src/components/run-details/StructuredActionPanel.tsx` | Create |
-| `src/components/run-details/ResultsSummaryPanel.tsx` | Create |
-| `src/components/run-details/ToolTracePanel.tsx` | Create |
-| `src/components/run-details/ProvenanceTimelinePanel.tsx` | Create |
-| `src/routes/_authenticated/runs.$runId.tsx` | Rewrite (compose components) |
+| `src/server/runs.functions.ts` | Add `executeRunLlm` + `parseRecommendationText` |
+| `src/components/run-details/RunPromptLogPanel.tsx` | Add Run LLM button with loading/error states |
+| `src/routes/_authenticated/runs.$runId.tsx` | Minor: no structural changes needed (router.invalidate handles refresh) |
 
-No database changes needed — all tables exist from Phase 2.
+## Security
+
+- API key accessed only via `process.env.OPENAI_API_KEY` inside server function
+- Never logged, never returned to client, never stored in DB
+- Provider URL and model name from metadata are not secrets (user-configured)
 
