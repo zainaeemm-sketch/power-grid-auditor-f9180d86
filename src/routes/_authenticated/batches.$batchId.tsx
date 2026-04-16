@@ -134,6 +134,7 @@ function BatchDetailPage() {
       return;
     }
 
+    await requestNotificationPermission();
     setExecuting(true);
     setExecutionProgress({ current: 0, total: pendingRuns.length, currentRunTitle: "", results: [] });
 
