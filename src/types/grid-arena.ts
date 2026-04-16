@@ -3,10 +3,29 @@ import type { Tables } from "@/integrations/supabase/types";
 export type Run = Tables<"runs">;
 export type RunMetadata = Tables<"run_metadata">;
 export type RunPromptLog = Tables<"run_prompt_logs">;
-export type RunRecommendation = Tables<"run_recommendations">;
-export type RunParseResult = Tables<"run_parse_results">;
 export type ExperimentPreset = Tables<"experiment_presets">;
 export type RunStatus = "queued" | "running" | "completed";
+
+export interface RunRecommendation {
+  id: string;
+  run_id: string;
+  recommendation_text: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RunParseResult {
+  id: string;
+  run_id: string;
+  source_text: string | null;
+  parser_notes: string | null;
+  action_type: string | null;
+  target_index: number | null;
+  value: number | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface RunDetails {
   run: Run;

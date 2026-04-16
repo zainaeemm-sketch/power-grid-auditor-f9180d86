@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
-import type { Run, ExperimentPreset, RunDetails } from "@/types/grid-arena";
+import type { Run, ExperimentPreset, RunDetails, RunRecommendation, RunParseResult } from "@/types/grid-arena";
 
 export const listRuns = createServerFn({ method: "GET" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
@@ -44,19 +44,21 @@ export const getRunDetails = createServerFn({ method: "GET" })
 
     if (runError || !run) throw new Error(`Run not found: ${runError?.message}`);
 
-    const [metaRes, promptRes, recRes, parseRes] = await Promise.all([
+    const [metaRes, promptRes] = await Promise.all([
       supabase.from("run_metadata").select("*").eq("run_id", runId).maybeSingle(),
       supabase.from("run_prompt_logs").select("*").eq("run_id", runId).maybeSingle(),
-      supabase.from("run_recommendations").select("*").eq("run_id", runId).maybeSingle(),
-      supabase.from("run_parse_results").select("*").eq("run_id", runId).maybeSingle(),
     ]);
+
+    // Use rpc-style raw queries for new tables not yet in generated types
+    const recRes = await (supabase as any).from("run_recommendations").select("*").eq("run_id", runId).maybeSingle();
+    const parseRes = await (supabase as any).from("run_parse_results").select("*").eq("run_id", runId).maybeSingle();
 
     return {
       run,
       metadata: metaRes.data ?? null,
       promptLog: promptRes.data ?? null,
-      recommendation: recRes.data ?? null,
-      parseResult: parseRes.data ?? null,
+      recommendation: (recRes.data as RunRecommendation) ?? null,
+      parseResult: (parseRes.data as RunParseResult) ?? null,
     };
   });
 
@@ -108,22 +110,18 @@ export const createRun = createServerFn({ method: "POST" })
           notes: preset.notes,
         });
 
-        if (preset.default_prompt_text) {
-          await supabase.from("run_prompt_logs").insert({
-            run_id: run.id,
-            prompt_text: preset.default_prompt_text,
-          });
-        } else {
-          await supabase.from("run_prompt_logs").insert({ run_id: run.id });
-        }
+        await supabase.from("run_prompt_logs").insert({
+          run_id: run.id,
+          prompt_text: preset.default_prompt_text || null,
+        });
       }
     } else {
       await supabase.from("run_metadata").insert({ run_id: run.id });
       await supabase.from("run_prompt_logs").insert({ run_id: run.id });
     }
 
-    // Always create an empty recommendation row
-    await supabase.from("run_recommendations").insert({ run_id: run.id });
+    // Create empty recommendation row
+    await (supabase as any).from("run_recommendations").insert({ run_id: run.id });
 
     return { run };
   });
@@ -145,7 +143,6 @@ export const updateRunMetadata = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { run_id, ...fields } = data;
 
-    // Upsert: try update first, insert if not found
     const { data: existing } = await supabase
       .from("run_metadata")
       .select("id")
@@ -153,15 +150,10 @@ export const updateRunMetadata = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (existing) {
-      const { error } = await supabase
-        .from("run_metadata")
-        .update(fields)
-        .eq("run_id", run_id);
+      const { error } = await supabase.from("run_metadata").update(fields).eq("run_id", run_id);
       if (error) throw new Error(`Failed to update metadata: ${error.message}`);
     } else {
-      const { error } = await supabase
-        .from("run_metadata")
-        .insert({ run_id, ...fields });
+      const { error } = await supabase.from("run_metadata").insert({ run_id, ...fields });
       if (error) throw new Error(`Failed to create metadata: ${error.message}`);
     }
 
@@ -186,15 +178,10 @@ export const updatePromptLog = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (existing) {
-      const { error } = await supabase
-        .from("run_prompt_logs")
-        .update(fields)
-        .eq("run_id", run_id);
+      const { error } = await supabase.from("run_prompt_logs").update(fields).eq("run_id", run_id);
       if (error) throw new Error(`Failed to update prompt log: ${error.message}`);
     } else {
-      const { error } = await supabase
-        .from("run_prompt_logs")
-        .insert({ run_id, ...fields });
+      const { error } = await supabase.from("run_prompt_logs").insert({ run_id, ...fields });
       if (error) throw new Error(`Failed to create prompt log: ${error.message}`);
     }
 
@@ -211,22 +198,17 @@ export const updateRecommendation = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { run_id, ...fields } = data;
 
-    const { data: existing } = await supabase
+    const { data: existing } = await (supabase as any)
       .from("run_recommendations")
       .select("id")
       .eq("run_id", run_id)
       .maybeSingle();
 
     if (existing) {
-      const { error } = await supabase
-        .from("run_recommendations")
-        .update(fields)
-        .eq("run_id", run_id);
+      const { error } = await (supabase as any).from("run_recommendations").update(fields).eq("run_id", run_id);
       if (error) throw new Error(`Failed to update recommendation: ${error.message}`);
     } else {
-      const { error } = await supabase
-        .from("run_recommendations")
-        .insert({ run_id, ...fields });
+      const { error } = await (supabase as any).from("run_recommendations").insert({ run_id, ...fields });
       if (error) throw new Error(`Failed to create recommendation: ${error.message}`);
     }
 
