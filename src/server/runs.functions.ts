@@ -50,8 +50,11 @@ export const getRunDetails = createServerFn({ method: "GET" })
     ]);
 
     // Use rpc-style raw queries for new tables not yet in generated types
-    const recRes = await (supabase as any).from("run_recommendations").select("*").eq("run_id", runId).maybeSingle();
-    const parseRes = await (supabase as any).from("run_parse_results").select("*").eq("run_id", runId).maybeSingle();
+    const [recRes, parseRes, evalRes] = await Promise.all([
+      (supabase as any).from("run_recommendations").select("*").eq("run_id", runId).maybeSingle(),
+      (supabase as any).from("run_parse_results").select("*").eq("run_id", runId).maybeSingle(),
+      (supabase as any).from("run_evaluations").select("*").eq("run_id", runId).maybeSingle(),
+    ]);
 
     return {
       run,
@@ -59,6 +62,7 @@ export const getRunDetails = createServerFn({ method: "GET" })
       promptLog: promptRes.data ?? null,
       recommendation: (recRes.data as RunRecommendation) ?? null,
       parseResult: (parseRes.data as RunParseResult) ?? null,
+      evaluation: (evalRes.data as import("@/types/grid-arena").RunEvaluation) ?? null,
     };
   });
 

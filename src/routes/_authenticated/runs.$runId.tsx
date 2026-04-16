@@ -70,7 +70,7 @@ function RunDetailPage() {
         <RunRecommendationPanel runId={run.id} recommendation={recommendation ?? null} />
         <ParserProvenancePanel parseResult={parseResult ?? null} />
         <StructuredActionPanel parseResult={parseResult ?? null} />
-        <ResultsSummaryPanel />
+        <ResultsSummaryPanel evaluation={details.evaluation ?? null} />
       </div>
 
       {/* Full-width panels */}
