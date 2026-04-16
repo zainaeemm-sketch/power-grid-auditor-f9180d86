@@ -5,7 +5,7 @@ import { Plus, FlaskConical } from "lucide-react";
 import { listPresets } from "@/server/runs.functions";
 import type { ExperimentPreset } from "@/types/grid-arena";
 
-export const Route = createFileRoute("/presets")({
+export const Route = createFileRoute("/_authenticated/presets")({
   head: () => ({
     meta: [
       { title: "Presets — GridArena" },

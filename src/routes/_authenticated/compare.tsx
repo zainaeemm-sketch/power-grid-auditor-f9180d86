@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { GitCompare } from "lucide-react";
 
-export const Route = createFileRoute("/compare")({
+export const Route = createFileRoute("/_authenticated/compare")({
   head: () => ({
     meta: [
       { title: "Compare Runs — GridArena" },

@@ -8,7 +8,7 @@ import { useState } from "react";
 import { listRuns } from "@/server/runs.functions";
 import type { Run, RunStatus } from "@/types/grid-arena";
 
-export const Route = createFileRoute("/runs/")({
+export const Route = createFileRoute("/_authenticated/runs/")({
   head: () => ({
     meta: [
       { title: "Runs — GridArena" },

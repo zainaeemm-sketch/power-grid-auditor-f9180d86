@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Play } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/runs/$runId")({
+export const Route = createFileRoute("/_authenticated/runs/$runId")({
   head: () => ({
     meta: [
       { title: "Run Details — GridArena" },

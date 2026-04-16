@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
-export const Route = createFileRoute("/batches/$batchId")({
+export const Route = createFileRoute("/_authenticated/batches/$batchId")({
   head: () => ({
     meta: [{ title: "Batch Details — GridArena" }],
   }),
