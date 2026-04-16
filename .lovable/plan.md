@@ -1,72 +1,70 @@
 
 
-# GridArena — Implementation Plan
+# Phase 2: Backend CRUD & Persistence
 
-## Overview
-GridArena is a full-stack research platform for evaluating and auditing LLM agents on power-system tasks. Dark professional theme with emerald accent, Supabase backend, secure server-side LLM execution.
+## Current State
 
-## Phase 1: Foundation — Layout, Navigation, Theme, Core Pages
+Tables already exist: `runs`, `run_metadata`, `run_prompt_logs`, `experiment_presets` — all with user-scoped RLS. Server functions exist for `listRuns`, `getRun`, `createRun`, `listPresets`.
 
-- **Dark theme**: Slate background (`#0F172A`), emerald primary (`#10B981`), rounded cards, professional research dashboard aesthetic
-- **Navigation header**: Home, Runs, New Run, Presets, Batches, Compare — with active link highlighting
-- **Route files**: `index.tsx`, `runs.tsx`, `runs.$runId.tsx`, `new-run.tsx`, `presets.tsx`, `batches.tsx`, `batches.$batchId.tsx`, `compare.tsx`
-- **Home page**: Hero section introducing GridArena, CTA buttons (Start New Run, View Runs), overview stat cards
-- **Runs page**: Placeholder list UI with search/filter controls
-- **New Run page**: Form shell with preset dropdown
+Missing: `run_recommendations` and `run_parse_results` tables. The Run Details page is placeholder-only. No update server functions exist. No preset creation. No foreign keys on child tables.
 
-## Phase 2: Supabase Schema & CRUD
+## Step 1: Database Migration
 
-- **Enable Lovable Cloud** with Supabase for database + auth
-- **Create all tables**: `runs`, `run_metadata`, `run_prompt_logs`, `run_recommendations`, `run_parse_results`, `run_actions`, `experiment_presets`, `batches`, `batch_run_links`, plus `run_results` for evaluation summaries
-- **RLS policies**: Users own their data via `user_id` foreign key on runs, presets, and batches
-- **Auth**: Basic email/password login, protected routes for authenticated users
-- **Server functions**: CRUD operations for all entities
-- **Seed data**: Sample runs, presets, and batch data inserted via migrations
+Create two new tables and add foreign keys to existing child tables:
 
-## Phase 3: Run Details Page
+**New tables:**
+- `run_recommendations` (id, run_id unique FK → runs, recommendation_text, created_at, updated_at) with user-scoped RLS via runs join
+- `run_parse_results` (id, run_id unique FK → runs, source_text, parser_notes, action_type, target_index, value, enabled default true, created_at, updated_at) with user-scoped RLS via runs join
 
-- **Run header**: Title, agent, status badge, export CSV button
-- **Status controls**: Buttons to transition queued → running → completed
-- **Metadata panel**: Editable fields for provider, model, prompt version, dataset version, seed, notes
-- **Prompt/Response log panel**: Editable text areas for prompt and response
-- **Recommendation panel**: Display/edit recommendation text
-- **Parser provenance panel**: Show parsed source, notes, action type, target, value
-- **Action proposal panel**: Structured action display with enable/disable toggles
-- **Results summary panel**: Feasibility, violations, confidence, grounding quality
-- **Tool trace & provenance timeline panels**: Placeholder sections for future expansion
+**Schema fixes:**
+- Add foreign key constraints on `run_metadata.run_id → runs.id ON DELETE CASCADE`
+- Add foreign key constraint on `run_prompt_logs.run_id → runs.id ON DELETE CASCADE`
+- Add unique constraints on `run_metadata.run_id` and `run_prompt_logs.run_id` (one per run)
 
-## Phase 4: Secure Server-Side LLM Execution
+## Step 2: New Server Functions
 
-- **Server function** (`createServerFn`): "Run LLM Automatically" endpoint
-- **Flow**: Read run metadata → get `provider_base_url` + `model_name` → fallback to secrets if blank → read `prompt_text` → call LLM API server-side → save `response_text` → copy to `run_recommendations` → trigger parser → save structured action → return results
-- **Secrets**: Store default LLM provider URL and API key via Lovable secrets management
-- **Error handling**: Graceful failures with user-facing error messages
+Add to `src/server/runs.functions.ts`:
 
-## Phase 5: Parser, Structured Actions & Evaluation
+- `getRunDetails` — fetches run + metadata + prompt log + recommendation + parse result in one call (individual queries, graceful nulls for missing rows)
+- `updateRunMetadata` — upsert run_metadata for a run
+- `updatePromptLog` — upsert run_prompt_logs for a run
+- `updateRecommendation` — upsert run_recommendations for a run
+- `updateRunStatus` — update runs.status
+- `createPreset` — insert into experiment_presets with user_id
 
-- **Rule-based parser**: Support `none`, `scale_all_loads`, `set_generator_p_mw`, `line_outage` action types
-- **Parser notes**: Explain how recommendation text was interpreted
-- **Results engine**: Placeholder evaluation storing feasibility, violations, confidence, grounding quality, action applied, notes
-- **UI wiring**: Parse results and evaluation summaries display in run details
+Add types to `src/types/grid-arena.ts`:
+- `RunRecommendation`, `RunParseResult`
 
-## Phase 6: Compare, Batches & Exports
+## Step 3: Wire Run Details Page
 
-- **Compare page**: Select two runs via dropdowns, side-by-side comparison of metadata, recommendations, parsed actions, evaluation summaries
-- **Batches page**: Create batch with name/task/research question, link multiple runs, batch detail view with analytics cards and charts (using Recharts)
-- **CSV exports**: Run-level export, comparison export, batch analytics export — all generated server-side and downloaded
-- **Batch analytics**: Summary statistics, success rates, violation charts across batch runs
+Replace placeholder panels in `runs.$runId.tsx` with real data:
 
-## Design System
-- Background: `oklch(0.129 0.042 264.695)` (dark slate)
-- Primary: Emerald green (`#10B981` / oklch equivalent)
-- Cards: Dark elevated surfaces with subtle borders, rounded corners
-- Typography: Clean hierarchy with muted labels and bright values
-- Status badges: Color-coded (queued=yellow, running=blue, completed=green)
+- **Loader**: call `getRunDetails({ data: { runId } })`
+- **Metadata panel**: editable form (provider, model, prompt version, dataset version, seed, notes) with Save button calling `updateRunMetadata`
+- **Prompt/Response panel**: two textareas with Save button calling `updatePromptLog`
+- **Recommendation panel**: textarea with Save button calling `updateRecommendation`
+- **Parser Provenance panel**: read-only display from `run_parse_results`, fallback "No parse results yet"
+- **Status controls**: buttons to change status (queued → running → completed) calling `updateRunStatus`
+- **Run header**: show real title, agent, status from loaded data
 
-## Architecture
-- **Routes**: File-based routing via TanStack Start
-- **Server functions**: All mutations and LLM calls via `createServerFn`
-- **Components**: Reusable cards, forms, tables, status badges, filter bars
-- **Database**: Supabase with RLS, user-scoped data
-- **Auth**: Supabase auth with protected layout route (`_authenticated`)
+## Step 4: Wire Presets Page
+
+- Add a "New Preset" dialog/form with all fields
+- On submit, call `createPreset` server function
+- Refresh preset list after creation
+
+## Step 5: Ensure createRun Also Creates Recommendation Row
+
+Update `createRun` to also insert an empty `run_recommendations` row alongside metadata and prompt log rows.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Migration SQL | New tables, FKs, unique constraints, RLS |
+| `src/types/grid-arena.ts` | Add RunRecommendation, RunParseResult types |
+| `src/server/runs.functions.ts` | Add getRunDetails, update*, createPreset functions |
+| `src/routes/_authenticated/runs.$runId.tsx` | Full rewrite with loader + editable panels |
+| `src/routes/_authenticated/presets.tsx` | Add create preset form/dialog |
+| `src/routes/_authenticated/new-run.tsx` | Minor: also create recommendation row |
 
