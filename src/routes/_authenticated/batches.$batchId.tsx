@@ -14,7 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getBatchDetails } from "@/server/batch.functions";
@@ -409,9 +410,32 @@ function BatchDetailPage() {
         >
           {notifOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
         </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9" title="Keyboard shortcuts">
+              <Keyboard className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="end">
+            <p className="mb-2 text-sm font-medium">Keyboard Shortcuts</p>
+            <div className="space-y-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <span>Run All Experiments</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘↵</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Export Batch CSV</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘E</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Export Comparison CSV</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘⇧E</kbd>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {/* Live Execution Progress */}
       {executionProgress && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
           <CardContent className="p-4">
