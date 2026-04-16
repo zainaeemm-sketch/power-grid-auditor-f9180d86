@@ -14,7 +14,184 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      experiment_presets: {
+        Row: {
+          created_at: string
+          dataset_version: string | null
+          default_prompt_text: string | null
+          id: string
+          model_name: string | null
+          model_version: string | null
+          name: string
+          notes: string | null
+          prompt_version: string | null
+          provider_base_url: string | null
+          provider_name: string | null
+          random_seed: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          dataset_version?: string | null
+          default_prompt_text?: string | null
+          id?: string
+          model_name?: string | null
+          model_version?: string | null
+          name: string
+          notes?: string | null
+          prompt_version?: string | null
+          provider_base_url?: string | null
+          provider_name?: string | null
+          random_seed?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          dataset_version?: string | null
+          default_prompt_text?: string | null
+          id?: string
+          model_name?: string | null
+          model_version?: string | null
+          name?: string
+          notes?: string | null
+          prompt_version?: string | null
+          provider_base_url?: string | null
+          provider_name?: string | null
+          random_seed?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      run_metadata: {
+        Row: {
+          created_at: string
+          dataset_version: string | null
+          id: string
+          model_name: string | null
+          model_version: string | null
+          notes: string | null
+          prompt_version: string | null
+          provider_base_url: string | null
+          provider_name: string | null
+          random_seed: number | null
+          run_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dataset_version?: string | null
+          id?: string
+          model_name?: string | null
+          model_version?: string | null
+          notes?: string | null
+          prompt_version?: string | null
+          provider_base_url?: string | null
+          provider_name?: string | null
+          random_seed?: number | null
+          run_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dataset_version?: string | null
+          id?: string
+          model_name?: string | null
+          model_version?: string | null
+          notes?: string | null
+          prompt_version?: string | null
+          provider_base_url?: string | null
+          provider_name?: string | null
+          random_seed?: number | null
+          run_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_metadata_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      run_prompt_logs: {
+        Row: {
+          created_at: string
+          id: string
+          prompt_text: string | null
+          response_text: string | null
+          run_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          prompt_text?: string | null
+          response_text?: string | null
+          run_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          prompt_text?: string | null
+          response_text?: string | null
+          run_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_prompt_logs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      runs: {
+        Row: {
+          agent: string
+          case_name: string
+          created_at: string
+          id: string
+          research_question: string | null
+          status: Database["public"]["Enums"]["run_status"]
+          task: string
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          agent: string
+          case_name: string
+          created_at?: string
+          id?: string
+          research_question?: string | null
+          status?: Database["public"]["Enums"]["run_status"]
+          task: string
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          agent?: string
+          case_name?: string
+          created_at?: string
+          id?: string
+          research_question?: string | null
+          status?: Database["public"]["Enums"]["run_status"]
+          task?: string
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +200,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      run_status: "queued" | "running" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +327,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      run_status: ["queued", "running", "completed"],
+    },
   },
 } as const
