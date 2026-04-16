@@ -16,7 +16,13 @@ export const Route = createFileRoute("/_authenticated/runs/$runId")({
   head: () => ({
     meta: [{ title: "Run Details — GridArena" }],
   }),
-  loader: ({ params }) => getRunDetails({ data: { runId: params.runId } }),
+  loader: async ({ params }) => {
+    try {
+      return await getRunDetails({ data: { runId: params.runId } });
+    } catch {
+      return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null };
+    }
+  },
   errorComponent: ({ error }) => (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <p className="text-destructive">Error loading run: {error.message}</p>

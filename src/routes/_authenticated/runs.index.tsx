@@ -15,7 +15,13 @@ export const Route = createFileRoute("/_authenticated/runs/")({
       { name: "description", content: "Browse and search experiment runs." },
     ],
   }),
-  loader: () => listRuns(),
+  loader: async () => {
+    try {
+      return await listRuns();
+    } catch {
+      return { runs: [] };
+    }
+  },
   component: RunsPage,
 });
 
