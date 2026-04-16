@@ -65,6 +65,62 @@ export type Database = {
         }
         Relationships: []
       }
+      run_evaluations: {
+        Row: {
+          action_applied: string
+          baseline_violations: number
+          confidence: string
+          created_at: string
+          feasibility: string
+          grounding_quality: string
+          id: string
+          notes: string | null
+          post_action_violations: number
+          run_id: string
+          updated_at: string
+          violation_improvement: number
+          violations_found: number
+        }
+        Insert: {
+          action_applied?: string
+          baseline_violations?: number
+          confidence?: string
+          created_at?: string
+          feasibility?: string
+          grounding_quality?: string
+          id?: string
+          notes?: string | null
+          post_action_violations?: number
+          run_id: string
+          updated_at?: string
+          violation_improvement?: number
+          violations_found?: number
+        }
+        Update: {
+          action_applied?: string
+          baseline_violations?: number
+          confidence?: string
+          created_at?: string
+          feasibility?: string
+          grounding_quality?: string
+          id?: string
+          notes?: string | null
+          post_action_violations?: number
+          run_id?: string
+          updated_at?: string
+          violation_improvement?: number
+          violations_found?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_evaluations_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: true
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       run_metadata: {
         Row: {
           created_at: string

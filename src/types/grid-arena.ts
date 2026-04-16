@@ -27,10 +27,27 @@ export interface RunParseResult {
   updated_at: string;
 }
 
+export interface RunEvaluation {
+  id: string;
+  run_id: string;
+  feasibility: string;
+  violations_found: number;
+  baseline_violations: number;
+  post_action_violations: number;
+  violation_improvement: number;
+  confidence: string;
+  grounding_quality: string;
+  action_applied: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RunDetails {
   run: Run;
   metadata: RunMetadata | null;
   promptLog: RunPromptLog | null;
   recommendation: RunRecommendation | null;
   parseResult: RunParseResult | null;
+  evaluation: RunEvaluation | null;
 }

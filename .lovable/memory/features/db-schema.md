@@ -11,6 +11,7 @@ type: feature
 - **run_prompt_logs** — id, run_id (unique FK → runs CASCADE), prompt_text, response_text. RLS: via runs.user_id.
 - **run_recommendations** — id, run_id (unique FK → runs CASCADE), recommendation_text. RLS: via runs.user_id.
 - **run_parse_results** — id, run_id (unique FK → runs CASCADE), source_text, parser_notes, action_type, target_index, value, enabled. RLS: via runs.user_id.
+- **run_evaluations** — id, run_id (unique FK → runs CASCADE), feasibility, violations_found, baseline_violations, post_action_violations, violation_improvement, confidence, grounding_quality, action_applied, notes. RLS: via runs.user_id.
 - **experiment_presets** — id, name, provider/model fields, prompt/dataset version, random_seed, notes, default_prompt_text, user_id. RLS: user_id = auth.uid().
 
 All tables have created_at, updated_at with auto-update triggers.

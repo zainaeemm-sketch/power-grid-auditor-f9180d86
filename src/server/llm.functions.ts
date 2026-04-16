@@ -14,15 +14,33 @@ interface ParseResult {
 export function parseRecommendationText(text: string): ParseResult {
   const lower = text.toLowerCase();
 
+  // reduce loads by X%
+  const reduceMatch = lower.match(/reduce\s+(?:all\s+)?loads?\s*(?:by)?\s*([\d.]+)\s*%/);
+  if (reduceMatch) {
+    const pct = parseFloat(reduceMatch[1]);
+    const factor = +(1 - pct / 100).toFixed(4);
+    const phrase = reduceMatch[0];
+    return {
+      source_text: text,
+      parser_notes: `Matched load reduction rule from phrase '${phrase}' and extracted factor ${factor} (100% - ${pct}% = ${factor}).`,
+      action_type: "scale_all_loads",
+      target_index: null,
+      value: factor,
+      enabled: true,
+    };
+  }
+
   // scale all loads
   const scaleMatch = lower.match(/scale\s+all\s+loads?\s*(?:by|to|with|factor)?\s*([\d.]+)/);
   if (scaleMatch) {
+    const factor = parseFloat(scaleMatch[1]);
+    const phrase = scaleMatch[0];
     return {
       source_text: text,
-      parser_notes: `Matched "scale all loads" with factor ${scaleMatch[1]}`,
+      parser_notes: `Matched load scaling rule from phrase '${phrase}' and extracted factor ${factor}.`,
       action_type: "scale_all_loads",
       target_index: null,
-      value: parseFloat(scaleMatch[1]),
+      value: factor,
       enabled: true,
     };
   }
@@ -30,12 +48,14 @@ export function parseRecommendationText(text: string): ParseResult {
   // set generator
   const genMatch = lower.match(/set\s+generator\s*(\d+)\s*(?:to|at|=)?\s*([\d.]+)\s*(?:mw)?/);
   if (genMatch) {
+    const genIdx = parseInt(genMatch[1], 10);
+    const mw = parseFloat(genMatch[2]);
     return {
       source_text: text,
-      parser_notes: `Matched "set generator ${genMatch[1]} to ${genMatch[2]} MW"`,
+      parser_notes: `Matched generator dispatch rule and extracted generator ${genIdx} with target ${mw} MW.`,
       action_type: "set_generator_p_mw",
-      target_index: parseInt(genMatch[1], 10),
-      value: parseFloat(genMatch[2]),
+      target_index: genIdx,
+      value: mw,
       enabled: true,
     };
   }
@@ -43,11 +63,13 @@ export function parseRecommendationText(text: string): ParseResult {
   // line outage
   const lineMatch = lower.match(/(?:line\s+outage|take\s+line)\s*(\d+)/);
   if (lineMatch) {
+    const lineIdx = parseInt(lineMatch[1], 10);
+    const phrase = lineMatch[0];
     return {
       source_text: text,
-      parser_notes: `Matched "line outage" for line ${lineMatch[1]}`,
+      parser_notes: `Matched line outage rule for line ${lineIdx} from phrase '${phrase}'.`,
       action_type: "line_outage",
-      target_index: parseInt(lineMatch[1], 10),
+      target_index: lineIdx,
       value: null,
       enabled: true,
     };
@@ -55,7 +77,7 @@ export function parseRecommendationText(text: string): ParseResult {
 
   return {
     source_text: text,
-    parser_notes: "No structured action pattern matched",
+    parser_notes: "No supported control action pattern found in recommendation text, defaulted to action_type='none'.",
     action_type: "none",
     target_index: null,
     value: null,
@@ -174,7 +196,29 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       await (supabase as any).from("run_parse_results").insert({ run_id: runId, ...parseResult });
     }
 
-    // 9. Mark run as completed
+    // 9. Evaluate run
+    let evaluationResult = null;
+    try {
+      const { applyParsedAction, computeEvaluation } = await import("./evaluation.functions");
+      const fullParseResult = { ...parseResult, id: "", run_id: runId, created_at: "", updated_at: "" };
+      const actionResult = applyParsedAction(fullParseResult as any);
+      const evalFields = computeEvaluation(fullParseResult as any, actionResult);
+
+      const { data: existingEval } = await (supabase as any)
+        .from("run_evaluations").select("id").eq("run_id", runId).maybeSingle();
+
+      if (existingEval) {
+        const { data } = await (supabase as any).from("run_evaluations").update(evalFields).eq("run_id", runId).select("*").single();
+        evaluationResult = data;
+      } else {
+        const { data } = await (supabase as any).from("run_evaluations").insert({ run_id: runId, ...evalFields }).select("*").single();
+        evaluationResult = data;
+      }
+    } catch (evalErr: any) {
+      console.error("Evaluation failed:", evalErr.message);
+    }
+
+    // 10. Mark run as completed
     await supabase.from("runs").update({ status: "completed" as const }).eq("id", runId);
 
     return {
@@ -182,5 +226,6 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       response_text: responseText,
       recommendation_text: responseText,
       parseResult,
+      evaluation: evaluationResult,
     };
   });

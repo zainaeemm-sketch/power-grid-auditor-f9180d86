@@ -1,19 +1,43 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import type { RunEvaluation } from "@/types/grid-arena";
 
-const METRICS = [
-  { key: "feasibility", label: "Feasibility" },
-  { key: "violations_found", label: "Violations Found" },
-  { key: "baseline_violations", label: "Baseline Violations" },
-  { key: "post_action_violations", label: "Post-Action Violations" },
-  { key: "violation_improvement", label: "Improvement" },
-  { key: "confidence", label: "Confidence" },
-  { key: "grounding_quality", label: "Grounding Quality" },
-  { key: "action_applied", label: "Action Applied" },
-  { key: "notes", label: "Notes" },
-] as const;
+interface ResultsSummaryPanelProps {
+  evaluation: RunEvaluation | null;
+}
 
-export function ResultsSummaryPanel() {
+function badgeVariant(value: string, positives: string[], negatives: string[]): "default" | "secondary" | "destructive" | "outline" {
+  if (positives.includes(value)) return "default";
+  if (negatives.includes(value)) return "destructive";
+  return "secondary";
+}
+
+export function ResultsSummaryPanel({ evaluation }: ResultsSummaryPanelProps) {
+  if (!evaluation) {
+    return (
+      <Card className="border-border/60 bg-card/60">
+        <CardHeader>
+          <CardTitle className="text-base">Results Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No evaluation computed yet. Run the LLM pipeline or reparse the recommendation to generate results.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const metrics = [
+    { label: "Feasibility", value: evaluation.feasibility, badge: true, positives: ["feasible"], negatives: ["infeasible"] },
+    { label: "Baseline Violations", value: String(evaluation.baseline_violations), badge: false },
+    { label: "Post-Action Violations", value: String(evaluation.post_action_violations), badge: false },
+    { label: "Violation Improvement", value: String(evaluation.violation_improvement), badge: false },
+    { label: "Violations Found", value: String(evaluation.violations_found), badge: false },
+    { label: "Confidence", value: evaluation.confidence, badge: true, positives: ["high"], negatives: ["low"] },
+    { label: "Grounding Quality", value: evaluation.grounding_quality, badge: true, positives: ["grounded"], negatives: ["ungrounded"] },
+    { label: "Action Applied", value: evaluation.action_applied, badge: false },
+    { label: "Notes", value: evaluation.notes ?? "—", badge: false },
+  ];
+
   return (
     <Card className="border-border/60 bg-card/60">
       <CardHeader>
@@ -21,10 +45,16 @@ export function ResultsSummaryPanel() {
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 sm:grid-cols-3">
-          {METRICS.map((m) => (
-            <div key={m.key} className="rounded-lg border border-border/40 p-3 text-center">
+          {metrics.map((m) => (
+            <div key={m.label} className="rounded-lg border border-border/40 p-3 text-center">
               <p className="text-xs text-muted-foreground">{m.label}</p>
-              <Badge variant="secondary" className="mt-1.5">Pending</Badge>
+              {m.badge ? (
+                <Badge variant={badgeVariant(m.value, m.positives ?? [], m.negatives ?? [])} className="mt-1.5">
+                  {m.value}
+                </Badge>
+              ) : (
+                <p className="mt-1.5 text-sm font-medium">{m.value}</p>
+              )}
             </div>
           ))}
         </div>
