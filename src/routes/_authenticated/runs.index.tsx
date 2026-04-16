@@ -3,8 +3,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Search, Plus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { listRuns } from "@/server/runs.functions";
 import type { Run, RunStatus } from "@/types/grid-arena";
 
@@ -35,16 +42,50 @@ export const Route = createFileRoute("/_authenticated/runs/")({
   ),
 });
 
+const ALL = "__all__";
+
 function RunsPage() {
   const { runs, error } = Route.useLoaderData() as { runs: Run[]; error: string | null };
   const [search, setSearch] = useState("");
+  const [taskFilter, setTaskFilter] = useState(ALL);
+  const [agentFilter, setAgentFilter] = useState(ALL);
+  const [caseFilter, setCaseFilter] = useState(ALL);
+  const [statusFilter, setStatusFilter] = useState(ALL);
 
-  const filtered = runs.filter(
-    (r: Run) =>
-      r.title.toLowerCase().includes(search.toLowerCase()) ||
-      r.agent.toLowerCase().includes(search.toLowerCase()) ||
-      r.task.toLowerCase().includes(search.toLowerCase())
-  );
+  const options = useMemo(() => {
+    const tasks = new Set<string>();
+    const agents = new Set<string>();
+    const cases = new Set<string>();
+    const statuses = new Set<string>();
+    for (const r of runs) {
+      tasks.add(r.task);
+      agents.add(r.agent);
+      cases.add(r.case_name);
+      statuses.add(r.status);
+    }
+    return {
+      tasks: [...tasks].sort(),
+      agents: [...agents].sort(),
+      cases: [...cases].sort(),
+      statuses: [...statuses].sort(),
+    };
+  }, [runs]);
+
+  const filtered = runs.filter((r: Run) => {
+    if (taskFilter !== ALL && r.task !== taskFilter) return false;
+    if (agentFilter !== ALL && r.agent !== agentFilter) return false;
+    if (caseFilter !== ALL && r.case_name !== caseFilter) return false;
+    if (statusFilter !== ALL && r.status !== statusFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        r.title.toLowerCase().includes(q) ||
+        r.agent.toLowerCase().includes(q) ||
+        r.task.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -64,8 +105,8 @@ function RunsPage() {
         </Button>
       </div>
 
-      <div className="mb-6">
-        <div className="relative max-w-sm">
+      <div className="mb-6 flex flex-wrap items-end gap-3">
+        <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search runs..."
@@ -74,6 +115,50 @@ function RunsPage() {
             className="pl-9"
           />
         </div>
+        <Select value={taskFilter} onValueChange={setTaskFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Task" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Tasks</SelectItem>
+            {options.tasks.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={agentFilter} onValueChange={setAgentFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Agent" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Agents</SelectItem>
+            {options.agents.map((a) => (
+              <SelectItem key={a} value={a}>{a}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={caseFilter} onValueChange={setCaseFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Case" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Cases</SelectItem>
+            {options.cases.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Statuses</SelectItem>
+            {options.statuses.map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-3">

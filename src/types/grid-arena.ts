@@ -52,6 +52,17 @@ export interface RunDetails {
   evaluation: RunEvaluation | null;
 }
 
+export interface RunAction {
+  id: string;
+  run_id: string;
+  action_type: string | null;
+  target_index: number | null;
+  value: number | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Batch {
   id: string;
   name: string;
@@ -67,9 +78,11 @@ export interface BatchRunLink {
   id: string;
   batch_id: string;
   run_id: string;
+  agent: string | null;
+  case_name: string | null;
+  recommendation_text: string | null;
   created_at: string;
 }
-
 export interface BatchRunWithEvaluation {
   run: Run;
   evaluation: RunEvaluation | null;
