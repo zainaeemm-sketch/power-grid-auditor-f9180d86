@@ -267,6 +267,7 @@ function BatchDetailPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [executing, handleRunAll, handleExportBatch, handleExportComparison]);
 
+  if (!data || !batch) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
         <p className="text-muted-foreground">Loading batch…</p>
