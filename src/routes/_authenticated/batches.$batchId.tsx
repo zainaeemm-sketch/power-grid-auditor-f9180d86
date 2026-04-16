@@ -232,6 +232,7 @@ function BatchDetailPage() {
     setRetryingRunId(null);
     setRetryingAll(false);
     toast.success(`Retry complete: ${succeeded} succeeded, ${failed} still failed`);
+    notifyBatchComplete(succeeded, failed);
     router.invalidate();
   }, [executionProgress, router]);
 
