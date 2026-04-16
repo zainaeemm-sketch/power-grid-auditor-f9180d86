@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download } from "lucide-react";
-import { useState } from "react";
-import { getBatchDetails, executeBatchRuns } from "@/server/batch.functions";
-import type { BatchDetails, RunStatus } from "@/types/grid-arena";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { getBatchDetails } from "@/server/batch.functions";
+import { executeRunLlm } from "@/server/llm.functions";
+import type { BatchDetails, RunStatus, RunEvaluation } from "@/types/grid-arena";
 import { exportBatchCsv, exportComparisonCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
 import {
@@ -52,8 +53,59 @@ function BatchDetailPage() {
   const data = Route.useLoaderData() as BatchDetails | null;
   const router = useRouter();
   const [executing, setExecuting] = useState(false);
+  const [executionProgress, setExecutionProgress] = useState<{
+    current: number;
+    total: number;
+    currentRunTitle: string;
+    results: Array<{ runId: string; success: boolean; error?: string }>;
+  } | null>(null);
 
-  if (!data) {
+  const batch = data?.batch;
+  const runs = data?.runs ?? [];
+
+  const handleRunAll = useCallback(async () => {
+    const pendingRuns = runs.filter((r) => r.run.status !== "completed");
+    if (pendingRuns.length === 0) {
+      toast.info("All runs are already completed");
+      return;
+    }
+
+    setExecuting(true);
+    setExecutionProgress({ current: 0, total: pendingRuns.length, currentRunTitle: "", results: [] });
+
+    const results: Array<{ runId: string; success: boolean; error?: string }> = [];
+
+    for (let i = 0; i < pendingRuns.length; i++) {
+      const r = pendingRuns[i];
+      setExecutionProgress((prev) => prev ? {
+        ...prev,
+        current: i,
+        currentRunTitle: r.run.title,
+      } : prev);
+
+      try {
+        const res = await executeRunLlm({ data: { run_id: r.run.id } });
+        results.push({ runId: r.run.id, success: res.success, error: res.error });
+      } catch (err: any) {
+        results.push({ runId: r.run.id, success: false, error: err.message });
+      }
+
+      setExecutionProgress((prev) => prev ? {
+        ...prev,
+        current: i + 1,
+        results: [...results],
+      } : prev);
+    }
+
+    const succeeded = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+    toast.success(`Batch complete: ${succeeded} succeeded, ${failed} failed`);
+
+    setExecuting(false);
+    router.invalidate();
+  }, [runs, router]);
+
+  if (!data || !batch) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
         <p className="text-muted-foreground">Loading batch…</p>
@@ -61,7 +113,6 @@ function BatchDetailPage() {
     );
   }
 
-  const { batch, runs } = data;
   const completedRuns = runs.filter((r) => r.run.status === "completed");
   const progressPct = runs.length > 0 ? (completedRuns.length / runs.length) * 100 : 0;
 
@@ -127,18 +178,6 @@ function BatchDetailPage() {
     grounding: { label: "Grounding", color: "var(--primary)" },
   };
 
-  const handleRunAll = async () => {
-    setExecuting(true);
-    try {
-      const result = await executeBatchRuns({ data: { batch_id: batch.id } });
-      toast.success(`Executed ${result.executed}/${result.total} runs`);
-      router.invalidate();
-    } catch (err: any) {
-      toast.error(err.message || "Batch execution failed");
-    } finally {
-      setExecuting(false);
-    }
-  };
 
   const handleExportBatch = () => {
     const exportRuns = runs.map((r) => ({
@@ -176,13 +215,49 @@ function BatchDetailPage() {
             <span>{completedRuns.length}/{runs.length} completed</span>
             <span>{Math.round(progressPct)}%</span>
           </div>
-          <Progress value={progressPct} />
+          <Progress value={executing && executionProgress ? (executionProgress.current / executionProgress.total) * 100 : progressPct} />
         </div>
         <Button onClick={handleRunAll} disabled={executing}>
-          <Play className="mr-2 h-4 w-4" />
-          {executing ? "Running…" : "Run All Experiments"}
+          {executing ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Running…</>
+          ) : (
+            <><Play className="mr-2 h-4 w-4" />Run All Experiments</>
+          )}
         </Button>
       </div>
+
+      {/* Live Execution Progress */}
+      {executionProgress && executing && (
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center justify-between text-sm">
+              <span className="font-medium">Executing: {executionProgress.current}/{executionProgress.total}</span>
+              <span className="text-muted-foreground">{Math.round((executionProgress.current / executionProgress.total) * 100)}%</span>
+            </div>
+            {executionProgress.currentRunTitle && (
+              <p className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                {executionProgress.currentRunTitle}
+              </p>
+            )}
+            {executionProgress.results.length > 0 && (
+              <div className="space-y-1">
+                {executionProgress.results.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    {r.success ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 text-destructive" />
+                    )}
+                    <span className="truncate">{r.runId.slice(0, 8)}…</span>
+                    {r.error && <span className="text-destructive">{r.error.slice(0, 60)}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
