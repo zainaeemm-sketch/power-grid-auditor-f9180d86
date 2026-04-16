@@ -18,7 +18,14 @@ export const Route = createFileRoute("/_authenticated/presets")({
       { name: "description", content: "Manage experiment presets." },
     ],
   }),
-  loader: () => listPresets(),
+  loader: async () => {
+    if (typeof window === "undefined") return { presets: [] };
+    try {
+      return await listPresets();
+    } catch {
+      return { presets: [] };
+    }
+  },
   component: PresetsPage,
 });
 

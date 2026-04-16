@@ -17,7 +17,14 @@ export const Route = createFileRoute("/_authenticated/new-run")({
       { name: "description", content: "Create a new experiment run." },
     ],
   }),
-  loader: () => listPresets(),
+  loader: async () => {
+    if (typeof window === "undefined") return { presets: [] };
+    try {
+      return await listPresets();
+    } catch {
+      return { presets: [] };
+    }
+  },
   component: NewRunPage,
 });
 

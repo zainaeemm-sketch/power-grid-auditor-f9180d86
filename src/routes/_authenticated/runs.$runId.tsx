@@ -16,7 +16,14 @@ export const Route = createFileRoute("/_authenticated/runs/$runId")({
   head: () => ({
     meta: [{ title: "Run Details — GridArena" }],
   }),
-  loader: ({ params }) => getRunDetails({ data: { runId: params.runId } }),
+  loader: async ({ params }) => {
+    if (typeof window === "undefined") return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null };
+    try {
+      return await getRunDetails({ data: { runId: params.runId } });
+    } catch {
+      return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null };
+    }
+  },
   errorComponent: ({ error }) => (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <p className="text-destructive">Error loading run: {error.message}</p>
@@ -46,7 +53,7 @@ function RunDetailPage() {
   const updateRecFn = useServerFn(updateRecommendation);
   const updateStatusFn = useServerFn(updateRunStatus);
 
-  const { run, metadata, promptLog, recommendation, parseResult } = details;
+  const { run, metadata, promptLog, recommendation, parseResult } = details ?? {};
 
   // Metadata state
   const [providerName, setProviderName] = useState(metadata?.provider_name ?? "");
@@ -69,6 +76,14 @@ function RunDetailPage() {
   const [recSaving, setRecSaving] = useState(false);
 
   const [statusUpdating, setStatusUpdating] = useState(false);
+
+  if (!run) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <p className="text-muted-foreground">Loading run details…</p>
+      </main>
+    );
+  }
 
   const saveMeta = async () => {
     setMetaSaving(true);
