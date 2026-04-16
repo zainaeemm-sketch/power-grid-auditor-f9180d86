@@ -1,70 +1,83 @@
 
 
-# Phase 2: Backend CRUD & Persistence
+# Phase 3: Run Details Research Workspace
 
-## Current State
+## Overview
 
-Tables already exist: `runs`, `run_metadata`, `run_prompt_logs`, `experiment_presets` — all with user-scoped RLS. Server functions exist for `listRuns`, `getRun`, `createRun`, `listPresets`.
+Refactor the monolithic `runs.$runId.tsx` into a well-structured research workspace with 10 distinct panels, each as a reusable component. The existing editable panels (metadata, prompt log, recommendation, status controls) stay but move into dedicated component files. Five new panels are added: Structured Action, Results Summary, Tool Trace, Provenance Timeline, and an enhanced Parser Provenance.
 
-Missing: `run_recommendations` and `run_parse_results` tables. The Run Details page is placeholder-only. No update server functions exist. No preset creation. No foreign keys on child tables.
+## New Components (all in `src/components/run-details/`)
 
-## Step 1: Database Migration
+| Component | Data Source | Editable? |
+|-----------|------------|-----------|
+| `RunHeader.tsx` | run | No (display + back link + export placeholder) |
+| `RunStatusControls.tsx` | run.status | Yes (status transitions) |
+| `RunMetadataPanel.tsx` | run_metadata | Yes (upsert form) |
+| `RunPromptLogPanel.tsx` | run_prompt_logs | Yes (upsert form) |
+| `RunRecommendationPanel.tsx` | run_recommendations | Yes (upsert form) |
+| `ParserProvenancePanel.tsx` | run_parse_results | No (read-only display) |
+| `StructuredActionPanel.tsx` | run_parse_results | No (derived display) |
+| `ResultsSummaryPanel.tsx` | Placeholder/derived | No (mock badges/chips) |
+| `ToolTracePanel.tsx` | Mock based on status | No (mock trace entries) |
+| `ProvenanceTimelinePanel.tsx` | Derived from run state | No (lifecycle timeline) |
 
-Create two new tables and add foreign keys to existing child tables:
+## Implementation Details
 
-**New tables:**
-- `run_recommendations` (id, run_id unique FK → runs, recommendation_text, created_at, updated_at) with user-scoped RLS via runs join
-- `run_parse_results` (id, run_id unique FK → runs, source_text, parser_notes, action_type, target_index, value, enabled default true, created_at, updated_at) with user-scoped RLS via runs join
+### 1. RunHeader
+Shows title, agent, StatusBadge, run ID (monospace truncated), created_at, export button (disabled placeholder), and a back-to-runs link.
 
-**Schema fixes:**
-- Add foreign key constraints on `run_metadata.run_id → runs.id ON DELETE CASCADE`
-- Add foreign key constraint on `run_prompt_logs.run_id → runs.id ON DELETE CASCADE`
-- Add unique constraints on `run_metadata.run_id` and `run_prompt_logs.run_id` (one per run)
+### 2. RunStatusControls
+Extracts the status transition logic. Shows current status badge and a "Mark [next]" button. Uses `updateRunStatus` server function + `router.invalidate()`.
 
-## Step 2: New Server Functions
+### 3-5. Editable Panels (Metadata, Prompt Log, Recommendation)
+Extract existing inline form logic from `runs.$runId.tsx` into standalone components. Each receives the initial data + `run_id` as props. Uses `useServerFn` + `useState` internally. Adds `toast.success`/`toast.error` (sonner) for save feedback.
 
-Add to `src/server/runs.functions.ts`:
+### 6. ParserProvenancePanel
+Extracts existing read-only parser display. Shows source_text, parser_notes, action_type, target_index, value, enabled. Graceful "No parse results yet" fallback.
 
-- `getRunDetails` — fetches run + metadata + prompt log + recommendation + parse result in one call (individual queries, graceful nulls for missing rows)
-- `updateRunMetadata` — upsert run_metadata for a run
-- `updatePromptLog` — upsert run_prompt_logs for a run
-- `updateRecommendation` — upsert run_recommendations for a run
-- `updateRunStatus` — update runs.status
-- `createPreset` — insert into experiment_presets with user_id
+### 7. StructuredActionPanel
+New panel. Reads `parseResult` and renders a human-friendly action description:
+- `none` → "No structured action was derived"
+- `scale_all_loads` → "Scale all loads with factor {value}"
+- `set_generator_p_mw` → "Set generator {target_index} to {value} MW"
+- `line_outage` → "Take line {target_index} out of service"
+Falls back to "No parse result available" when null.
 
-Add types to `src/types/grid-arena.ts`:
-- `RunRecommendation`, `RunParseResult`
+### 8. ResultsSummaryPanel
+New placeholder panel with a grid of evaluation metrics displayed as labeled stat cards with badge/chip styling:
+- feasibility, violations_found, baseline_violations, post_action_violations, violation_improvement, confidence, grounding_quality, action_applied, notes
+All show "—" or "Pending" placeholder values. Structured so a real evaluation table can replace mock data later.
 
-## Step 3: Wire Run Details Page
+### 9. ToolTracePanel
+New panel. Generates mock tool-trace entries based on run status (queued → 2 entries, running → 4, completed → 6). Each entry: tool_name, purpose, input_summary, output_summary, status (done/running/pending), timestamp. Rendered as a vertical list of trace cards.
 
-Replace placeholder panels in `runs.$runId.tsx` with real data:
+### 10. ProvenanceTimelinePanel
+New panel. Generates a lifecycle timeline from run state:
+- Steps: Experiment created, Benchmark prepared, Agent configured, Recommendation parsed, Research question registered, Analysis started, Analysis completed, Validation completed
+- Each step gets a status: `done`, `current`, or `pending` based on run.status and data availability
+- Rendered as a vertical timeline with status badges (emerald for done, blue for current, muted for pending)
 
-- **Loader**: call `getRunDetails({ data: { runId } })`
-- **Metadata panel**: editable form (provider, model, prompt version, dataset version, seed, notes) with Save button calling `updateRunMetadata`
-- **Prompt/Response panel**: two textareas with Save button calling `updatePromptLog`
-- **Recommendation panel**: textarea with Save button calling `updateRecommendation`
-- **Parser Provenance panel**: read-only display from `run_parse_results`, fallback "No parse results yet"
-- **Status controls**: buttons to change status (queued → running → completed) calling `updateRunStatus`
-- **Run header**: show real title, agent, status from loaded data
-
-## Step 4: Wire Presets Page
-
-- Add a "New Preset" dialog/form with all fields
-- On submit, call `createPreset` server function
-- Refresh preset list after creation
-
-## Step 5: Ensure createRun Also Creates Recommendation Row
-
-Update `createRun` to also insert an empty `run_recommendations` row alongside metadata and prompt log rows.
+### Route File Changes (`runs.$runId.tsx`)
+- Strip all inline panel logic
+- Import all 10 components
+- Pass data as props from loader
+- Layout: full-width header → status controls → 2-column grid for panels → full-width panels for Results Summary, Tool Trace, and Timeline
 
 ## Files Changed
 
-| File | Change |
+| File | Action |
 |------|--------|
-| Migration SQL | New tables, FKs, unique constraints, RLS |
-| `src/types/grid-arena.ts` | Add RunRecommendation, RunParseResult types |
-| `src/server/runs.functions.ts` | Add getRunDetails, update*, createPreset functions |
-| `src/routes/_authenticated/runs.$runId.tsx` | Full rewrite with loader + editable panels |
-| `src/routes/_authenticated/presets.tsx` | Add create preset form/dialog |
-| `src/routes/_authenticated/new-run.tsx` | Minor: also create recommendation row |
+| `src/components/run-details/RunHeader.tsx` | Create |
+| `src/components/run-details/RunStatusControls.tsx` | Create |
+| `src/components/run-details/RunMetadataPanel.tsx` | Create |
+| `src/components/run-details/RunPromptLogPanel.tsx` | Create |
+| `src/components/run-details/RunRecommendationPanel.tsx` | Create |
+| `src/components/run-details/ParserProvenancePanel.tsx` | Create |
+| `src/components/run-details/StructuredActionPanel.tsx` | Create |
+| `src/components/run-details/ResultsSummaryPanel.tsx` | Create |
+| `src/components/run-details/ToolTracePanel.tsx` | Create |
+| `src/components/run-details/ProvenanceTimelinePanel.tsx` | Create |
+| `src/routes/_authenticated/runs.$runId.tsx` | Rewrite (compose components) |
+
+No database changes needed — all tables exist from Phase 2.
 
