@@ -178,47 +178,6 @@ function BatchDetailPage() {
     grounding: { label: "Grounding", color: "var(--primary)" },
   };
 
-  const handleRunAll = useCallback(async () => {
-    const pendingRuns = runs.filter((r) => r.run.status !== "completed");
-    if (pendingRuns.length === 0) {
-      toast.info("All runs are already completed");
-      return;
-    }
-
-    setExecuting(true);
-    setExecutionProgress({ current: 0, total: pendingRuns.length, currentRunTitle: "", results: [] });
-
-    const results: Array<{ runId: string; success: boolean; error?: string }> = [];
-
-    for (let i = 0; i < pendingRuns.length; i++) {
-      const r = pendingRuns[i];
-      setExecutionProgress((prev) => prev ? {
-        ...prev,
-        current: i,
-        currentRunTitle: r.run.title,
-      } : prev);
-
-      try {
-        const res = await executeRunLlm({ data: { run_id: r.run.id } });
-        results.push({ runId: r.run.id, success: res.success, error: res.error });
-      } catch (err: any) {
-        results.push({ runId: r.run.id, success: false, error: err.message });
-      }
-
-      setExecutionProgress((prev) => prev ? {
-        ...prev,
-        current: i + 1,
-        results: [...results],
-      } : prev);
-    }
-
-    const succeeded = results.filter((r) => r.success).length;
-    const failed = results.filter((r) => !r.success).length;
-    toast.success(`Batch complete: ${succeeded} succeeded, ${failed} failed`);
-
-    setExecuting(false);
-    router.invalidate();
-  }, [runs, router]);
 
   const handleExportBatch = () => {
     const exportRuns = runs.map((r) => ({
