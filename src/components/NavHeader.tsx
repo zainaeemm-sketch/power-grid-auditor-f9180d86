@@ -39,7 +39,7 @@ export function NavHeader() {
             >
               <Icon className="h-4 w-4" />
               {label}
-              <span className="nav-underline absolute -bottom-[1px] left-3 right-3 h-0.5 scale-x-0 rounded-full bg-gradient-to-r from-primary to-[oklch(0.72_0.14_200)] transition-transform duration-300 group-hover:scale-x-100" />
+              <span className="nav-underline absolute -bottom-[1px] left-3 right-3 h-0.5 scale-x-0 rounded-full bg-primary transition-transform duration-300 group-hover:scale-x-100" />
             </Link>
           ))}
         </nav>
