@@ -79,7 +79,7 @@ function RunsPage() {
       <div className="space-y-3">
         {filtered.map((run: Run) => (
           <Link key={run.id} to="/runs/$runId" params={{ runId: run.id }} className="block">
-            <Card className="border-border/60 bg-card/60 transition-colors hover:border-primary/40">
+            <Card className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex flex-col gap-1">
                   <p className="font-semibold">{run.title}</p>

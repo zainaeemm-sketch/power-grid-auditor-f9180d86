@@ -55,11 +55,11 @@ function BatchesPage() {
         <div className="space-y-3">
           {batches.map((batch) => (
             <Link key={batch.id} to="/batches/$batchId" params={{ batchId: batch.id }} className="block">
-              <Card className="border-border/60 bg-card/60 transition-colors hover:border-primary/40">
+              <Card className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
                 <CardContent className="flex items-center justify-between p-4">
                   <div className="flex flex-col gap-1">
                     <p className="flex items-center gap-2 font-semibold">
-                      <Layers className="h-4 w-4 text-primary" />
+                      <Layers className="h-4 w-4 gradient-text" />
                       {batch.name}
                     </p>
                     <p className="text-sm text-muted-foreground">
