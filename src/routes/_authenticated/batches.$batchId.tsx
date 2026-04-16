@@ -1,5 +1,16 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -342,19 +353,36 @@ function BatchDetailPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Completed — {executionProgress.results.filter((r) => !r.success).length} failed run(s)
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  disabled={retryingAll || retryingRunId !== null}
-                  onClick={handleRetryAllFailed}
-                >
-                  {retryingAll ? (
-                    <><Loader2 className="mr-1 h-3 w-3 animate-spin" />Retrying…</>
-                  ) : (
-                    <><RotateCcw className="mr-1 h-3 w-3" />Retry All Failed</>
-                  )}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={retryingAll || retryingRunId !== null}
+                    >
+                      {retryingAll ? (
+                        <><Loader2 className="mr-1 h-3 w-3 animate-spin" />Retrying…</>
+                      ) : (
+                        <><RotateCcw className="mr-1 h-3 w-3" />Retry All Failed</>
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Retry all failed runs?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will re-execute {executionProgress.results.filter((r) => !r.success).length} failed run(s). Each run will call the LLM again and overwrite previous results.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleRetryAllFailed}>
+                        Retry All
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             )}
             {executionProgress.results.length > 0 && (
