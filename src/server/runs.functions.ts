@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withAuthHeaders } from "@/middleware/auth-headers";
 import type { Run, ExperimentPreset } from "@/types/grid-arena";
 
 export const listRuns = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ runs: Run[] }> => {
     const { data, error } = await context.supabase
       .from("runs")
@@ -17,7 +18,7 @@ export const listRuns = createServerFn({ method: "GET" })
   });
 
 export const getRun = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { runId: string }) => input)
   .handler(async ({ data, context }): Promise<{ run: Run }> => {
     const { data: run, error } = await context.supabase
@@ -33,7 +34,7 @@ export const getRun = createServerFn({ method: "GET" })
   });
 
 export const createRun = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: {
     title: string;
     task: string;
@@ -98,7 +99,7 @@ export const createRun = createServerFn({ method: "POST" })
   });
 
 export const listPresets = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ presets: ExperimentPreset[] }> => {
     const { data, error } = await context.supabase
       .from("experiment_presets")
