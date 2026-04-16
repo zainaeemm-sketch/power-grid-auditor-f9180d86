@@ -238,34 +238,30 @@ function BatchDetailPage() {
     router.invalidate();
   }, [executionProgress, router]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (use refs to avoid forward-reference issues with export handlers)
+  const handlersRef = useRef<{ exportBatch?: () => void; exportComparison?: () => void }>({});
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Ignore when typing in inputs
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       const mod = e.metaKey || e.ctrlKey;
 
-      // Ctrl/Cmd+Enter → Run All
       if (mod && e.key === 'Enter' && !executing) {
         e.preventDefault();
         handleRunAll();
       }
-      // Ctrl/Cmd+E → Export Batch CSV
-      if (mod && e.key === 'e') {
+      if (mod && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
         e.preventDefault();
-        handleExportBatch();
-      }
-      // Ctrl/Cmd+Shift+E → Export Comparison CSV
-      if (mod && e.shiftKey && e.key === 'E') {
+        handlersRef.current.exportComparison?.();
+      } else if (mod && e.key === 'e') {
         e.preventDefault();
-        handleExportComparison();
+        handlersRef.current.exportBatch?.();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [executing, handleRunAll, handleExportBatch, handleExportComparison]);
+  }, [executing, handleRunAll]);
 
   if (!data || !batch) {
     return (
