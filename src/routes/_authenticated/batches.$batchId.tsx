@@ -55,6 +55,7 @@ function BatchDetailPage() {
   const router = useRouter();
   const [executing, setExecuting] = useState(false);
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null);
+  const [retryingAll, setRetryingAll] = useState(false);
   const [executionProgress, setExecutionProgress] = useState<{
     current: number;
     total: number;
