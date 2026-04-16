@@ -21,6 +21,7 @@ import { getBatchDetails } from "@/server/batch.functions";
 import { executeRunLlm } from "@/server/llm.functions";
 import type { BatchDetails, RunStatus, RunEvaluation } from "@/types/grid-arena";
 import { exportBatchCsv, exportComparisonCsv } from "@/lib/csv-export";
+import { requestNotificationPermission, notifyBatchComplete } from "@/lib/notifications";
 import { toast } from "sonner";
 import {
   ChartContainer,
