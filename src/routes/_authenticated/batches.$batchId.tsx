@@ -238,7 +238,35 @@ function BatchDetailPage() {
     router.invalidate();
   }, [executionProgress, router]);
 
-  if (!data || !batch) {
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ignore when typing in inputs
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const mod = e.metaKey || e.ctrlKey;
+
+      // Ctrl/Cmd+Enter → Run All
+      if (mod && e.key === 'Enter' && !executing) {
+        e.preventDefault();
+        handleRunAll();
+      }
+      // Ctrl/Cmd+E → Export Batch CSV
+      if (mod && e.key === 'e') {
+        e.preventDefault();
+        handleExportBatch();
+      }
+      // Ctrl/Cmd+Shift+E → Export Comparison CSV
+      if (mod && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        handleExportComparison();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [executing, handleRunAll, handleExportBatch, handleExportComparison]);
+
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
         <p className="text-muted-foreground">Loading batch…</p>
