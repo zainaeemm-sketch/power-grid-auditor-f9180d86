@@ -2,7 +2,7 @@
 
 ## Core
 GridArena: LLM agent research platform for power-system tasks.
-Dark-only theme: slate bg (#0F172A), emerald primary. No light mode.
+Dark default, light mode available. Accent switcher: emerald/blue/purple/amber/rose. Preferences in localStorage.
 Supabase backend with user-scoped RLS. Email/password auth enabled (auto-confirm on).
 Server functions in src/server/*.functions.ts, types in src/types/grid-arena.ts.
 Protected routes under src/routes/_authenticated/. Login at /login.
