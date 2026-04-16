@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { AccentSwitcher } from "@/components/AccentSwitcher";
 
 const navLinks = [
   { to: "/" as const, label: "Home", icon: Zap, exact: true },
