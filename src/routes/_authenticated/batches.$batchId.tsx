@@ -113,7 +113,6 @@ function BatchDetailPage() {
     );
   }
 
-  const { batch, runs } = data;
   const completedRuns = runs.filter((r) => r.run.status === "completed");
   const progressPct = runs.length > 0 ? (completedRuns.length / runs.length) * 100 : 0;
 
