@@ -20,11 +20,11 @@ export const Route = createFileRoute("/_authenticated/runs/$runId")({
     meta: [{ title: "Run Details — GridArena" }],
   }),
   loader: async ({ params }) => {
-    if (typeof window === "undefined") return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null };
+    if (typeof window === "undefined") return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null, evaluation: null };
     try {
       return await getRunDetails({ data: { runId: params.runId } });
     } catch {
-      return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null };
+      return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null, evaluation: null };
     }
   },
   errorComponent: ({ error }) => (
