@@ -357,6 +357,29 @@ function BatchDetailPage() {
             <><Play className="mr-2 h-4 w-4" />Run All Experiments</>
           )}
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          title={soundOn ? "Mute completion sound" : "Enable completion sound"}
+          onClick={() => { const next = !soundOn; setSoundOn(next); setSoundEnabled(next); }}
+        >
+          {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          title={notifOn ? "Disable browser notifications" : "Enable browser notifications"}
+          onClick={async () => {
+            const next = !notifOn;
+            setNotifOn(next);
+            setBrowserNotifEnabled(next);
+            if (next) await requestNotificationPermission();
+          }}
+        >
+          {notifOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
+        </Button>
       </div>
 
       {/* Live Execution Progress */}
