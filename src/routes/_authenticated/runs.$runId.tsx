@@ -63,7 +63,13 @@ function RunDetailPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <RunHeader run={run} />
-      <RunStatusControls runId={run.id} status={run.status as RunStatus} />
+      <div className="mb-4 flex items-center justify-between">
+        <RunStatusControls runId={run.id} status={run.status as RunStatus} />
+        <Button variant="outline" size="sm" onClick={() => exportRunCsv(details)}>
+          <Download className="mr-1.5 h-3.5 w-3.5" />
+          Export Run CSV
+        </Button>
+      </div>
 
       {/* 2-column grid for editable + read-only panels */}
       <div className="grid gap-4 lg:grid-cols-2">
