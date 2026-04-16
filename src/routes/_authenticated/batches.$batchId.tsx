@@ -379,7 +379,7 @@ function BatchDetailPage() {
           </div>
           <Progress value={executing && executionProgress ? (executionProgress.current / executionProgress.total) * 100 : progressPct} />
         </div>
-        <Button onClick={handleRunAll} disabled={executing}>
+        <Button onClick={handleRunAll} disabled={executing} title="Run All Experiments (Ctrl+Enter)">
           {executing ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Running…</>
           ) : (
