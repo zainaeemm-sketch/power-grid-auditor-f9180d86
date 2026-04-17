@@ -1,4 +1,5 @@
-import type { RunDetails, Run, RunEvaluation, RunMetadata } from "@/types/grid-arena";
+import type { RunDetails, Run, RunEvaluation, RunMetadata, PerturbationTestWithResult } from "@/types/grid-arena";
+import type { BatchRobustnessSummary } from "@/server/perturbation.functions";
 
 function escCsv(val: unknown): string {
   if (val == null) return "";
