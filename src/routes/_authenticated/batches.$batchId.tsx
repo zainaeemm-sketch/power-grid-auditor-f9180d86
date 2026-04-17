@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard } from "lucide-react";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard, FileText } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -583,6 +583,12 @@ function BatchDetailPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Linked Runs</CardTitle>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/reports/batch/$batchId" params={{ batchId: batch.id }}>
+                <FileText className="mr-1.5 h-3.5 w-3.5" />
+                Generate Report
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExportBatch}>
               <Download className="mr-1.5 h-3.5 w-3.5" />
               Export Batch CSV

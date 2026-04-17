@@ -14,4 +14,6 @@ run_status enum is "queued" | "running" | "completed" — there is NO "failed" s
 
 ## Memories
 - [DB Schema](mem://features/db-schema) — runs, run_metadata, run_prompt_logs, experiment_presets tables with user-scoped RLS
+- [Deployment](mem://features/deployment) — Phase 9 production notes, health checks, retry/concurrency utils
+- Phase 10 reporting: /reports/run/$id, /reports/batch/$id, /reports/compare?runs=… with print/PDF, CSV, LaTeX exports and Recharts SVG/PNG download.
 - [Deployment](mem://features/deployment) — Phase 9 production setup: /health page, retry/concurrency helpers, error boundaries
