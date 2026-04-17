@@ -1,185 +1,120 @@
 
-This is a large feature spanning schema, routes, server functions, UI panels, batch analytics, and exports. I'll present a concise plan covering all 11 parts, organized by implementation order.
 
-## Plan: Ground Truth / Reference Solution Layer
+## Plan: Sensitivity / Perturbation Testing Layer
 
-### 1. Database schema (migration)
+Build a robustness-testing system that re-evaluates an agent's action under perturbed grid conditions. Additive only — existing flows untouched.
 
-Two new tables + one column on `runs`:
+### 1. Schema (migration)
 
 ```text
-ground_truth_scenarios
-├─ id (uuid, pk)
-├─ scenario_id (text, unique)      -- e.g. "IEEE14_OVERLOAD_01"
-├─ case_name (text)
-├─ scenario_description (text)
-├─ difficulty_level (text)         -- easy | medium | hard
-├─ user_id (uuid)                  -- ownership for RLS
-└─ created_at / updated_at
+perturbation_tests
+├─ id uuid pk
+├─ run_id uuid (→ runs.id, user-scoped via RLS EXISTS check)
+├─ perturbation_type text  -- enum-like: increase_load_percent | decrease_load_percent
+│                          --           line_outage | line_restoration
+│                          --           generator_limit_change | generator_dispatch_change
+│                          --           n1_contingency | voltage_setpoint_shift
+├─ parameter_name text
+├─ parameter_value numeric
+├─ description text
+├─ created_at timestamptz default now()
 
-ground_truth_actions
-├─ id (uuid, pk)
-├─ scenario_id (uuid, fk → ground_truth_scenarios ON DELETE CASCADE)
-├─ action_type (text)
-├─ target_index (int, nullable)
-├─ value (double, nullable)
-├─ expected_feasibility (bool)
-├─ expected_violations (int)
-├─ expected_violation_improvement (numeric)
-├─ notes (text, nullable)
-└─ created_at
-
-runs  (ALTER)
-└─ ground_truth_scenario_id (uuid, nullable, no FK — stays soft-linked for backward compat)
+perturbation_results
+├─ id uuid pk
+├─ perturbation_test_id uuid (→ perturbation_tests.id)
+├─ baseline_feasibility text          -- feasible | infeasible | unknown
+├─ perturbed_feasibility text
+├─ baseline_violations int
+├─ perturbed_violations int
+├─ violation_change int               -- perturbed − baseline
+├─ feasibility_stability text         -- unchanged | lost | gained
+├─ robustness_result text             -- stable | degraded | failed
+├─ robustness_score numeric           -- 0..1
+├─ notes text
+├─ execution_time_ms int
+├─ failure_reason text                -- nullable; populated on test error
+├─ created_at timestamptz default now()
 ```
 
-RLS: `user_id = auth.uid()` on scenarios; actions inherit via EXISTS on parent scenario (same pattern as `run_metadata`). Scenarios are user-owned (so each researcher curates their own registry). Seed rows will be inserted per-user on first visit — covered in step 7.
+RLS: user-scoped via `EXISTS (runs WHERE runs.id = perturbation_tests.run_id AND runs.user_id = auth.uid())`. Same pattern for results joined through tests.
 
-### 2. Types & server functions
+### 2. Perturbation engine (`src/server/perturbation/`)
 
-- `src/types/grid-arena.ts` → add `GroundTruthScenario`, `GroundTruthAction`, `GroundTruthComparison`.
-- `src/server/ground-truth.functions.ts` (new):
-  - `listScenarios()` — list with action counts
-  - `getScenario({ id })` — scenario + actions
-  - `createScenario({ scenario, actions })` — one scenario + N actions in a single call
-  - `deleteScenario({ id })`
-  - `seedExampleScenarios()` — idempotent; inserts IEEE14_OVERLOAD_01 and IEEE39_LINE_OUTAGE if missing for current user
+- `types.ts` — `PerturbationType`, `PerturbationSpec`, `PerturbationResult`.
+- `defaults.ts` — `getDefaultPerturbationSet()` returns: `+5%` load, `−5%` load, `line_outage line_id=0`, `generator_limit_change −10%`, `voltage_setpoint_shift +0.02 pu`.
+- `apply.ts` — `applyPerturbation(caseDef, spec)` returns a mutated case (deep clone). Pure, deterministic.
+- `execute.ts` — orchestrates: load case → apply structured action → baseline eval → for each spec: apply perturbation to case → re-evaluate → compute metrics → write `perturbation_results` (catch per-test errors → record `failure_reason`, continue).
+- Reuses existing `runSimulation` (`src/server/simulation/engine.ts`) and rule-based fallback. Honors run's `evaluation_mode`.
 
-All use `requireSupabaseAuth` middleware (RLS-scoped).
+### 3. Robustness metrics (`src/server/perturbation/metrics.ts`)
 
-### 3. Comparison logic (pure function, deterministic)
-
-`src/server/ground-truth/compare.ts`:
-
-```ts
-compareToGroundTruth(agentAction, agentEval, referenceActions) → {
-  action_match: "exact" | "partial" | "none",
-  feasibility_match: "correct" | "incorrect",
-  optimality_gap: number,           // expected_improvement - actual_improvement
-  deviation_from_reference: number, // |expected_value - agent_value|, or Infinity if type mismatch
-  matched_reference_action_id: string | null,
-}
+```text
+violation_change   = perturbed_violations − baseline_violations
+feasibility_stab   = unchanged | lost (feasible→infeasible) | gained (infeasible→feasible)
+robustness_result  = stable    if violation_change ≤ 0 AND feasibility unchanged/gained
+                     degraded  if 0 < violation_change ≤ 2 AND feasibility unchanged
+                     failed    otherwise
+robustness_score   = clamp(1 − (max(0, violation_change) / max(1, baseline_violations)) − (lost?0.5:0), 0, 1)
 ```
 
-Rules:
-- **exact**: same `action_type` AND same `target_index` AND `|value - expected| < 1e-6`
-- **partial**: same `action_type` (and target_index if both set), value differs
-- **none**: different action_type or no reference actions
-- When multiple reference actions exist, pick the best match (exact > partial > none).
+### 4. Server functions (`src/server/perturbation.functions.ts`)
 
-Integrated into `executeRunLlm` in `src/server/runs.functions.ts` **after** the existing evaluation write. Results stored in `run_evaluations` (new columns below). If `run.ground_truth_scenario_id` is null → skip entirely, write `evaluation_against_ground_truth = false`.
+- `listPerturbationTests({ runId })` — tests + their latest result.
+- `runDefaultPerturbations({ runId })` — generate default set + execute.
+- `addCustomPerturbation({ runId, perturbation_type, parameter_name, parameter_value, description? })` — insert + execute one.
+- `runBatchPerturbations({ batchId })` — iterate batch runs, run defaults, return aggregate metrics.
+- `getBatchRobustnessSummary({ batchId })` — avg score, failure rate, worst-case Δviolations, most sensitive scenario (case_name).
 
-### 4. Evaluation schema extension
+### 5. Run Details panel
 
-ALTER `run_evaluations`:
-- `action_match` text nullable
-- `feasibility_match` text nullable
-- `optimality_gap` numeric nullable
-- `deviation_from_reference` numeric nullable
-- `evaluation_against_ground_truth` bool default false
+New component `src/components/run-details/SensitivityPanel.tsx`, mounted in `src/routes/_authenticated/runs.$runId.tsx` below `GroundTruthComparisonPanel` (no layout redesign — same Card/grid pattern as other panels).
 
-All nullable → existing runs unaffected (backward compat ✓).
+Contents:
+- Buttons: **Run Sensitivity Test** (default set), **Add Custom Perturbation** (Dialog: type select / parameter name / value).
+- Table cols: Type · Parameter · Baseline feas. · Perturbed feas. · Δ violations · Robustness (badge stable/degraded/failed).
+- Empty state: "No sensitivity tests executed."
+- Failed-test rows show warning icon + `failure_reason`.
 
-### 5. Routes & UI
+### 6. Batch analytics
 
-**New routes** (all under `_authenticated`):
-- `/ground-truth` → `_authenticated/ground-truth.index.tsx` — list + "New" button + "Seed examples" button
-- `/ground-truth/new` → `_authenticated/ground-truth.new.tsx` — creation form (scenario fields + repeatable reference-action rows, add/remove)
-- `/ground-truth/$id` → `_authenticated/ground-truth.$id.tsx` — detail view (read-only, with delete)
-
-**New-run form** (`_authenticated/new-run.tsx`): add optional `<Select>` "Ground Truth Scenario (optional)" populated from `listScenarios()`. Stored on `runs.ground_truth_scenario_id`.
-
-**NavHeader**: add "Ground Truth" link between existing items.
-
-**Run Details** (`_authenticated/runs.$runId.tsx`): new panel component `src/components/run-details/GroundTruthComparisonPanel.tsx`. Renders:
-- "No ground truth available" if `evaluation_against_ground_truth === false`
-- Otherwise: two-column Reference vs Agent action, then badges for Action Match / Feasibility Match / Optimality Gap
-
-Loader fetches scenario+actions alongside existing `getRunDetails` (extend the server function to include them when `ground_truth_scenario_id` is set).
-
-### 6. Batch analytics (`src/lib/batch-summary.ts` + reports)
-
-Add to `src/lib/batch-summary.ts`:
-- `accuracyRate(runs)` — % with `action_match === "exact"` among runs that have ground truth
-- `avgOptimalityGap(runs)`
-- `feasibilityAgreementRate(runs)`
-- `bestAgentVsGroundTruth(runs)` — groups by `run.agent`, picks highest accuracy
-
-New chart in `reports.batch.$batchId.tsx`: bar chart (reusing existing `ReportChart` / recharts) — x: agent, y: accuracy %.
-
-Only shown when at least one run in the batch has `evaluation_against_ground_truth = true`.
+In `src/routes/_authenticated/batches.$batchId.tsx` add a "Sensitivity" section (collapsed Card) with:
+- **Run Sensitivity Tests for Batch** button.
+- Stats: avg robustness, failure rate, worst Δ, most sensitive scenario.
+- Charts (recharts, already in project):
+  - Robustness distribution — bar (x: agent, y: avg score).
+  - Feasibility stability — pie (stable/degraded/failed).
+  - Sensitivity heatmap — simple grid (rows: perturbation type, cols: scenario, cell color by Δviolations) implemented with Tailwind div grid (no extra dep).
 
 ### 7. CSV export (`src/lib/csv-export.ts`)
 
-Extend `exportRunCsv` and batch CSV export with columns:
-- `ground_truth_scenario_id`
-- `reference_action_type`
-- `reference_value`
-- `action_match`
-- `feasibility_match`
-- `optimality_gap`
+- Add `exportSensitivityCsv(runId)` → `sensitivity_run_{runId}.csv` with columns: `perturbation_type, parameter_name, parameter_value, baseline_feasibility, perturbed_feasibility, violation_change, robustness_result, robustness_score, failure_reason`.
+- Add `exportBatchSensitivityCsv(batchId)` → `batch_sensitivity_{batchId}.csv` (run_id, case_name, agent + same fields).
+- Wire export buttons into the new panels.
 
-Empty strings when ground truth absent.
+### 8. Types
 
-### 8. Seed data
+Extend `src/types/grid-arena.ts` with `PerturbationTest`, `PerturbationResult`, `PerturbationType`, `RobustnessResult`, `FeasibilityStability`.
 
-On first visit to `/ground-truth`, if the user has zero scenarios, show a "Seed example scenarios" button (not auto-run, avoids surprise writes). Calls `seedExampleScenarios()` which inserts:
+### 9. Determinism & backward compat
 
-```text
-IEEE14_OVERLOAD_01  (easy)  — scale_all_loads, value 0.95, feasible, 0 violations, improvement 3
-IEEE39_LINE_OUTAGE  (medium) — line_outage, target_index 4, feasible, 1 violation, improvement 2
-```
+- Engine never mutates inputs; uses deterministic ordering of default set; no randomness.
+- All new tables/panels are additive. If no perturbation rows exist, run details renders the empty-state message and existing evaluation flow is unchanged.
 
-### Implementation order (incremental, app stays green after each)
+### Step order during implementation
 
-```text
-1. Migration: new tables + runs.ground_truth_scenario_id + run_evaluations columns
-2. Types + ground-truth.functions.ts (server + seed)
-3. /ground-truth list, new, detail pages + NavHeader link
-4. new-run: optional scenario selector
-5. compareToGroundTruth() pure function + integrate into executeRunLlm
-6. GroundTruthComparisonPanel on run details
-7. Batch analytics + new chart
-8. CSV export columns
-```
+1. Migration (tables + RLS).
+2. `types.ts` + `defaults.ts` + `apply.ts` + `metrics.ts`.
+3. `execute.ts` + server functions.
+4. `SensitivityPanel` + mount in run details.
+5. Batch section + charts.
+6. CSV exports.
+7. Build + invoke server fns to verify.
 
-### Backward compatibility guarantees
+### Open defaults (will use unless told otherwise)
 
-- `ground_truth_scenario_id` nullable → existing runs keep working.
-- Comparison only runs when scenario_id present → no extra compute otherwise.
-- New `run_evaluations` columns all nullable → existing rows untouched.
-- Panel shows "No ground truth available" when absent → UI stable.
-- RLS user-scoped → each researcher's registry is isolated.
+- Robustness thresholds as above (0 / 2 violation_change boundaries).
+- Default `line_outage` targets line index 0 (first line of case).
+- `voltage_setpoint_shift` value = +0.02 pu.
+- Custom perturbations execute immediately on add.
+- Batch runs perturbations sequentially in one server call (no job queue) — fine for current batch sizes; can move to `job_queue` later if needed.
 
-### Files to create
-
-```text
-supabase/migrations/<ts>_ground_truth.sql
-src/server/ground-truth.functions.ts
-src/server/ground-truth/compare.ts
-src/routes/_authenticated/ground-truth.index.tsx
-src/routes/_authenticated/ground-truth.new.tsx
-src/routes/_authenticated/ground-truth.$id.tsx
-src/components/run-details/GroundTruthComparisonPanel.tsx
-```
-
-### Files to edit
-
-```text
-src/types/grid-arena.ts
-src/components/NavHeader.tsx
-src/routes/_authenticated/new-run.tsx
-src/routes/_authenticated/runs.$runId.tsx
-src/server/runs.functions.ts            (integrate comparison)
-src/lib/batch-summary.ts
-src/routes/_authenticated/reports.batch.$batchId.tsx
-src/lib/csv-export.ts
-.lovable/memory/features/db-schema.md   (update schema memory)
-```
-
-### Open decisions (reasonable defaults chosen — tell me to change if wrong)
-
-- **Ownership model**: scenarios are per-user (not global). If you want a shared/global registry, say so and I'll drop `user_id` + add admin-only write policy.
-- **Seed behavior**: manual button, not auto-insert on first login.
-- **Exact-match tolerance**: `1e-6` on value comparison.
-- **Optimality gap sign**: `expected_improvement - actual_improvement` (positive = agent underperformed).
