@@ -1,9 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn } from "lucide-react";
+import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AccentSwitcher } from "@/components/AccentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navLinks = [
   { to: "/" as const, label: "Home", icon: Zap, exact: true },
@@ -48,13 +56,27 @@ export function NavHeader() {
           <ThemeToggle />
           <AccentSwitcher />
           {isAuthenticated ? (
-            <>
-              <span className="text-xs text-muted-foreground">{user?.email}</span>
-              <Button variant="ghost" size="sm" onClick={() => logout()} className="text-muted-foreground hover:text-foreground">
-                <LogOut className="mr-1.5 h-3.5 w-3.5" />
-                Sign Out
-              </Button>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <UserIcon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="hidden max-w-[140px] truncate sm:inline">{user?.email}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="flex flex-col gap-0.5">
+                  <span className="text-xs font-normal text-muted-foreground">Signed in as</span>
+                  <span className="truncate text-sm">{user?.email}</span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => logout()} className="text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <Button variant="ghost" size="sm" asChild>
               <Link to="/login">
