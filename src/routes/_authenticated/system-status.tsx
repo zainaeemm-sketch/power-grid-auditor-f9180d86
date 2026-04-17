@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Loader2, Play, RotateCcw, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Activity, Loader2, Play, RotateCcw, X, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { listRecentJobs, cancelJob, retryJob, getJobStats, getJobLogs } from "@/server/queue/queue.functions";
 import { processJobBatch } from "@/server/queue/worker.functions";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ function SystemStatusPage() {
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectNowRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -89,6 +90,18 @@ function SystemStatusPage() {
       }, delay);
     };
 
+    reconnectNowRef.current = () => {
+      if (cancelled) return;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      reconnectAttemptRef.current = 0;
+      setReconnectAttempt(0);
+      if (channel) supabase.removeChannel(channel);
+      connect();
+    };
+
     connect();
 
     return () => {
@@ -100,6 +113,11 @@ function SystemStatusPage() {
       if (channel) supabase.removeChannel(channel);
     };
   }, [queryClient]);
+
+  const handleReconnectNow = () => {
+    reconnectNowRef.current();
+    toast.success("Reconnecting realtime channel…");
+  };
 
   const stats = useQuery({
     queryKey: ["job-stats"],
@@ -162,6 +180,18 @@ function SystemStatusPage() {
           <Activity className="h-5 w-5 text-primary" />
           <h1 className="text-2xl font-bold">System Status</h1>
           <LiveIndicator status={liveStatus} reconnectAttempt={reconnectAttempt} />
+          {liveStatus !== "live" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleReconnectNow}
+              className="h-7 px-2 text-xs"
+              title="Reconnect realtime channel now (skip backoff)"
+            >
+              <RefreshCw className="mr-1 h-3 w-3" />
+              Reconnect now
+            </Button>
+          )}
         </div>
         <Button onClick={handleProcessNow} disabled={draining} size="sm">
           {draining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
