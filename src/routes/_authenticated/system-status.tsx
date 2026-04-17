@@ -11,6 +11,9 @@ import type { JobRecord, JobLog } from "@/server/queue/types";
 import { LiveIndicator, type LiveStatus } from "@/components/system-status/LiveIndicator";
 import { KpiCards } from "@/components/system-status/KpiCards";
 import { JobsTable } from "@/components/system-status/JobsTable";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type StatusFilter = "all" | "queued" | "running" | "completed" | "failed" | "cancelled";
 
 export const Route = createFileRoute("/_authenticated/system-status")({
   head: () => ({ meta: [{ title: "System Status — GridArena" }] }),
@@ -24,6 +27,7 @@ function SystemStatusPage() {
   const [draining, setDraining] = useState(false);
   const [liveStatus, setLiveStatus] = useState<LiveStatus>("connecting");
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectNowRef = useRef<() => void>(() => {});
@@ -198,6 +202,7 @@ function SystemStatusPage() {
   };
 
   const jobList = (jobs.data?.jobs ?? []) as JobRecord[];
+  const filteredJobs = statusFilter === "all" ? jobList : jobList.filter((j) => j.status === statusFilter);
   const logList = (logs.data?.logs ?? []) as JobLog[];
 
   return (
@@ -228,8 +233,30 @@ function SystemStatusPage() {
 
       <KpiCards stats={stats.data} />
 
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Filter by status:</span>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="h-8 w-[180px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All ({jobList.length})</SelectItem>
+            <SelectItem value="queued">Queued</SelectItem>
+            <SelectItem value="running">Running</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+        {statusFilter !== "all" && (
+          <span className="text-xs text-muted-foreground">
+            Showing {filteredJobs.length} of {jobList.length}
+          </span>
+        )}
+      </div>
+
       <JobsTable
-        jobs={jobList}
+        jobs={filteredJobs}
         expanded={expanded}
         onToggleExpand={(id) => setExpanded(expanded === id ? null : id)}
         onCancel={handleCancel}
