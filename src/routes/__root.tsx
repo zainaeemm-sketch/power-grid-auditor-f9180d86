@@ -71,7 +71,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var a=localStorage.getItem('gridarena-accent');if(a&&a!=='emerald')document.documentElement.setAttribute('data-accent',a);var t=localStorage.getItem('gridarena-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}})()` }} />
         {children}
         <Scripts />
