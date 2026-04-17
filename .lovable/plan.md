@@ -1,92 +1,48 @@
 
-## Phase 7: Reproducibility & Experiment Control
+## Phase 8 Audit: Already Complete
 
-A research-grade upgrade. The schema additions are the foundation; everything else flows from there. I'll build it in 6 incremental, stable steps.
+I checked the codebase before planning. Phase 8 is already implemented:
 
-### Step 1 — Schema (migration)
+### Auth flows ✅
+- `src/hooks/useAuth.tsx` — signup, login, logout, session persistence via `onAuthStateChange` + `getSession`.
+- `src/routes/login.tsx` — sign in / sign up form with toggle.
+- `src/components/NavHeader.tsx` — shows user email + Sign Out button when authenticated, Sign In button otherwise.
 
-**Extend `experiment_presets`** (additive, nullable):
-- `system_prompt text`, `temperature numeric`, `max_tokens int`, `top_p numeric`
-- `prompt_template_version text`, `parser_version text`, `evaluation_logic_version text`
+### Route protection ✅
+- `src/routes/_authenticated.tsx` — pathless layout route that redirects unauthenticated users to `/login`.
+- All protected routes already live under `src/routes/_authenticated/`: `runs.index.tsx`, `runs.$runId.tsx`, `new-run.tsx`, `presets.tsx`, `batches.*`, `compare.tsx`.
 
-**Extend `run_metadata`** (additive, nullable):
-- `system_prompt text`, `temperature numeric`, `max_tokens int`, `top_p numeric`
-- `prompt_template_version text`, `parser_version text`, `evaluation_logic_version text`
-- `benchmark_case_version text`, `execution_timestamp timestamptz`
+### User ownership ✅
+Verified via the live schema:
+- `runs.user_id`, `experiment_presets.user_id`, `batches.user_id` all present.
+- `batch_run_links` inherits ownership through `batches` (correct — no direct user_id needed since it's a join table).
 
-**Extend `runs`**:
-- `parent_run_id uuid` (self-ref, nullable), `rerun_source text` (nullable)
+### RLS policies ✅
+Every table has user-scoped policies for SELECT/INSERT/UPDATE/DELETE:
+- `runs`, `experiment_presets`, `batches`: `auth.uid() = user_id`
+- `run_metadata`, `run_prompt_logs`, `run_recommendations`, `run_parse_results`, `run_actions`, `run_evaluations`: scoped via `EXISTS (SELECT 1 FROM runs WHERE runs.id = X.run_id AND runs.user_id = auth.uid())`
+- `batch_run_links`: scoped via parent `batches.user_id`
 
-**Extend `batches`**:
-- `shared_config jsonb` (nullable) — captures preset/config used at batch creation
+### Server-side auth ✅
+- `src/middleware/auth-headers.ts` attaches Bearer token client-side.
+- `src/integrations/supabase/auth-middleware.ts` validates token server-side and provides `userId` + scoped supabase client to every server function.
 
-Decision: extend `run_metadata` rather than create `run_config_snapshots`. Reason — `run_metadata` already has 1:1 unique FK to runs and is exactly the snapshot concept. Avoids dual-source-of-truth bugs. Aligns with current `RunMetadataPanel` architecture.
+### Verdict
 
-### Step 2 — Preset wiring
+**No code changes needed.** Phase 8 was completed as part of earlier work (the auth system was added before Phase 7's reproducibility work, and `_authenticated` route protection was already in place when I audited the app two messages ago).
 
-- Update `presets.tsx` form to include the new preset fields (system prompt, temp, max_tokens, top_p, versions).
-- In `batches.new.tsx` and `new-run.tsx`: when a preset is selected, copy ALL preset fields into the run_metadata snapshot at creation time, and copy `system_prompt` into `run_prompt_logs.prompt_text`.
+### Optional gaps the spec mentioned (not currently implemented)
 
-### Step 3 — LLM execution uses full config
+1. **`created_by` / `updated_by` audit fields** — the spec lists these as "where useful." Right now ownership is tracked via `user_id` (which serves as `created_by`). A separate `updated_by` field would only matter if you add multi-user collaboration (shared workspaces, team batches). For a single-tenant-per-user app, this adds noise without value.
 
-- Update `src/server/llm.functions.ts` to read effective config from `run_metadata`: `model_name`, `system_prompt`, `temperature`, `max_tokens`, `top_p`, `random_seed`.
-- Fallback chain: run_metadata field → env default (`OPENAI_MODEL`) → hardcoded sensible default.
-- Stamp `execution_timestamp = now()` on `run_metadata` immediately before the API call.
-- Stamp `parser_version` and `evaluation_logic_version` constants (e.g. `"v1"`) so historical runs are identifiable.
+2. **Profile/account menu** — currently the header shows email + Sign Out as inline elements. A dropdown menu would be a small polish item if you want it (account settings, change password, delete account).
 
-### Step 4 — Run Configuration panel + audit indicator
+### Recommendation
 
-New `src/components/run-details/RunConfigPanel.tsx` (read-only summary card):
-- Provider/model/versions/temp/max_tokens/top_p/seed/timestamp in compact 2-col layout.
-- Audit footer: "Configuration: Complete ✓" or "Partial — missing: [list]". Required fields = `model_name`, `system_prompt`, `temperature`, `prompt_template_version`, `parser_version`, `evaluation_logic_version`.
-- Inserted into `runs.$runId.tsx` grid above existing `RunMetadataPanel`.
+Pick what to do next:
 
-The existing `RunMetadataPanel` stays as the editable surface (no UI redesign).
+- **A. Confirm and move on** — Phase 8 is done; suggest Phase 9 or another feature.
+- **B. Add the profile dropdown menu** — small UI polish (~15 min): replace inline email/logout with a `DropdownMenu` showing email, "Account Settings" (placeholder), "Sign Out".
+- **C. Add `updated_by` audit fields** — only if you plan team/shared workspaces later. Otherwise skip.
 
-### Step 5 — Re-run with same configuration
-
-- New server fn `rerunWithSameConfig({ runId })` in `runs.functions.ts`:
-  1. Load source run + metadata + prompt log.
-  2. Insert new run with `parent_run_id = source.id`, `rerun_source = "manual"`.
-  3. Clone all metadata fields into new `run_metadata`.
-  4. Clone `prompt_text` into new `run_prompt_logs`.
-  5. Trigger LLM execution.
-  6. Return new runId for navigation.
-- Add "Re-run with Same Configuration" button to `RunStatusControls` (or as sibling next to Export CSV in `runs.$runId.tsx`).
-- Show parent link badge in `RunHeader` when `parent_run_id` is set.
-
-### Step 6 — Batch reproducibility + exports
-
-**Batches:**
-- On batch creation, snapshot the preset config to `batches.shared_config`.
-- In `batches.$batchId.tsx`: compute config-consistency across child runs (compare key fields: model, temp, prompt_version, parser_version). Show badge: "All runs identical config ✓" or "⚠ N runs differ" with a popover listing the diffs.
-
-**CSV exports** (`src/lib/csv-export.ts`):
-- `exportRunCsv`: append rows for system_prompt, temperature, max_tokens, top_p, prompt_template_version, parser_version, evaluation_logic_version, benchmark_case_version, random_seed, execution_timestamp, parent_run_id.
-- `exportBatchCsv`: add same per-run reproducibility columns.
-
-### Files
-
-**Created:**
-- `src/components/run-details/RunConfigPanel.tsx`
-- New migration file
-
-**Modified:**
-- `src/types/grid-arena.ts` (regen'd via Supabase types automatically)
-- `src/server/runs.functions.ts` (rerun fn, extended metadata update)
-- `src/server/llm.functions.ts` (use full config, stamp versions)
-- `src/server/batch.functions.ts` (snapshot shared_config)
-- `src/server/preset.functions.ts` (extended fields) — if exists, else `presets.tsx` direct
-- `src/routes/_authenticated/runs.$runId.tsx` (mount RunConfigPanel + Re-run button)
-- `src/routes/_authenticated/batches.$batchId.tsx` (consistency badge)
-- `src/routes/_authenticated/batches.new.tsx` (copy preset → snapshot)
-- `src/routes/_authenticated/new-run.tsx` (copy preset → snapshot)
-- `src/routes/_authenticated/presets.tsx` (extended form fields)
-- `src/components/run-details/RunMetadataPanel.tsx` (extended editable fields)
-- `src/components/run-details/RunHeader.tsx` (parent_run_id link)
-- `src/lib/csv-export.ts` (extended fields)
-- `.lovable/memory/features/db-schema.md` (document additions)
-
-### Stability strategy
-
-All schema changes additive + nullable → existing runs/presets continue working with NULL values shown as "—" in the config panel and marked "Partial" by the audit indicator. No data backfill required. Each step is shippable independently.
+Which would you like?
