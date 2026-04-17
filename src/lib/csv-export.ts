@@ -1,4 +1,4 @@
-import type { RunDetails, Run, RunEvaluation } from "@/types/grid-arena";
+import type { RunDetails, Run, RunEvaluation, RunMetadata } from "@/types/grid-arena";
 
 function escCsv(val: unknown): string {
   if (val == null) return "";
@@ -24,9 +24,8 @@ export function downloadCsv(content: string, filename: string) {
 
 export function exportRunCsv(details: RunDetails) {
   const { run, metadata, recommendation, parseResult, evaluation } = details;
-  const headers = [
-    "field", "value",
-  ];
+  const m = (metadata ?? {}) as any;
+  const headers = ["field", "value"];
   const rows: string[][] = [
     ["run_id", run.id],
     ["title", run.title],
@@ -35,8 +34,24 @@ export function exportRunCsv(details: RunDetails) {
     ["case_name", run.case_name],
     ["status", run.status],
     ["research_question", run.research_question ?? ""],
-    ["provider_name", metadata?.provider_name ?? ""],
-    ["model_name", metadata?.model_name ?? ""],
+    ["parent_run_id", (run as any).parent_run_id ?? ""],
+    ["rerun_source", (run as any).rerun_source ?? ""],
+    ["provider_name", m.provider_name ?? ""],
+    ["provider_base_url", m.provider_base_url ?? ""],
+    ["model_name", m.model_name ?? ""],
+    ["model_version", m.model_version ?? ""],
+    ["system_prompt", m.system_prompt ?? ""],
+    ["temperature", m.temperature != null ? String(m.temperature) : ""],
+    ["max_tokens", m.max_tokens != null ? String(m.max_tokens) : ""],
+    ["top_p", m.top_p != null ? String(m.top_p) : ""],
+    ["random_seed", m.random_seed != null ? String(m.random_seed) : ""],
+    ["prompt_template_version", m.prompt_template_version ?? ""],
+    ["prompt_version", m.prompt_version ?? ""],
+    ["dataset_version", m.dataset_version ?? ""],
+    ["benchmark_case_version", m.benchmark_case_version ?? ""],
+    ["parser_version", m.parser_version ?? ""],
+    ["evaluation_logic_version", m.evaluation_logic_version ?? ""],
+    ["execution_timestamp", m.execution_timestamp ?? ""],
     ["recommendation", recommendation?.recommendation_text ?? ""],
     ["action_type", parseResult?.action_type ?? ""],
     ["target_index", String(parseResult?.target_index ?? "")],
@@ -56,7 +71,7 @@ export function exportRunCsv(details: RunDetails) {
 }
 
 export function exportBatchCsv(
-  runs: Array<{ run: Run; evaluation: RunEvaluation | null; recommendation_text?: string }>,
+  runs: Array<{ run: Run; evaluation: RunEvaluation | null; metadata?: RunMetadata | null; recommendation_text?: string }>,
   batchId: string,
 ) {
   const headers = [
@@ -64,21 +79,40 @@ export function exportBatchCsv(
     "action_type", "feasibility", "baseline_violations",
     "post_action_violations", "violation_improvement",
     "confidence", "grounding_quality", "notes",
+    "model_name", "system_prompt", "temperature", "max_tokens", "top_p",
+    "random_seed", "prompt_template_version", "parser_version",
+    "evaluation_logic_version", "benchmark_case_version", "execution_timestamp",
+    "parent_run_id",
   ];
-  const rows = runs.map((r) => [
-    r.run.id,
-    r.run.agent,
-    r.run.case_name,
-    r.recommendation_text ?? "",
-    r.evaluation?.action_applied ?? "",
-    r.evaluation?.feasibility ?? "",
-    String(r.evaluation?.baseline_violations ?? ""),
-    String(r.evaluation?.post_action_violations ?? ""),
-    String(r.evaluation?.violation_improvement ?? ""),
-    r.evaluation?.confidence ?? "",
-    r.evaluation?.grounding_quality ?? "",
-    r.evaluation?.notes ?? "",
-  ]);
+  const rows = runs.map((r) => {
+    const m = (r.metadata ?? {}) as any;
+    return [
+      r.run.id,
+      r.run.agent,
+      r.run.case_name,
+      r.recommendation_text ?? "",
+      r.evaluation?.action_applied ?? "",
+      r.evaluation?.feasibility ?? "",
+      String(r.evaluation?.baseline_violations ?? ""),
+      String(r.evaluation?.post_action_violations ?? ""),
+      String(r.evaluation?.violation_improvement ?? ""),
+      r.evaluation?.confidence ?? "",
+      r.evaluation?.grounding_quality ?? "",
+      r.evaluation?.notes ?? "",
+      m.model_name ?? "",
+      m.system_prompt ?? "",
+      m.temperature != null ? String(m.temperature) : "",
+      m.max_tokens != null ? String(m.max_tokens) : "",
+      m.top_p != null ? String(m.top_p) : "",
+      m.random_seed != null ? String(m.random_seed) : "",
+      m.prompt_template_version ?? "",
+      m.parser_version ?? "",
+      m.evaluation_logic_version ?? "",
+      m.benchmark_case_version ?? "",
+      m.execution_timestamp ?? "",
+      (r.run as any).parent_run_id ?? "",
+    ];
+  });
   downloadCsv(toCsvString(headers, rows), `batch_${batchId.slice(0, 8)}_analytics.csv`);
 }
 
