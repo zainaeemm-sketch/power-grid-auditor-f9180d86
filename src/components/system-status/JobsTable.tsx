@@ -58,7 +58,7 @@ export function JobsTable({
                   const isExp = expanded === j.id;
                   return (
                     <Fragment key={j.id}>
-                      <tr className="border-b border-border/50 hover:bg-muted/30">
+                      <tr id={`job-row-${j.id}`} className="border-b border-border/50 hover:bg-muted/30">
                         <td className="py-2">
                           <button onClick={() => onToggleExpand(j.id)} className="text-muted-foreground">
                             {isExp ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
