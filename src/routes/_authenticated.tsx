@@ -1,6 +1,8 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { getApprovalStatus } from "@/server/admin.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -9,6 +11,9 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const fetchStatus = useServerFn(getApprovalStatus);
+  const [checking, setChecking] = useState(true);
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -16,7 +21,31 @@ function AuthenticatedLayout() {
     }
   }, [isLoading, isAuthenticated, navigate]);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    let active = true;
+    setChecking(true);
+    fetchStatus()
+      .then((res) => {
+        if (!active) return;
+        if (res.isAdmin || res.status === "approved") {
+          setAllowed(true);
+        } else {
+          navigate({ to: "/pending-approval" });
+        }
+      })
+      .catch(() => {
+        if (active) navigate({ to: "/pending-approval" });
+      })
+      .finally(() => {
+        if (active) setChecking(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isLoading, isAuthenticated, fetchStatus, navigate]);
+
+  if (isLoading || checking) {
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
         <div className="text-muted-foreground">Loading…</div>
@@ -24,7 +53,7 @@ function AuthenticatedLayout() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !allowed) {
     return null;
   }
 

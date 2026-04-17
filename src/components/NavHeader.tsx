@@ -1,5 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon, Activity, ShieldCheck, Gauge, BookOpen, Info, Target } from "lucide-react";
+import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon, Activity, ShieldCheck, Gauge, BookOpen, Info, Target, UserCog } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { isCurrentUserAdmin } from "@/server/admin.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AccentSwitcher } from "@/components/AccentSwitcher";
