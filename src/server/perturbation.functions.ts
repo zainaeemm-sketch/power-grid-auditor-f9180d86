@@ -158,29 +158,68 @@ export const addCustomPerturbation = createServerFn({ method: "POST" })
     return { item: items[0] ?? null };
   });
 
+/**
+ * Enqueue a `run_perturbation` job per linked run. The job_queue worker drain
+ * (client polling + cron) executes them in the background.
+ */
 export const runBatchPerturbations = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { batchId: string }) => input)
-  .handler(async ({ data, context }): Promise<{ run_count: number; total_tests: number }> => {
-    const { supabase } = context as any;
+  .handler(async ({ data, context }): Promise<{ enqueued: number; run_count: number }> => {
+    const { supabase, userId } = context as any;
     const { data: links, error } = await supabase
       .from("batch_run_links")
       .select("run_id")
       .eq("batch_id", data.batchId);
     if (error) throw new Error(`Failed to load batch runs: ${error.message}`);
 
-    let total = 0;
-    const specs = getDefaultPerturbationSet();
-    for (const link of (links ?? []) as Array<{ run_id: string }>) {
-      try {
-        const { run, action } = await loadRunContext(supabase, link.run_id);
-        const items = await executeAndPersist(supabase, run.id, run.case_name, action, specs);
-        total += items.length;
-      } catch {
-        // continue with the next run
-      }
+    const runIds = ((links ?? []) as Array<{ run_id: string }>).map((l) => l.run_id);
+    let enqueued = 0;
+    for (const runId of runIds) {
+      const { error: jobErr } = await supabase.from("job_queue").insert({
+        user_id: userId,
+        job_type: "run_perturbation",
+        payload: { run_id: runId, batch_id: data.batchId },
+        priority: 0,
+        max_attempts: 2,
+      });
+      if (!jobErr) enqueued += 1;
     }
-    return { run_count: (links ?? []).length, total_tests: total };
+    return { enqueued, run_count: runIds.length };
+  });
+
+export interface BatchPerturbationProgress {
+  total: number;
+  queued: number;
+  running: number;
+  completed: number;
+  failed: number;
+  pending: number;
+}
+
+export const getBatchPerturbationProgress = createServerFn({ method: "GET" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { batchId: string }) => input)
+  .handler(async ({ data, context }): Promise<BatchPerturbationProgress> => {
+    const { supabase, userId } = context as any;
+    const { data: jobs, error } = await supabase
+      .from("job_queue")
+      .select("status, payload")
+      .eq("user_id", userId)
+      .eq("job_type", "run_perturbation");
+    if (error) throw new Error(`Failed to load progress: ${error.message}`);
+
+    const filtered = (jobs ?? []).filter(
+      (j: any) => j.payload?.batch_id === data.batchId,
+    );
+    const counts = { total: filtered.length, queued: 0, running: 0, completed: 0, failed: 0 };
+    for (const j of filtered) {
+      if (j.status === "queued") counts.queued += 1;
+      else if (j.status === "running") counts.running += 1;
+      else if (j.status === "completed") counts.completed += 1;
+      else if (j.status === "failed") counts.failed += 1;
+    }
+    return { ...counts, pending: counts.queued + counts.running };
   });
 
 export interface BatchRobustnessSummary {
