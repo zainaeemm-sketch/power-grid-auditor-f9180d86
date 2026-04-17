@@ -1,0 +1,245 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  isCurrentUserAdmin,
+  listUserApprovals,
+  approveUser,
+  rejectUser,
+  revokeUser,
+} from "@/server/admin.functions";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { ShieldCheck, Check, X, RotateCcw, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/_authenticated/admin")({
+  component: AdminPage,
+});
+
+type Status = "pending" | "approved" | "rejected" | "all";
+
+function AdminPage() {
+  const navigate = useNavigate();
+  const checkAdmin = useServerFn(isCurrentUserAdmin);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkAdmin()
+      .then((r) => {
+        if (!r.isAdmin) {
+          navigate({ to: "/" });
+        } else {
+          setAuthorized(true);
+        }
+      })
+      .catch(() => navigate({ to: "/" }));
+  }, [checkAdmin, navigate]);
+
+  if (!authorized) {
+    return (
+      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
+        <div className="text-muted-foreground">Verifying admin access…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 p-6">
+      <div className="flex items-center gap-3">
+        <ShieldCheck className="h-7 w-7 text-primary" />
+        <div>
+          <h1 className="text-2xl font-bold">Admin · User Approvals</h1>
+          <p className="text-sm text-muted-foreground">
+            Approve or reject new sign-ups. Approved users receive a welcome email.
+          </p>
+        </div>
+      </div>
+
+      <Card className="border-warning/30 bg-warning/5">
+        <CardContent className="flex items-start gap-3 py-4">
+          <AlertCircle className="mt-0.5 h-4 w-4 text-warning" />
+          <div className="text-sm">
+            <strong>Welcome emails</strong> are queued and will start delivering
+            once a sender domain is verified in <em>Lovable Cloud → Emails</em>.
+            Approval still works without it.
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="pending">
+        <TabsList>
+          <TabsTrigger value="pending">Pending</TabsTrigger>
+          <TabsTrigger value="approved">Approved</TabsTrigger>
+          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
+        </TabsList>
+        {(["pending", "approved", "rejected", "all"] as Status[]).map((s) => (
+          <TabsContent key={s} value={s}>
+            <ApprovalsTable status={s} />
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  );
+}
+
+function ApprovalsTable({ status }: { status: Status }) {
+  const list = useServerFn(listUserApprovals);
+  const approve = useServerFn(approveUser);
+  const reject = useServerFn(rejectUser);
+  const revoke = useServerFn(revokeUser);
+  const qc = useQueryClient();
+  const [notes, setNotes] = useState<Record<string, string>>({});
+
+  const queryKey = useMemo(() => ["user_approvals", status], [status]);
+
+  const { data, isLoading } = useQuery({
+    queryKey,
+    queryFn: () => list({ data: { status } }),
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["user_approvals"] });
+  };
+
+  const approveMut = useMutation({
+    mutationFn: (vars: { user_id: string; notes?: string }) => approve({ data: vars }),
+    onSuccess: () => {
+      toast.success("User approved — welcome email queued");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to approve"),
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: (vars: { user_id: string; notes?: string }) => reject({ data: vars }),
+    onSuccess: () => {
+      toast.success("User rejected");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to reject"),
+  });
+
+  const revokeMut = useMutation({
+    mutationFn: (vars: { user_id: string }) => revoke({ data: vars }),
+    onSuccess: () => {
+      toast.success("Access revoked");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to revoke"),
+  });
+
+  const rows = data?.approvals ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          {status === "all" ? "All users" : `${status[0].toUpperCase()}${status.slice(1)} users`}
+        </CardTitle>
+        <CardDescription>{rows.length} record(s)</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="py-8 text-center text-muted-foreground">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">No users to show.</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Email</TableHead>
+                <TableHead>Requested</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Reviewed</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r: any) => (
+                <TableRow key={r.user_id}>
+                  <TableCell className="font-medium">{r.email}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {new Date(r.requested_at).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={r.status} />
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : "—"}
+                  </TableCell>
+                  <TableCell className="max-w-[200px]">
+                    <Textarea
+                      placeholder="Optional notes…"
+                      className="min-h-[40px] text-xs"
+                      value={notes[r.user_id] ?? r.notes ?? ""}
+                      onChange={(e) => setNotes((p) => ({ ...p, [r.user_id]: e.target.value }))}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      {r.status !== "approved" && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={approveMut.isPending}
+                          onClick={() =>
+                            approveMut.mutate({ user_id: r.user_id, notes: notes[r.user_id] })
+                          }
+                        >
+                          <Check className="mr-1 h-3 w-3" /> Approve
+                        </Button>
+                      )}
+                      {r.status !== "rejected" && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={rejectMut.isPending}
+                          onClick={() =>
+                            rejectMut.mutate({ user_id: r.user_id, notes: notes[r.user_id] })
+                          }
+                        >
+                          <X className="mr-1 h-3 w-3" /> Reject
+                        </Button>
+                      )}
+                      {r.status === "approved" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={revokeMut.isPending}
+                          onClick={() => revokeMut.mutate({ user_id: r.user_id })}
+                        >
+                          <RotateCcw className="mr-1 h-3 w-3" /> Revoke
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const variants: Record<string, string> = {
+    approved: "bg-primary/15 text-primary border-primary/30",
+    pending: "bg-muted text-muted-foreground border-border",
+    rejected: "bg-destructive/15 text-destructive border-destructive/30",
+  };
+  return (
+    <Badge variant="outline" className={variants[status] ?? ""}>
+      {status}
+    </Badge>
+  );
+}
