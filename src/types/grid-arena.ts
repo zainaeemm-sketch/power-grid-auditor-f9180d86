@@ -73,6 +73,7 @@ export interface GroundTruthScenario {
   case_name: string;
   scenario_description: string | null;
   difficulty_level: string;
+  is_public: boolean;
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -98,6 +99,7 @@ export interface GroundTruthScenarioWithActions {
 
 export interface GroundTruthScenarioListItem extends GroundTruthScenario {
   action_count: number;
+  is_owner: boolean;
 }
 
 export interface RunDetails {
