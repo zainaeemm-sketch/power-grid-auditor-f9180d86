@@ -1,48 +1,95 @@
 
-## Phase 8 Audit: Already Complete
+## Phase 9: Production Deployment & Operational Stability
 
-I checked the codebase before planning. Phase 8 is already implemented:
+### Audit of current state
 
-### Auth flows ✅
-- `src/hooks/useAuth.tsx` — signup, login, logout, session persistence via `onAuthStateChange` + `getSession`.
-- `src/routes/login.tsx` — sign in / sign up form with toggle.
-- `src/components/NavHeader.tsx` — shows user email + Sign Out button when authenticated, Sign In button otherwise.
+- **Hosting**: Already on Lovable Cloud, published at `power-grid-auditor.lovable.app`. No action needed for hosting itself.
+- **Secrets**: All required runtime secrets present (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `SUPABASE_*`, `LOVABLE_API_KEY`).
+- **RLS**: Verified user-scoped on all 10 tables.
+- **Auth**: Session persistence + `_authenticated` route guard working.
+- **Error handling today**: `runs.$runId.tsx` has `errorComponent` + `notFoundComponent`. Most other routes don't. Root route lacks `notFoundComponent`. Router lacks `defaultErrorComponent`.
+- **Health checks**: None exist.
+- **LLM timeout**: 60s hardcoded, no retry on transient failures.
 
-### Route protection ✅
-- `src/routes/_authenticated.tsx` — pathless layout route that redirects unauthenticated users to `/login`.
-- All protected routes already live under `src/routes/_authenticated/`: `runs.index.tsx`, `runs.$runId.tsx`, `new-run.tsx`, `presets.tsx`, `batches.*`, `compare.tsx`.
+### Step 1 — Health check page (`/health`)
 
-### User ownership ✅
-Verified via the live schema:
-- `runs.user_id`, `experiment_presets.user_id`, `batches.user_id` all present.
-- `batch_run_links` inherits ownership through `batches` (correct — no direct user_id needed since it's a join table).
+New route `src/routes/_authenticated/health.tsx` — small ops dashboard:
+- **Database**: lightweight `select count` from `runs` → green/red.
+- **Auth/session**: read current session → show user email + token freshness.
+- **LLM provider**: check that required env-driven config resolves (server fn returns booleans only — never the secret values).
+- **Export availability**: client-side check that `Blob` + `URL.createObjectURL` exist.
+- **Production checklist**: render the 5-item list from the spec with pass/fail badges.
 
-### RLS policies ✅
-Every table has user-scoped policies for SELECT/INSERT/UPDATE/DELETE:
-- `runs`, `experiment_presets`, `batches`: `auth.uid() = user_id`
-- `run_metadata`, `run_prompt_logs`, `run_recommendations`, `run_parse_results`, `run_actions`, `run_evaluations`: scoped via `EXISTS (SELECT 1 FROM runs WHERE runs.id = X.run_id AND runs.user_id = auth.uid())`
-- `batch_run_links`: scoped via parent `batches.user_id`
+New server fn `getHealthStatus` in `src/server/health.functions.ts`:
+- Returns `{ database: "ok"|"error", llmConfigured: boolean, hasApiKey: boolean, hasBaseUrl: boolean, hasModel: boolean, timestamp }`.
+- Never returns secret values — only presence booleans.
 
-### Server-side auth ✅
-- `src/middleware/auth-headers.ts` attaches Bearer token client-side.
-- `src/integrations/supabase/auth-middleware.ts` validates token server-side and provides `userId` + scoped supabase client to every server function.
+Add link to `/health` from the `NavHeader` profile dropdown ("System Health").
 
-### Verdict
+### Step 2 — Global error & 404 boundaries
 
-**No code changes needed.** Phase 8 was completed as part of earlier work (the auth system was added before Phase 7's reproducibility work, and `_authenticated` route protection was already in place when I audited the app two messages ago).
+- **`src/router.tsx`**: add `defaultErrorComponent` with reset/retry button + readable error message.
+- **`src/routes/__root.tsx`**: add `notFoundComponent` (global 404 with link home).
+- **All `_authenticated/*` routes** that have loaders (runs.index, batches.index, batches.$batchId, presets, compare): add `errorComponent` + simple loading state pattern. Keeps current UI; just fills the gaps.
 
-### Optional gaps the spec mentioned (not currently implemented)
+### Step 3 — Operational error handling for LLM execution
 
-1. **`created_by` / `updated_by` audit fields** — the spec lists these as "where useful." Right now ownership is tracked via `user_id` (which serves as `created_by`). A separate `updated_by` field would only matter if you add multi-user collaboration (shared workspaces, team batches). For a single-tenant-per-user app, this adds noise without value.
+Update `src/server/llm.functions.ts`:
+- Wrap fetch in retry loop (1 retry on 5xx or network error; not on 4xx since those are config/auth issues).
+- On final failure, write `error_message` into `run_metadata.notes` (append) so it surfaces in UI without schema changes.
+- Set `runs.status = "failed"` (already exists in enum) instead of leaving as "running".
+- Return structured error with `retryable: boolean` flag so UI can show a "Retry" button.
 
-2. **Profile/account menu** — currently the header shows email + Sign Out as inline elements. A dropdown menu would be a small polish item if you want it (account settings, change password, delete account).
+Update `RunStatusControls.tsx`: when status is `failed`, show a "Retry Run" button that re-invokes `executeRunLlm`.
 
-### Recommendation
+### Step 4 — Batch stability for long jobs
 
-Pick what to do next:
+`src/server/batch.functions.ts`:
+- Currently runs all child runs sequentially in one server fn call → risks Worker timeout for big batches.
+- Add **concurrency cap of 3** with a small `Promise.allSettled` pool — speeds up small batches without overwhelming the LLM provider.
+- Per-run errors no longer abort the batch; failed runs marked `failed` with reason in metadata, batch still completes.
+- Add a per-run timeout guard (already 60s in LLM call; document this).
 
-- **A. Confirm and move on** — Phase 8 is done; suggest Phase 9 or another feature.
-- **B. Add the profile dropdown menu** — small UI polish (~15 min): replace inline email/logout with a `DropdownMenu` showing email, "Account Settings" (placeholder), "Sign Out".
-- **C. Add `updated_by` audit fields** — only if you plan team/shared workspaces later. Otherwise skip.
+### Step 5 — Loading states
 
-Which would you like?
+- Replace silent "Loading run details…" text in `runs.$runId.tsx` with a skeleton matching the panel layout.
+- Add a top-level `<PageTransition>` indicator (component already exists) on protected routes that fetch data.
+- Add a small `<HealthBadge>` to `NavHeader` (green dot when last health check OK, red dot if failed) — only shown when authenticated.
+
+### Step 6 — Production branding & custom domain readiness
+
+- Update `public/manifest.json`: ensure `name`, `short_name`, `theme_color`, `background_color` reflect GridArena (verify, don't redesign).
+- Update `__root.tsx` `<head>` meta: add `og:title`, `og:description`, `og:image` (using existing assets if any), `twitter:card`. This makes shareable links polished for production.
+- Document custom-domain setup as a one-paragraph note in `mem://features/deployment` (new memory file).
+
+### Step 7 — Maintainability
+
+- Extract retry/timeout helpers to `src/lib/server-utils.ts` (so future server fns can reuse).
+- Add JSDoc comments to all server functions explaining inputs/outputs.
+
+### Files
+
+**Created:**
+- `src/routes/_authenticated/health.tsx`
+- `src/server/health.functions.ts`
+- `src/lib/server-utils.ts`
+- `src/components/HealthBadge.tsx`
+- `mem://features/deployment.md`
+
+**Modified:**
+- `src/router.tsx` (defaultErrorComponent)
+- `src/routes/__root.tsx` (notFoundComponent + og meta)
+- `src/routes/_authenticated/runs.index.tsx`, `batches.index.tsx`, `batches.$batchId.tsx`, `presets.tsx`, `compare.tsx` (errorComponent + skeletons)
+- `src/routes/_authenticated/runs.$runId.tsx` (skeleton loading state)
+- `src/server/llm.functions.ts` (retry, failure persistence, status=failed)
+- `src/server/batch.functions.ts` (concurrency pool, allSettled)
+- `src/components/run-details/RunStatusControls.tsx` (Retry Run button when failed)
+- `src/components/NavHeader.tsx` (HealthBadge + System Health link)
+- `public/manifest.json` (production branding verification)
+- `mem://index.md` (link new deployment memory)
+
+### Stability strategy
+
+- All changes are additive. No schema migrations required (failure messages reuse existing `run_metadata.notes` field; status transitions reuse existing `run_status` enum which already includes `failed`).
+- Each step shippable independently; if any one breaks, prior steps remain stable.
+- Health check page is read-only and isolated — safe to land first as smoke test.
