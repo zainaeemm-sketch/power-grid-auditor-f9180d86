@@ -65,6 +65,7 @@ export type Database = {
           id: string
           name: string
           research_question: string | null
+          shared_config: Json | null
           status: string
           task: string
           updated_at: string
@@ -75,6 +76,7 @@ export type Database = {
           id?: string
           name: string
           research_question?: string | null
+          shared_config?: Json | null
           status?: string
           task: string
           updated_at?: string
@@ -85,6 +87,7 @@ export type Database = {
           id?: string
           name?: string
           research_question?: string | null
+          shared_config?: Json | null
           status?: string
           task?: string
           updated_at?: string
@@ -97,15 +100,22 @@ export type Database = {
           created_at: string
           dataset_version: string | null
           default_prompt_text: string | null
+          evaluation_logic_version: string | null
           id: string
+          max_tokens: number | null
           model_name: string | null
           model_version: string | null
           name: string
           notes: string | null
+          parser_version: string | null
+          prompt_template_version: string | null
           prompt_version: string | null
           provider_base_url: string | null
           provider_name: string | null
           random_seed: number | null
+          system_prompt: string | null
+          temperature: number | null
+          top_p: number | null
           updated_at: string
           user_id: string | null
         }
@@ -113,15 +123,22 @@ export type Database = {
           created_at?: string
           dataset_version?: string | null
           default_prompt_text?: string | null
+          evaluation_logic_version?: string | null
           id?: string
+          max_tokens?: number | null
           model_name?: string | null
           model_version?: string | null
           name: string
           notes?: string | null
+          parser_version?: string | null
+          prompt_template_version?: string | null
           prompt_version?: string | null
           provider_base_url?: string | null
           provider_name?: string | null
           random_seed?: number | null
+          system_prompt?: string | null
+          temperature?: number | null
+          top_p?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -129,15 +146,22 @@ export type Database = {
           created_at?: string
           dataset_version?: string | null
           default_prompt_text?: string | null
+          evaluation_logic_version?: string | null
           id?: string
+          max_tokens?: number | null
           model_name?: string | null
           model_version?: string | null
           name?: string
           notes?: string | null
+          parser_version?: string | null
+          prompt_template_version?: string | null
           prompt_version?: string | null
           provider_base_url?: string | null
           provider_name?: string | null
           random_seed?: number | null
+          system_prompt?: string | null
+          temperature?: number | null
+          top_p?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -234,45 +258,72 @@ export type Database = {
       }
       run_metadata: {
         Row: {
+          benchmark_case_version: string | null
           created_at: string
           dataset_version: string | null
+          evaluation_logic_version: string | null
+          execution_timestamp: string | null
           id: string
+          max_tokens: number | null
           model_name: string | null
           model_version: string | null
           notes: string | null
+          parser_version: string | null
+          prompt_template_version: string | null
           prompt_version: string | null
           provider_base_url: string | null
           provider_name: string | null
           random_seed: number | null
           run_id: string
+          system_prompt: string | null
+          temperature: number | null
+          top_p: number | null
           updated_at: string
         }
         Insert: {
+          benchmark_case_version?: string | null
           created_at?: string
           dataset_version?: string | null
+          evaluation_logic_version?: string | null
+          execution_timestamp?: string | null
           id?: string
+          max_tokens?: number | null
           model_name?: string | null
           model_version?: string | null
           notes?: string | null
+          parser_version?: string | null
+          prompt_template_version?: string | null
           prompt_version?: string | null
           provider_base_url?: string | null
           provider_name?: string | null
           random_seed?: number | null
           run_id: string
+          system_prompt?: string | null
+          temperature?: number | null
+          top_p?: number | null
           updated_at?: string
         }
         Update: {
+          benchmark_case_version?: string | null
           created_at?: string
           dataset_version?: string | null
+          evaluation_logic_version?: string | null
+          execution_timestamp?: string | null
           id?: string
+          max_tokens?: number | null
           model_name?: string | null
           model_version?: string | null
           notes?: string | null
+          parser_version?: string | null
+          prompt_template_version?: string | null
           prompt_version?: string | null
           provider_base_url?: string | null
           provider_name?: string | null
           random_seed?: number | null
           run_id?: string
+          system_prompt?: string | null
+          temperature?: number | null
+          top_p?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -405,6 +456,8 @@ export type Database = {
           case_name: string
           created_at: string
           id: string
+          parent_run_id: string | null
+          rerun_source: string | null
           research_question: string | null
           status: Database["public"]["Enums"]["run_status"]
           task: string
@@ -417,6 +470,8 @@ export type Database = {
           case_name: string
           created_at?: string
           id?: string
+          parent_run_id?: string | null
+          rerun_source?: string | null
           research_question?: string | null
           status?: Database["public"]["Enums"]["run_status"]
           task: string
@@ -429,6 +484,8 @@ export type Database = {
           case_name?: string
           created_at?: string
           id?: string
+          parent_run_id?: string | null
+          rerun_source?: string | null
           research_question?: string | null
           status?: Database["public"]["Enums"]["run_status"]
           task?: string
@@ -436,7 +493,15 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "runs_parent_run_id_fkey"
+            columns: ["parent_run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
