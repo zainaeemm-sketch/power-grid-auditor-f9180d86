@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Loader2, Play, RotateCcw, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Activity, Loader2, Play, RotateCcw, X, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { listRecentJobs, cancelJob, retryJob, getJobStats, getJobLogs } from "@/server/queue/queue.functions";
 import { processJobBatch } from "@/server/queue/worker.functions";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ function SystemStatusPage() {
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectNowRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -89,6 +90,18 @@ function SystemStatusPage() {
       }, delay);
     };
 
+    reconnectNowRef.current = () => {
+      if (cancelled) return;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      reconnectAttemptRef.current = 0;
+      setReconnectAttempt(0);
+      if (channel) supabase.removeChannel(channel);
+      connect();
+    };
+
     connect();
 
     return () => {
@@ -100,6 +113,11 @@ function SystemStatusPage() {
       if (channel) supabase.removeChannel(channel);
     };
   }, [queryClient]);
+
+  const handleReconnectNow = () => {
+    reconnectNowRef.current();
+    toast.success("Reconnecting realtime channel…");
+  };
 
   const stats = useQuery({
     queryKey: ["job-stats"],
