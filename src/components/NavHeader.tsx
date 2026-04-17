@@ -45,7 +45,7 @@ export function NavHeader() {
           <span className="-ml-1.5 gradient-text">Arena</span>
         </Link>
         <nav className="flex flex-1 items-center gap-1">
-          {navLinks.map(({ to, label, icon: Icon, exact }) => (
+          {(isAuthenticated ? [...navLinks, ...publicLinks] : publicLinks).map(({ to, label, icon: Icon, exact }) => (
             <Link
               key={to}
               to={to}
