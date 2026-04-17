@@ -7,13 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Globe } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { createScenario } from "@/server/ground-truth.functions";
+import { createScenario, isCurrentUserAdmin } from "@/server/ground-truth.functions";
 
 export const Route = createFileRoute("/_authenticated/ground-truth/new")({
   head: () => ({ meta: [{ title: "New Ground Truth Scenario — GridArena" }] }),
+  loader: async () => {
+    if (typeof window === "undefined") return { isAdmin: false };
+    try {
+      return await isCurrentUserAdmin();
+    } catch {
+      return { isAdmin: false };
+    }
+  },
   component: NewScenarioPage,
 });
 
