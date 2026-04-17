@@ -3,10 +3,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Target, Sparkles } from "lucide-react";
+import { Plus, Target, Sparkles, Globe, Lock, ShieldCheck } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { listScenarios, seedExampleScenarios } from "@/server/ground-truth.functions";
+import { listScenarios, seedExampleScenarios, claimFirstAdmin } from "@/server/ground-truth.functions";
 import type { GroundTruthScenarioListItem } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/ground-truth/")({
@@ -17,21 +17,23 @@ export const Route = createFileRoute("/_authenticated/ground-truth/")({
     ],
   }),
   loader: async () => {
-    if (typeof window === "undefined") return { scenarios: [] };
+    if (typeof window === "undefined") return { scenarios: [], isAdmin: false };
     try {
       return await listScenarios();
     } catch {
-      return { scenarios: [] };
+      return { scenarios: [], isAdmin: false };
     }
   },
   component: GroundTruthListPage,
 });
 
 function GroundTruthListPage() {
-  const { scenarios } = Route.useLoaderData() as { scenarios: GroundTruthScenarioListItem[] };
+  const { scenarios, isAdmin } = Route.useLoaderData() as { scenarios: GroundTruthScenarioListItem[]; isAdmin: boolean };
   const router = useRouter();
   const seedFn = useServerFn(seedExampleScenarios);
+  const claimFn = useServerFn(claimFirstAdmin);
   const [seeding, setSeeding] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   const handleSeed = async () => {
     setSeeding(true);
@@ -46,14 +48,44 @@ function GroundTruthListPage() {
     }
   };
 
+  const handleClaimAdmin = async () => {
+    setClaiming(true);
+    try {
+      const res = await claimFn();
+      if (res.granted) {
+        toast.success("You are now an admin.");
+        await router.invalidate();
+      } else {
+        toast.info(res.reason || "Admin already exists");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to claim admin");
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const publicCount = scenarios.filter((s) => s.is_public).length;
+  const ownCount = scenarios.filter((s) => s.is_owner).length;
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold"><span className="gradient-text">Ground Truth Registry</span></h1>
-          <p className="mt-1 text-sm text-muted-foreground">Reference scenarios with expected optimal actions for accuracy benchmarking.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Reference scenarios with expected optimal actions for accuracy benchmarking.
+            {isAdmin && <span className="ml-2 inline-flex items-center gap-1 text-primary"><ShieldCheck className="h-3 w-3" />Admin</span>}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{publicCount} shared · {ownCount} owned by you</p>
         </div>
         <div className="flex items-center gap-2">
+          {!isAdmin && (
+            <Button variant="ghost" size="sm" onClick={handleClaimAdmin} disabled={claiming} title="Claim admin role if none exists yet">
+              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+              {claiming ? "Claiming…" : "Claim admin"}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleSeed} disabled={seeding}>
             <Sparkles className="mr-1.5 h-3.5 w-3.5" />
             {seeding ? "Seeding…" : "Seed examples"}
@@ -83,13 +115,23 @@ function GroundTruthListPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center justify-between text-sm font-bold">
                     <span className="font-mono text-primary">{s.scenario_id}</span>
-                    <Badge variant="outline" className="text-xs">{s.difficulty_level}</Badge>
+                    <div className="flex items-center gap-1.5">
+                      {s.is_public ? (
+                        <Badge variant="default" className="gap-1 text-[10px]"><Globe className="h-3 w-3" />Shared</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="gap-1 text-[10px]"><Lock className="h-3 w-3" />Private</Badge>
+                      )}
+                      <Badge variant="outline" className="text-xs">{s.difficulty_level}</Badge>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 text-xs">
                   <div><span className="text-muted-foreground">Case:</span> {s.case_name}</div>
                   <div className="line-clamp-2 text-muted-foreground">{s.scenario_description || "—"}</div>
-                  <div><span className="text-muted-foreground">Reference actions:</span> {s.action_count}</div>
+                  <div className="flex items-center justify-between">
+                    <span><span className="text-muted-foreground">Reference actions:</span> {s.action_count}</span>
+                    {!s.is_owner && <span className="text-[10px] text-muted-foreground">read-only</span>}
+                  </div>
                 </CardContent>
               </Card>
             </Link>

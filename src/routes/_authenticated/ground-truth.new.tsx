@@ -7,13 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Globe } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { createScenario } from "@/server/ground-truth.functions";
+import { createScenario, isCurrentUserAdmin } from "@/server/ground-truth.functions";
 
 export const Route = createFileRoute("/_authenticated/ground-truth/new")({
   head: () => ({ meta: [{ title: "New Ground Truth Scenario — GridArena" }] }),
+  loader: async () => {
+    if (typeof window === "undefined") return { isAdmin: false };
+    try {
+      return await isCurrentUserAdmin();
+    } catch {
+      return { isAdmin: false };
+    }
+  },
   component: NewScenarioPage,
 });
 
@@ -40,11 +48,13 @@ const emptyAction = (): ActionForm => ({
 function NewScenarioPage() {
   const navigate = useNavigate();
   const createFn = useServerFn(createScenario);
+  const { isAdmin } = Route.useLoaderData() as { isAdmin: boolean };
 
   const [scenarioId, setScenarioId] = useState("");
   const [caseName, setCaseName] = useState("");
   const [description, setDescription] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
+  const [isPublic, setIsPublic] = useState(false);
   const [actions, setActions] = useState<ActionForm[]>([emptyAction()]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -62,6 +72,7 @@ function NewScenarioPage() {
           case_name: caseName,
           scenario_description: description || null,
           difficulty_level: difficulty,
+          is_public: isAdmin ? isPublic : false,
           actions: actions.map((a) => ({
             action_type: a.action_type,
             target_index: a.target_index === "" ? null : Number(a.target_index),
@@ -113,6 +124,15 @@ function NewScenarioPage() {
                   <SelectItem value="hard">Hard</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-border/40 px-3 py-2">
+              <div>
+                <Label className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" />Share with all researchers</Label>
+                <p className="text-xs text-muted-foreground">
+                  {isAdmin ? "Public scenarios are visible to every signed-in user." : "Only admins can create public scenarios."}
+                </p>
+              </div>
+              <Switch checked={isPublic} onCheckedChange={setIsPublic} disabled={!isAdmin} />
             </div>
           </CardContent>
         </Card>
