@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   Select,
@@ -10,10 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Target } from "lucide-react";
 import { useMemo, useState } from "react";
-import { listRuns } from "@/server/runs.functions";
-import type { Run, RunStatus } from "@/types/grid-arena";
+import { listRuns, type RunListItem } from "@/server/runs.functions";
+import type { RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/runs/")({
   head: () => ({
@@ -43,14 +44,30 @@ export const Route = createFileRoute("/_authenticated/runs/")({
 });
 
 const ALL = "__all__";
+const GT_ALL = "all";
+const GT_ONLY = "linked";
+const GT_NONE = "none";
+
+function actionMatchVariant(m: string | null | undefined) {
+  if (m === "exact") return "default" as const;
+  if (m === "partial") return "secondary" as const;
+  return "outline" as const;
+}
+
+function formatGap(gap: number | null | undefined) {
+  if (gap == null || !Number.isFinite(gap)) return "—";
+  const sign = gap > 0 ? "+" : "";
+  return `${sign}${gap.toFixed(2)}`;
+}
 
 function RunsPage() {
-  const { runs, error } = Route.useLoaderData() as { runs: Run[]; error: string | null };
+  const { runs, error } = Route.useLoaderData() as { runs: RunListItem[]; error: string | null };
   const [search, setSearch] = useState("");
   const [taskFilter, setTaskFilter] = useState(ALL);
   const [agentFilter, setAgentFilter] = useState(ALL);
   const [caseFilter, setCaseFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
+  const [gtFilter, setGtFilter] = useState(GT_ALL);
 
   const options = useMemo(() => {
     const tasks = new Set<string>();
@@ -71,11 +88,14 @@ function RunsPage() {
     };
   }, [runs]);
 
-  const filtered = runs.filter((r: Run) => {
+  const filtered = runs.filter((r) => {
     if (taskFilter !== ALL && r.task !== taskFilter) return false;
     if (agentFilter !== ALL && r.agent !== agentFilter) return false;
     if (caseFilter !== ALL && r.case_name !== caseFilter) return false;
     if (statusFilter !== ALL && r.status !== statusFilter) return false;
+    const hasGt = Boolean(r.ground_truth_scenario_id) || r.evaluation_against_ground_truth === true;
+    if (gtFilter === GT_ONLY && !hasGt) return false;
+    if (gtFilter === GT_NONE && hasGt) return false;
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -159,29 +179,53 @@ function RunsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={gtFilter} onValueChange={setGtFilter}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="Ground truth" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={GT_ALL}>All runs</SelectItem>
+            <SelectItem value={GT_ONLY}>With ground truth</SelectItem>
+            <SelectItem value={GT_NONE}>Without ground truth</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-3">
-        {filtered.map((run: Run) => (
-          <Link key={run.id} to="/runs/$runId" params={{ runId: run.id }} className="block">
-            <Card className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex flex-col gap-1">
-                  <p className="font-semibold">{run.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {run.task} · {run.agent} · {run.case_name}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <StatusBadge status={run.status as RunStatus} />
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(run.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+        {filtered.map((run) => {
+          const hasGt = Boolean(run.ground_truth_scenario_id) || run.evaluation_against_ground_truth === true;
+          return (
+            <Link key={run.id} to="/runs/$runId" params={{ runId: run.id }} className="block">
+              <Card className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
+                <CardContent className="flex items-center justify-between gap-4 p-4">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <p className="truncate font-semibold">{run.title}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {run.task} · {run.agent} · {run.case_name}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {hasGt && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Badge variant={actionMatchVariant(run.action_match)} className="capitalize">
+                          {run.action_match ?? "no match"}
+                        </Badge>
+                        <span className="tabular-nums text-muted-foreground">
+                          gap {formatGap(run.optimality_gap)}
+                        </span>
+                      </div>
+                    )}
+                    <StatusBadge status={run.status as RunStatus} />
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(run.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
         {filtered.length === 0 && (
           <p className="py-12 text-center text-muted-foreground">No runs found.</p>
         )}
