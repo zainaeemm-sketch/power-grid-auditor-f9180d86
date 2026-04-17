@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { GitCompare, Download } from "lucide-react";
+import { GitCompare, Download, FileText } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { listRuns, getRunDetails } from "@/server/runs.functions";
 import type { Run, RunDetails } from "@/types/grid-arena";
@@ -108,16 +109,33 @@ function ComparePage() {
           <GitCompare className="h-6 w-6 gradient-text" />
           <span className="gradient-text">Compare Runs</span>
         </h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExport}
-          disabled={!detailsA && !detailsB}
-          className="border-border/40 hover:border-primary/40 transition-colors duration-300"
-        >
-          <Download className="mr-1.5 h-3.5 w-3.5" />
-          Export Comparison CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            disabled={!runAId && !runBId}
+            className="border-border/40 hover:border-primary/40 transition-colors duration-300"
+          >
+            <Link
+              to="/reports/compare"
+              search={{ runs: [runAId, runBId].filter(Boolean).join(",") }}
+            >
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
+              Generate Report
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={!detailsA && !detailsB}
+            className="border-border/40 hover:border-primary/40 transition-colors duration-300"
+          >
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            Export Comparison CSV
+          </Button>
+        </div>
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 animate-fade-up" style={{ animationDelay: "100ms" }}>
