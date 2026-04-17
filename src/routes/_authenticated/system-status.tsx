@@ -236,3 +236,22 @@ function KpiCard({ label, value, accent }: { label: string; value: number; accen
     </Card>
   );
 }
+
+function LiveIndicator({ status }: { status: "connecting" | "live" | "disconnected" }) {
+  const isLive = status === "live";
+  const isDown = status === "disconnected";
+  const dotColor = isLive ? "bg-emerald-500" : isDown ? "bg-destructive" : "bg-amber-500";
+  const label = isLive ? "Live" : isDown ? "Disconnected" : "Connecting";
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground"
+      title={`Realtime channel: ${label}`}
+    >
+      <span className="relative flex h-2 w-2">
+        <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${dotColor}`} />
+        <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
+      </span>
+      {label}
+    </span>
+  );
+}
