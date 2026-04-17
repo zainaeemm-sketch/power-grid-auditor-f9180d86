@@ -40,7 +40,7 @@ export const Route = createFileRoute("/_authenticated/reports/compare")({
 function CompareReportPage() {
   const { runs: runsParam } = Route.useSearch();
   const ids = useMemo(
-    () => runsParam.split(",").map((s) => s.trim()).filter(Boolean),
+    () => runsParam.split(",").map((s: string) => s.trim()).filter(Boolean),
     [runsParam],
   );
   const [details, setDetails] = useState<RunDetails[]>([]);
@@ -50,7 +50,7 @@ function CompareReportPage() {
     let active = true;
     setLoading(true);
     Promise.all(
-      ids.map((id) => getRunDetails({ data: { runId: id } }).catch(() => null)),
+      ids.map((id: string) => getRunDetails({ data: { runId: id } }).catch(() => null)),
     ).then((res) => {
       if (!active) return;
       setDetails(res.filter((r): r is RunDetails => !!r?.run));
