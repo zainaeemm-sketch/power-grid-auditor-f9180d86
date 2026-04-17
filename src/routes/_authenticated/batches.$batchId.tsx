@@ -131,6 +131,16 @@ function BatchDetailPage() {
     };
   }, [batch?.id, runIds, router]);
 
+  // Phase 11 — drain queued jobs (background) while runs are pending in this batch.
+  const hasPending = useMemo(() => runs.some((r) => r.run.status !== "completed"), [runs]);
+  useJobDrain({
+    enabled: !!batch && hasPending,
+    intervalMs: 5000,
+    onTick: (r) => {
+      if (r.processed > 0) router.invalidate();
+    },
+  });
+
   const handleRunAll = useCallback(async () => {
     const pendingRuns = runs.filter((r) => r.run.status !== "completed");
     if (pendingRuns.length === 0) {
