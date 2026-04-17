@@ -1,95 +1,106 @@
 
-## Phase 9: Production Deployment & Operational Stability
+## Phase 10: Research Reporting & Publication-Ready Outputs
 
-### Audit of current state
+### Audit
+Existing CSV export covers raw data. No print layout, no LaTeX, no narrative summaries, no chart exports. Recharts is available (used in `chart.tsx`). Routes follow flat dot convention under `_authenticated/`.
 
-- **Hosting**: Already on Lovable Cloud, published at `power-grid-auditor.lovable.app`. No action needed for hosting itself.
-- **Secrets**: All required runtime secrets present (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `SUPABASE_*`, `LOVABLE_API_KEY`).
-- **RLS**: Verified user-scoped on all 10 tables.
-- **Auth**: Session persistence + `_authenticated` route guard working.
-- **Error handling today**: `runs.$runId.tsx` has `errorComponent` + `notFoundComponent`. Most other routes don't. Root route lacks `notFoundComponent`. Router lacks `defaultErrorComponent`.
-- **Health checks**: None exist.
-- **LLM timeout**: 60s hardcoded, no retry on transient failures.
+### Step 1 — Report routes (3 new pages)
 
-### Step 1 — Health check page (`/health`)
+Flat dot-named routes under `src/routes/_authenticated/`:
+- `reports.run.$runId.tsx` — single-run report
+- `reports.batch.$batchId.tsx` — full-batch report (with executive summary)
+- `reports.compare.tsx` — comparison report (reads `?runs=id1,id2,...` from search params; reuses existing compare logic)
 
-New route `src/routes/_authenticated/health.tsx` — small ops dashboard:
-- **Database**: lightweight `select count` from `runs` → green/red.
-- **Auth/session**: read current session → show user email + token freshness.
-- **LLM provider**: check that required env-driven config resolves (server fn returns booleans only — never the secret values).
-- **Export availability**: client-side check that `Blob` + `URL.createObjectURL` exist.
-- **Production checklist**: render the 5-item list from the spec with pass/fail badges.
+Each route has `errorComponent` + `notFoundComponent`, loads via existing server fns (`getRunDetails`, `getBatchDetails`), no new schema.
 
-New server fn `getHealthStatus` in `src/server/health.functions.ts`:
-- Returns `{ database: "ok"|"error", llmConfigured: boolean, hasApiKey: boolean, hasBaseUrl: boolean, hasModel: boolean, timestamp }`.
-- Never returns secret values — only presence booleans.
+### Step 2 — Report layout component
 
-Add link to `/health` from the `NavHeader` profile dropdown ("System Health").
+New `src/components/reports/ReportLayout.tsx`:
+- Academic styling: serif headings (Georgia/Times), generous margins, page-break CSS (`@media print`).
+- Sections: Title block, Metadata/Config snapshot, Prompt & Response, Parsed Action, Evaluation Summary, Charts, Notes, Reproducibility footer (parser version, eval version, execution timestamp, parent_run_id).
+- Print-only header with run/batch ID + timestamp.
+- Hide app chrome (`NavHeader`) on print via `print:hidden` Tailwind utilities.
 
-### Step 2 — Global error & 404 boundaries
+Sub-components:
+- `ReportSection.tsx` — titled section wrapper with `break-inside-avoid`.
+- `ReportTable.tsx` — styled comparison table (alternating rows, thin borders).
+- `ReportChart.tsx` — wraps Recharts components with print-friendly colors + downloadable SVG button.
 
-- **`src/router.tsx`**: add `defaultErrorComponent` with reset/retry button + readable error message.
-- **`src/routes/__root.tsx`**: add `notFoundComponent` (global 404 with link home).
-- **All `_authenticated/*` routes** that have loaders (runs.index, batches.index, batches.$batchId, presets, compare): add `errorComponent` + simple loading state pattern. Keeps current UI; just fills the gaps.
+### Step 3 — Charts (Recharts)
 
-### Step 3 — Operational error handling for LLM execution
+For batch reports:
+- **Violation improvement bar chart** (per run, grouped by agent).
+- **Feasibility distribution pie/donut** (feasible vs infeasible vs unknown).
+- **Confidence × grounding heatmap** (simple grid of counts).
 
-Update `src/server/llm.functions.ts`:
-- Wrap fetch in retry loop (1 retry on 5xx or network error; not on 4xx since those are config/auth issues).
-- On final failure, write `error_message` into `run_metadata.notes` (append) so it surfaces in UI without schema changes.
-- Set `runs.status = "failed"` (already exists in enum) instead of leaving as "running".
-- Return structured error with `retryable: boolean` flag so UI can show a "Retry" button.
+For comparison reports:
+- **Side-by-side metric bar chart** across selected runs.
 
-Update `RunStatusControls.tsx`: when status is `failed`, show a "Retry Run" button that re-invokes `executeRunLlm`.
+Each chart wrapped in `ReportChart` with a "Download SVG" button (serializes the rendered `<svg>` and triggers download).
 
-### Step 4 — Batch stability for long jobs
+### Step 4 — Executive summary (batch)
 
-`src/server/batch.functions.ts`:
-- Currently runs all child runs sequentially in one server fn call → risks Worker timeout for big batches.
-- Add **concurrency cap of 3** with a small `Promise.allSettled` pool — speeds up small batches without overwhelming the LLM provider.
-- Per-run errors no longer abort the batch; failed runs marked `failed` with reason in metadata, batch still completes.
-- Add a per-run timeout guard (already 60s in LLM call; document this).
+New `src/lib/batch-summary.ts` — pure functions, no LLM:
+- `bestModel(runs)` — highest mean violation_improvement grouped by `metadata.model_name`.
+- `bestAgent(runs)` — same grouped by `run.agent`.
+- `bestCase(runs)` — case_name with highest mean improvement.
+- `robustnessNotes(runs)` — variance of improvement per model; flags high-variance models.
+- `failureModes(runs)` — counts of `feasibility=infeasible`, `grounding_quality=ungrounded`, parser failures (action_type null), recurring substrings in `evaluation.notes`.
 
-### Step 5 — Loading states
+Rendered as `ExecutiveSummary.tsx` — clean prose paragraphs, not just numbers.
 
-- Replace silent "Loading run details…" text in `runs.$runId.tsx` with a skeleton matching the panel layout.
-- Add a top-level `<PageTransition>` indicator (component already exists) on protected routes that fetch data.
-- Add a small `<HealthBadge>` to `NavHeader` (green dot when last health check OK, red dot if failed) — only shown when authenticated.
+### Step 5 — Downloadable formats
 
-### Step 6 — Production branding & custom domain readiness
+Extend `src/lib/csv-export.ts` and add:
+- `src/lib/latex-export.ts`:
+  - `toLatexTable(headers, rows, caption, label)` — produces booktabs-style `\begin{table}...\end{table}` with `\toprule\midrule\bottomrule`.
+  - `exportRunLatex(details)`, `exportBatchLatex(runs)`, `exportComparisonLatex(runs)` — download as `.tex`.
+- `src/lib/svg-export.ts`:
+  - `downloadSvg(svgEl, filename)` — serialize + trigger download.
+  - `downloadPng(svgEl, filename, scale=2)` — rasterize via canvas for figure-friendly PNG.
 
-- Update `public/manifest.json`: ensure `name`, `short_name`, `theme_color`, `background_color` reflect GridArena (verify, don't redesign).
-- Update `__root.tsx` `<head>` meta: add `og:title`, `og:description`, `og:image` (using existing assets if any), `twitter:card`. This makes shareable links polished for production.
-- Document custom-domain setup as a one-paragraph note in `mem://features/deployment` (new memory file).
+PDF: use browser print (no library). The print stylesheet on `ReportLayout` produces clean A4 output via `window.print()`. A "Print / Save as PDF" button calls it.
 
-### Step 7 — Maintainability
+### Step 6 — Report toolbar
 
-- Extract retry/timeout helpers to `src/lib/server-utils.ts` (so future server fns can reuse).
-- Add JSDoc comments to all server functions explaining inputs/outputs.
+New `src/components/reports/ReportToolbar.tsx` (sticky top, hidden on print):
+- Print / Save as PDF button
+- Download CSV
+- Download LaTeX tables
+- Download all charts (PNG zip is overkill — individual download buttons on each chart instead)
+- Back to source page
+
+### Step 7 — Wire up entry points
+
+Add "Generate Report" buttons in:
+- `src/routes/_authenticated/runs.$runId.tsx` — links to `/reports/run/$runId`.
+- `src/routes/_authenticated/batches.$batchId.tsx` — links to `/reports/batch/$batchId`.
+- `src/routes/_authenticated/compare.tsx` — links to `/reports/compare?runs=...`.
 
 ### Files
 
 **Created:**
-- `src/routes/_authenticated/health.tsx`
-- `src/server/health.functions.ts`
-- `src/lib/server-utils.ts`
-- `src/components/HealthBadge.tsx`
-- `mem://features/deployment.md`
+- `src/routes/_authenticated/reports.run.$runId.tsx`
+- `src/routes/_authenticated/reports.batch.$batchId.tsx`
+- `src/routes/_authenticated/reports.compare.tsx`
+- `src/components/reports/ReportLayout.tsx`
+- `src/components/reports/ReportSection.tsx`
+- `src/components/reports/ReportTable.tsx`
+- `src/components/reports/ReportChart.tsx`
+- `src/components/reports/ReportToolbar.tsx`
+- `src/components/reports/ExecutiveSummary.tsx`
+- `src/lib/batch-summary.ts`
+- `src/lib/latex-export.ts`
+- `src/lib/svg-export.ts`
 
 **Modified:**
-- `src/router.tsx` (defaultErrorComponent)
-- `src/routes/__root.tsx` (notFoundComponent + og meta)
-- `src/routes/_authenticated/runs.index.tsx`, `batches.index.tsx`, `batches.$batchId.tsx`, `presets.tsx`, `compare.tsx` (errorComponent + skeletons)
-- `src/routes/_authenticated/runs.$runId.tsx` (skeleton loading state)
-- `src/server/llm.functions.ts` (retry, failure persistence, status=failed)
-- `src/server/batch.functions.ts` (concurrency pool, allSettled)
-- `src/components/run-details/RunStatusControls.tsx` (Retry Run button when failed)
-- `src/components/NavHeader.tsx` (HealthBadge + System Health link)
-- `public/manifest.json` (production branding verification)
-- `mem://index.md` (link new deployment memory)
+- `src/routes/_authenticated/runs.$runId.tsx` (Generate Report button)
+- `src/routes/_authenticated/batches.$batchId.tsx` (Generate Report button)
+- `src/routes/_authenticated/compare.tsx` (Generate Report button)
+- `src/styles.css` (print-specific @media rules: hide nav, A4 page setup, serif report family)
+- `.lovable/memory/index.md` (note Phase 10 reporting layer)
 
-### Stability strategy
-
-- All changes are additive. No schema migrations required (failure messages reuse existing `run_metadata.notes` field; status transitions reuse existing `run_status` enum which already includes `failed`).
-- Each step shippable independently; if any one breaks, prior steps remain stable.
-- Health check page is read-only and isolated — safe to land first as smoke test.
+### Stability
+- No schema changes. Reports are read-only views over existing data.
+- All exports are client-side (no new server fns needed).
+- Each report route is independent — failure of one doesn't affect runs/batches pages.
