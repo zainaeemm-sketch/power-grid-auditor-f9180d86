@@ -22,6 +22,7 @@ import { ResultsSummaryPanel } from "@/components/run-details/ResultsSummaryPane
 import { ToolTracePanel } from "@/components/run-details/ToolTracePanel";
 import { ProvenanceTimelinePanel } from "@/components/run-details/ProvenanceTimelinePanel";
 import { GroundTruthComparisonPanel } from "@/components/run-details/GroundTruthComparisonPanel";
+import { SensitivityPanel } from "@/components/run-details/SensitivityPanel";
 
 export const Route = createFileRoute("/_authenticated/runs/$runId")({
   head: () => ({

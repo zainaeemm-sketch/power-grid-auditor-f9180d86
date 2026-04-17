@@ -145,3 +145,41 @@ export function exportComparisonCsv(
   const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   downloadCsv(toCsvString(headers, rows), `comparison_${ts}.csv`);
 }
+
+export function exportSensitivityCsv(runId: string, items: PerturbationTestWithResult[]) {
+  const headers = [
+    "perturbation_type", "parameter_name", "parameter_value",
+    "baseline_feasibility", "perturbed_feasibility",
+    "violation_change", "robustness_result", "robustness_score", "failure_reason",
+  ];
+  const rows = items.map(({ test, result }) => [
+    test.perturbation_type,
+    test.parameter_name,
+    test.parameter_value != null ? String(test.parameter_value) : "",
+    result?.baseline_feasibility ?? "",
+    result?.perturbed_feasibility ?? "",
+    result ? String(result.violation_change) : "",
+    result?.robustness_result ?? "",
+    result ? String(result.robustness_score) : "",
+    result?.failure_reason ?? "",
+  ]);
+  downloadCsv(toCsvString(headers, rows), `sensitivity_run_${runId.slice(0, 8)}.csv`);
+}
+
+export function exportBatchSensitivityCsv(batchId: string, summary: BatchRobustnessSummary) {
+  const headers = [
+    "run_id", "case_name", "agent",
+    "perturbation_type", "parameter_name", "parameter_value",
+    "baseline_feasibility", "perturbed_feasibility",
+    "violation_change", "robustness_result", "robustness_score", "failure_reason",
+  ];
+  const rows = summary.per_test.map((r) => [
+    r.run_id, r.case_name, r.agent,
+    r.perturbation_type, r.parameter_name,
+    r.parameter_value != null ? String(r.parameter_value) : "",
+    r.baseline_feasibility, r.perturbed_feasibility,
+    String(r.violation_change), r.robustness_result, String(r.robustness_score),
+    r.failure_reason ?? "",
+  ]);
+  downloadCsv(toCsvString(headers, rows), `batch_sensitivity_${batchId.slice(0, 8)}.csv`);
+}
