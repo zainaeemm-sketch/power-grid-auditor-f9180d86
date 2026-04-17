@@ -1,101 +1,104 @@
 
-## Layer C: Performance Optimization & Scaling
 
-### Audit & constraint
-- Workers are short-lived (no long-running background workers, no in-memory queue across requests). Current `executeBatchRuns` is synchronous, capped at concurrency 3 via `runWithConcurrency`. UI polls via Supabase queries.
-- We must implement the "queue" using the database as the source of truth — every job is a row, workers (server fns) claim and process them. This is the only Worker-compatible pattern.
+## Layer D: Public Release & Documentation
 
-### Step 1 — Schema (one migration)
+### Audit
+- No `/docs` or `/about` routes today. README.md not authored as user-facing.
+- Existing presets table can host demo data; existing `executeRunLlm` produces example runs.
+- Mermaid diagrams renderable via mermaid.js (need to add) or as static SVG. Simplest: ship as static SVG inline in a Docs page — no new dependency.
+- Routes follow flat dot convention under `_authenticated/`. `/about` should be **public** (no auth) so reviewers can read it without signing in — place at top-level `src/routes/about.tsx` and `src/routes/docs.tsx` (and child docs pages).
 
-**`job_queue`** — durable queue of background jobs:
-- `id uuid pk`, `user_id uuid not null`
-- `job_type text` (`run_execution` | `batch_execution`)
-- `payload jsonb` (e.g. `{run_id}` or `{batch_id}`)
-- `status text` (`queued | running | completed | failed | cancelled`) default `queued`
-- `priority int default 0`
-- `attempts int default 0`, `max_attempts int default 3`
-- `started_at timestamptz`, `completed_at timestamptz`
-- `execution_time_ms int`, `error_message text`
-- `worker_id text` (lease holder), `lease_expires_at timestamptz`
-- `created_at`, `updated_at`
+### Step 1 — Public routes (no auth wall)
 
-**`job_logs`** — execution + error logs + perf metrics:
-- `id`, `job_id` (fk by id, no constraint), `level text` (`info | warn | error | metric`), `message text`, `metadata jsonb`, `created_at`
+New top-level routes (siblings of `index.tsx`, outside `_authenticated/`):
+- `src/routes/about.tsx` — `/about` — purpose, authors, affiliation, citation (BibTeX + APA), links.
+- `src/routes/docs.tsx` — `/docs` layout with sidebar nav + `<Outlet />`.
+- `src/routes/docs.index.tsx` — overview landing.
+- `src/routes/docs.installation.tsx` — install/setup (Lovable Cloud + optional simulation-service deploy + secrets).
+- `src/routes/docs.usage.tsx` — auth, creating runs, presets, batches.
+- `src/routes/docs.workflow.tsx` — end-to-end experiment lifecycle with diagram.
+- `src/routes/docs.architecture.tsx` — system diagram (inline SVG).
+- `src/routes/docs.reproducibility.tsx` — step-by-step reproduction with expected metrics.
+- `src/routes/docs.troubleshooting.tsx` — common failures (LLM timeout, simulator unavailable, queue stuck, RLS errors).
 
-RLS: user-scoped on both. Indexes on `(status, priority, created_at)` and `(job_id, created_at)`.
+All public — no `_authenticated` parent. Each has `head()` with unique title/description/og tags per the route-architecture rules.
 
-### Step 2 — Queue helpers (`src/server/queue/`)
+### Step 2 — Shared docs components
 
-- `types.ts` — `JobType`, `JobStatus`, `JobRecord`, `JobLog`.
-- `queue.ts` server fns:
-  - `enqueueJob({job_type, payload, priority?, max_attempts?})` — inserts row, returns id.
-  - `claimNextJobs({limit, lease_seconds=60})` — atomic SQL update via RPC: select `queued` or expired-lease rows, set `status='running'`, `worker_id`, `lease_expires_at`. Uses `SELECT … FOR UPDATE SKIP LOCKED` in a SECURITY DEFINER Postgres function created in the migration.
-  - `completeJob(id, {execution_time_ms})`, `failJob(id, error, retryable)` — increments attempts; if `attempts < max_attempts` reverts to `queued`, else marks `failed`.
-  - `cancelJob(id)`, `retryJob(id)`.
-  - `appendJobLog(id, level, message, metadata?)`.
-- `worker.ts`:
-  - `processJobBatch({limit=3, timeout_ms=20000})` — server fn: claims up to N jobs, dispatches by `job_type` with `Promise.race` against per-job timeout, logs metrics, releases lease. Reuses existing `executeRunLlm` and inline batch logic (no recursive enqueue).
+- `src/components/docs/DocsLayout.tsx` — sidebar nav + content area, used inside `docs.tsx` layout route.
+- `src/components/docs/CodeBlock.tsx` — small wrapper using existing Tailwind for code samples (no syntax highlighter dep — use `<pre>` styled).
+- `src/components/docs/ArchitectureDiagram.tsx` — inline SVG showing Frontend (TanStack Start) → Server Functions (Worker) → Postgres + LLM Provider + Simulation Service (pandapower) + DC Solver fallback. Static SVG, no library. Dark-theme friendly.
 
-### Step 3 — Trigger mechanism
+### Step 3 — Demo dataset seeder
 
-Workers can't have always-on background processes, so we use **two triggers**:
-1. **Client-side drain loop**: when a user enqueues a batch, the UI calls `processJobBatch` repeatedly (every 5s) until queue is empty for that user. Already-open browsers also drain. Non-blocking — uses background `fetch` + React Query invalidation.
-2. **Cron drain (optional, recommended)**: `pg_cron` job every minute calls a `/hooks/process-jobs` route that runs `processJobBatch`. This guarantees jobs progress even when no UI is open. Uses bearer token auth pattern from skill docs.
+- `src/lib/demo-dataset.ts` — exported constants: 3 demo presets covering case5 / case14 / case30, each with realistic prompt, evaluation_mode `simulation`, model `google/gemini-2.5-flash`.
+- New server fn `seedDemoData()` in `src/server/demo.functions.ts` — for the **current authenticated user**: idempotently upserts the 3 presets (matched by name prefix `[Demo]`), and creates 1 example completed run per preset by directly inserting rows (no LLM call, deterministic mock prompt + recommendation + evaluation referencing the DC solver result). Returns `{presets_created, runs_created}`.
+- Entry point: a "Load Demo Dataset" button on `/docs/usage` and `/about` that calls `seedDemoData` then toasts a link to `/runs`.
 
-### Step 4 — Refactor batch execution
+No new tables — uses existing `experiment_presets`, `runs`, `run_metadata`, `run_prompt_logs`, `run_evaluations`. Marker prefix `[Demo]` lets users identify and delete easily.
 
-- `executeBatchRuns` (existing) → enqueues one `run_execution` job per pending run, returns immediately with `{enqueued: N}`. UI no longer waits for completion.
-- New per-run worker calls `executeRunLlm` with timeout (15s default) + retry on transient errors (already in `withRetry`). On non-retryable failure the run remains in `queued` (existing convention) and the job is marked `failed` after max attempts.
-- Keeps existing `runWithConcurrency` cap inside one worker invocation; horizontal scale comes from cron + multiple browsers triggering drains.
+### Step 4 — Architecture diagram (inline SVG)
 
-### Step 5 — `/system-status` dashboard
+Hand-authored SVG inside `ArchitectureDiagram.tsx`:
+- Boxes: Browser (TanStack Start UI) → Edge Worker (Server Fns + Queue Worker) → Postgres (RLS, queue, runs, evaluations) — with side connections to LLM Gateway and Simulation Service (pandapower) + in-Worker DC fallback.
+- Uses CSS variables (`--primary`, `--muted`, `--border`) so it inherits theme colors.
+- Re-used on `/docs/architecture` and embedded as a thumbnail on `/about`.
 
-New route `src/routes/_authenticated/system-status.tsx`:
-- KPI cards: Active (running) / Queued / Completed (24h) / Failed (24h) / Avg execution time (ms).
-- Live-updating table of recent jobs (last 50) with status badges, attempts, duration.
-- Per-row actions: **Cancel** (queued/running), **Retry** (failed). Uses `cancelJob`/`retryJob`.
-- Expandable row → recent `job_logs` (info/warn/error/metric).
-- "Process queue now" button → calls `processJobBatch` manually for ops use.
-- Auto-refresh every 5s via React Query.
-- Add "System Status" nav link in `NavHeader` (icon: `Activity`).
+### Step 5 — Reproducibility page
 
-### Step 6 — Resource limits
+Documents three reproducible experiments:
+1. **Single-run sanity check** — case5, scale_all_loads 0.9, expected: feasibility=true, baseline≥0, post≤baseline (DC solver, deterministic).
+2. **Batch-of-3 stability** — load 3 demo presets, run, expect 3 completed, 0 failed.
+3. **Validation suite** — run `/validation`, expect parser+evaluation+reproducibility+batch_stability all green.
 
-- **Per-job timeout**: `Promise.race` with `setTimeout` reject inside worker. Default 15s (`run_execution`), configurable via job payload.
-- **Memory**: enforced by Worker runtime; we add a soft guard by limiting `processJobBatch` concurrency to 3 and capping `claimNextJobs` limit.
-- **Retry limits**: `max_attempts` column (default 3); exponential backoff handled by reschedule delay (`lease_expires_at + attempt * 5s`).
+Each section shows: configuration (preset name, model, mode), one-click "Load this experiment" button (calls `seedDemoData`), expected metrics table, link to /validation.
 
-### Step 7 — Logging
+### Step 6 — Public navigation
 
-- Every state transition emits a `job_logs` row (`info`).
-- Worker emits `metric` rows with `{phase, duration_ms}` for `claim`, `dispatch`, `total`.
-- Errors logged with stack trace truncated to 1KB.
-- Old logs pruned by daily `pg_cron` `DELETE FROM job_logs WHERE created_at < now() - interval '7 days'`.
+Update `NavHeader.tsx`:
+- Add public links **Docs** and **About** visible to logged-out users (only those two + Sign In). Logged-in users see existing links plus Docs/About.
+- About/Docs reachable at `/about` and `/docs` without login.
 
-### Step 8 — Wire UI updates
+Update `__root.tsx` if needed so `/about` and `/docs/*` render outside the `_authenticated` guard (they already will, since they're not under `_authenticated/`).
 
-- `batches.$batchId.tsx`: "Run Batch" now calls enqueue + starts a 5s drain loop hook (`useJobDrain`) that pings `processJobBatch` until the batch's runs are all completed/failed. Existing per-row status display works unchanged (run statuses still update via Supabase query).
-- New shared hook `src/hooks/useJobDrain.ts` — handles drain timing, abort on unmount, exponential backoff when queue is empty.
+### Step 7 — Citation block
+
+On `/about` and `/docs`:
+- Plain-text APA: "GridArena (2026). LLM Agent Research Platform for Power System Operations. https://power-grid-auditor.lovable.app"
+- BibTeX block in a copy-to-clipboard `CodeBlock`.
+- Author/affiliation fields use placeholder text (`<Your Name>`, `<Your Institution>`) with an inline note that the user should edit `src/lib/citation.ts` to personalize. Centralizing citation in `src/lib/citation.ts` means one edit propagates everywhere.
+
+### Step 8 — README.md (repo root)
+
+Rewrite `README.md` as the GitHub-facing entry point: project blurb, screenshot link to `/about`, link to `/docs`, simulation-service deploy summary, citation. Mirrors but doesn't duplicate the in-app docs.
 
 ### Files
 
 **Created**
-- `supabase/migrations/<ts>_job_queue.sql` (tables, RLS, `claim_jobs` SECURITY DEFINER function, indexes, optional pg_cron registration via insert tool after approval)
-- `src/server/queue/{types,queue,worker}.ts`
-- `src/routes/hooks/process-jobs.ts` (cron-triggered drain endpoint)
-- `src/routes/_authenticated/system-status.tsx`
-- `src/hooks/useJobDrain.ts`
+- `src/routes/about.tsx`
+- `src/routes/docs.tsx` (layout)
+- `src/routes/docs.index.tsx`
+- `src/routes/docs.installation.tsx`
+- `src/routes/docs.usage.tsx`
+- `src/routes/docs.workflow.tsx`
+- `src/routes/docs.architecture.tsx`
+- `src/routes/docs.reproducibility.tsx`
+- `src/routes/docs.troubleshooting.tsx`
+- `src/components/docs/DocsLayout.tsx`
+- `src/components/docs/CodeBlock.tsx`
+- `src/components/docs/ArchitectureDiagram.tsx`
+- `src/lib/demo-dataset.ts`
+- `src/lib/citation.ts`
+- `src/server/demo.functions.ts`
 
 **Modified**
-- `src/server/batch.functions.ts` — `executeBatchRuns` enqueues instead of awaiting
-- `src/components/NavHeader.tsx` — add System Status link
-- `src/routes/_authenticated/batches.$batchId.tsx` — use `useJobDrain`, show queue progress
-- `src/types/grid-arena.ts` — add `JobRecord`, `JobLog`
-- `src/integrations/supabase/types.ts` (auto-regenerated)
-- `.lovable/memory/index.md`, `.lovable/memory/features/db-schema.md`
+- `src/components/NavHeader.tsx` (Docs + About links, visible logged-out)
+- `README.md` (rewrite for public consumption)
+- `.lovable/memory/index.md` (note Layer D public-docs surface)
 
-### Stability & determinism
-- All changes additive. Old single-run path (`executeRunLlm` direct call from new-run.tsx) untouched; users can still execute a single run synchronously.
-- Failure of the queue subsystem can't corrupt runs — runs remain authoritative; jobs are pure orchestration metadata.
-- Lease + `SKIP LOCKED` prevents double-processing across concurrent drains.
-- After approval I'll request whether to enable the optional `pg_cron` drain (requires running an insert-tool SQL with the project anon key).
+### Stability
+- Purely additive — no schema changes, no edits to existing server fns.
+- `seedDemoData` is idempotent (upsert by preset name) and user-scoped via existing RLS.
+- Public docs/about routes don't depend on auth; failure of any docs route can't affect runs/batches.
+- Static SVG diagram avoids new dependencies.
+
