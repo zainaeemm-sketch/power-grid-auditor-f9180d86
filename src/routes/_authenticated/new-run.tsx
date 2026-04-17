@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { listPresets, createRun } from "@/server/runs.functions";
+import { listScenarios } from "@/server/ground-truth.functions";
 import { useServerFn } from "@tanstack/react-start";
-import type { ExperimentPreset } from "@/types/grid-arena";
+import type { ExperimentPreset, GroundTruthScenarioListItem } from "@/types/grid-arena";
 import { Play } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/new-run")({
@@ -19,18 +20,19 @@ export const Route = createFileRoute("/_authenticated/new-run")({
     ],
   }),
   loader: async () => {
-    if (typeof window === "undefined") return { presets: [] };
+    if (typeof window === "undefined") return { presets: [], scenarios: [] };
     try {
-      return await listPresets();
+      const [p, s] = await Promise.all([listPresets(), listScenarios()]);
+      return { presets: p.presets, scenarios: s.scenarios };
     } catch {
-      return { presets: [] };
+      return { presets: [], scenarios: [] };
     }
   },
   component: NewRunPage,
 });
 
 function NewRunPage() {
-  const { presets } = Route.useLoaderData() as { presets: ExperimentPreset[] };
+  const { presets, scenarios } = Route.useLoaderData() as { presets: ExperimentPreset[]; scenarios: GroundTruthScenarioListItem[] };
   const navigate = useNavigate();
   const createRunFn = useServerFn(createRun);
 
@@ -41,6 +43,7 @@ function NewRunPage() {
   const [researchQuestion, setResearchQuestion] = useState("");
   const [presetId, setPresetId] = useState<string>("");
   const [evaluationMode, setEvaluationMode] = useState<"rule_based" | "simulation" | "auto">("rule_based");
+  const [groundTruthId, setGroundTruthId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
   const handlePresetChange = (value: string) => {
@@ -70,6 +73,7 @@ function NewRunPage() {
           research_question: researchQuestion || undefined,
           preset_id: presetId || undefined,
           evaluation_mode: evaluationMode,
+          ground_truth_scenario_id: groundTruthId || null,
         },
       });
       navigate({ to: "/runs/$runId", params: { runId: result.run.id } });
@@ -141,6 +145,20 @@ function NewRunPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">Simulation uses the external pandapower service if configured, then falls back to an in-Worker DC power-flow solver for built-in IEEE cases (case5, case14, case30).</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Ground Truth Scenario (optional)</Label>
+              <Select value={groundTruthId || "none"} onValueChange={(v) => setGroundTruthId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="No ground truth" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No ground truth</SelectItem>
+                  {scenarios.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.scenario_id} — {s.case_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Link to a reference scenario to enable accuracy and optimality-gap metrics.</p>
             </div>
 
             <Button

@@ -58,6 +58,17 @@ export const getRunDetails = createServerFn({ method: "GET" })
       (supabase as any).from("run_evaluations").select("*").eq("run_id", runId).maybeSingle(),
     ]);
 
+    // Ground truth (optional)
+    let groundTruth: { scenario: any; actions: any[] } | null = null;
+    const gtId = (run as any).ground_truth_scenario_id as string | null | undefined;
+    if (gtId) {
+      const [gtScen, gtActs] = await Promise.all([
+        (supabase as any).from("ground_truth_scenarios").select("*").eq("id", gtId).maybeSingle(),
+        (supabase as any).from("ground_truth_actions").select("*").eq("scenario_id", gtId),
+      ]);
+      if (gtScen.data) groundTruth = { scenario: gtScen.data, actions: gtActs.data ?? [] };
+    }
+
     return {
       run,
       metadata: metaRes.data ?? null,
@@ -65,7 +76,8 @@ export const getRunDetails = createServerFn({ method: "GET" })
       recommendation: (recRes.data as RunRecommendation) ?? null,
       parseResult: (parseRes.data as RunParseResult) ?? null,
       evaluation: (evalRes.data as import("@/types/grid-arena").RunEvaluation) ?? null,
-    };
+      groundTruth: groundTruth as any,
+    } as RunDetails;
   });
 
 /** Build a metadata row from a preset (Phase 7 — full config snapshot). */
@@ -101,11 +113,12 @@ export const createRun = createServerFn({ method: "POST" })
     research_question?: string;
     preset_id?: string;
     evaluation_mode?: "rule_based" | "simulation" | "auto";
+    ground_truth_scenario_id?: string | null;
   }) => input)
   .handler(async ({ data, context }): Promise<{ run: Run }> => {
     const { supabase, userId } = context;
 
-    const { data: run, error: runError } = await supabase
+    const { data: run, error: runError } = await (supabase as any)
       .from("runs")
       .insert({
         title: data.title,
@@ -114,6 +127,7 @@ export const createRun = createServerFn({ method: "POST" })
         case_name: data.case_name,
         research_question: data.research_question || null,
         user_id: userId,
+        ground_truth_scenario_id: data.ground_truth_scenario_id || null,
       })
       .select()
       .single();

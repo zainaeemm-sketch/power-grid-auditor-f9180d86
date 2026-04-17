@@ -65,6 +65,10 @@ export function exportRunCsv(details: RunDetails) {
     ["grounding_quality", evaluation?.grounding_quality ?? ""],
     ["action_applied", evaluation?.action_applied ?? ""],
     ["notes", evaluation?.notes ?? ""],
+    ["ground_truth_scenario_id", (run as any).ground_truth_scenario_id ?? ""],
+    ["action_match", (evaluation as any)?.action_match ?? ""],
+    ["feasibility_match", (evaluation as any)?.feasibility_match ?? ""],
+    ["optimality_gap", (evaluation as any)?.optimality_gap != null ? String((evaluation as any).optimality_gap) : ""],
   ];
   const csv = toCsvString(headers, rows);
   downloadCsv(csv, `run_${run.id.slice(0, 8)}_summary.csv`);
@@ -83,6 +87,7 @@ export function exportBatchCsv(
     "random_seed", "prompt_template_version", "parser_version",
     "evaluation_logic_version", "benchmark_case_version", "execution_timestamp",
     "parent_run_id",
+    "ground_truth_scenario_id", "action_match", "feasibility_match", "optimality_gap",
   ];
   const rows = runs.map((r) => {
     const m = (r.metadata ?? {}) as any;
@@ -111,6 +116,10 @@ export function exportBatchCsv(
       m.benchmark_case_version ?? "",
       m.execution_timestamp ?? "",
       (r.run as any).parent_run_id ?? "",
+      (r.run as any).ground_truth_scenario_id ?? "",
+      (r.evaluation as any)?.action_match ?? "",
+      (r.evaluation as any)?.feasibility_match ?? "",
+      (r.evaluation as any)?.optimality_gap != null ? String((r.evaluation as any).optimality_gap) : "",
     ];
   });
   downloadCsv(toCsvString(headers, rows), `batch_${batchId.slice(0, 8)}_analytics.csv`);

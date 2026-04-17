@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon, Activity, ShieldCheck, Gauge, BookOpen, Info } from "lucide-react";
+import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon, Activity, ShieldCheck, Gauge, BookOpen, Info, Target } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AccentSwitcher } from "@/components/AccentSwitcher";
@@ -22,6 +22,7 @@ const navLinks = [
   { to: "/batches" as const, label: "Batches", icon: Layers, exact: false },
   { to: "/compare" as const, label: "Compare", icon: GitCompare, exact: false },
   { to: "/validation" as const, label: "Validation", icon: ShieldCheck, exact: false },
+  { to: "/ground-truth" as const, label: "Ground Truth", icon: Target, exact: false },
   { to: "/system-status" as const, label: "System", icon: Gauge, exact: false },
 ];
 

@@ -21,17 +21,18 @@ import { StructuredActionPanel } from "@/components/run-details/StructuredAction
 import { ResultsSummaryPanel } from "@/components/run-details/ResultsSummaryPanel";
 import { ToolTracePanel } from "@/components/run-details/ToolTracePanel";
 import { ProvenanceTimelinePanel } from "@/components/run-details/ProvenanceTimelinePanel";
+import { GroundTruthComparisonPanel } from "@/components/run-details/GroundTruthComparisonPanel";
 
 export const Route = createFileRoute("/_authenticated/runs/$runId")({
   head: () => ({
     meta: [{ title: "Run Details — GridArena" }],
   }),
   loader: async ({ params }) => {
-    if (typeof window === "undefined") return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null, evaluation: null };
+    if (typeof window === "undefined") return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null, evaluation: null, groundTruth: null };
     try {
       return await getRunDetails({ data: { runId: params.runId } });
     } catch {
-      return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null, evaluation: null };
+      return { run: null, metadata: null, promptLog: null, recommendation: null, parseResult: null, evaluation: null, groundTruth: null };
     }
   },
   errorComponent: ({ error }) => (
@@ -125,6 +126,12 @@ function RunDetailPage() {
         <ParserProvenancePanel parseResult={parseResult ?? null} />
         <StructuredActionPanel parseResult={parseResult ?? null} />
         <ResultsSummaryPanel evaluation={details.evaluation ?? null} />
+        <GroundTruthComparisonPanel
+          scenario={details.groundTruth?.scenario ?? null}
+          referenceActions={details.groundTruth?.actions ?? []}
+          evaluation={details.evaluation ?? null}
+          parseResult={parseResult ?? null}
+        />
       </div>
 
       <div className="mt-4 grid gap-4">

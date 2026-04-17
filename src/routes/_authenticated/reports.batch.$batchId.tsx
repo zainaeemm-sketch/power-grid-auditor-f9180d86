@@ -15,6 +15,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Legend,
 } from "recharts";
 import { useMemo } from "react";
+import { agentAccuracyVsGroundTruth, accuracyRate, avgOptimalityGap, feasibilityAgreementRate } from "@/lib/batch-summary";
 
 export const Route = createFileRoute("/_authenticated/reports/batch/$batchId")({
   head: () => ({ meta: [{ title: "Batch Report — GridArena" }] }),
@@ -149,6 +150,49 @@ function BatchReportPage() {
             </div>
           </ReportChart>
         </ReportSection>
+
+        {(() => {
+          const acc = accuracyRate(runs);
+          if (acc.total === 0) return null;
+          const gap = avgOptimalityGap(runs);
+          const feasAgree = feasibilityAgreementRate(runs);
+          const perAgent = agentAccuracyVsGroundTruth(runs).map((a) => ({
+            name: a.agent,
+            accuracy: Math.round(a.accuracy * 100),
+          }));
+          return (
+            <ReportSection title="Ground Truth Accuracy">
+              <div className="mb-4 grid grid-cols-3 gap-3 text-sm">
+                <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                  <div className="text-xs text-muted-foreground">Accuracy Rate</div>
+                  <div className="font-mono text-lg">{(acc.rate * 100).toFixed(1)}%</div>
+                  <div className="text-xs text-muted-foreground">{acc.exact}/{acc.total} exact</div>
+                </div>
+                <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                  <div className="text-xs text-muted-foreground">Avg Optimality Gap</div>
+                  <div className="font-mono text-lg">{gap.toFixed(2)}</div>
+                </div>
+                <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                  <div className="text-xs text-muted-foreground">Feasibility Agreement</div>
+                  <div className="font-mono text-lg">{(feasAgree * 100).toFixed(1)}%</div>
+                </div>
+              </div>
+              <ReportChart title="Agent Accuracy vs Ground Truth" filenameBase={`batch_${batch.id.slice(0, 8)}_gt_accuracy`}>
+                <div style={{ width: "100%", height: 280 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={perAgent} margin={{ top: 8, right: 16, left: 0, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af40" />
+                      <XAxis dataKey="name" fontSize={11} />
+                      <YAxis domain={[0, 100]} fontSize={11} unit="%" />
+                      <Tooltip />
+                      <Bar dataKey="accuracy" fill="#10b981" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </ReportChart>
+            </ReportSection>
+          );
+        })()}
 
         <ReportSection title="Run-by-Run Results">
           <ReportTable
