@@ -37,6 +37,19 @@ async function dispatchJob(supabase: any, userId: string, job: JobRecord, timeou
     return { duration_ms: Date.now() - start };
   }
 
+  if (job.job_type === "run_perturbation") {
+    const runId = job.payload?.run_id as string | undefined;
+    if (!runId) throw new Error("Missing run_id in payload");
+    const { runDefaultPerturbationsForRun } = await import("../perturbation/run-executor");
+    const res = await withTimeout(
+      runDefaultPerturbationsForRun(supabase, runId),
+      timeoutMs,
+      "runDefaultPerturbationsForRun",
+    );
+    await logInternal(supabase, job.id, userId, "info", `Perturbation tests: ${res.tests}`);
+    return { duration_ms: Date.now() - start };
+  }
+
   throw new Error(`Unknown job_type: ${job.job_type}`);
 }
 

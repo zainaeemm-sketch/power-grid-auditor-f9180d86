@@ -1,4 +1,4 @@
-export type JobType = "run_execution" | "batch_execution";
+export type JobType = "run_execution" | "batch_execution" | "run_perturbation";
 export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 export type JobLogLevel = "info" | "warn" | "error" | "metric";
 
