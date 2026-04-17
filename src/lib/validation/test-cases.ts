@@ -106,8 +106,8 @@ export const EVALUATION_CASES: EvaluationCase[] = [
 export interface TestResult {
   test_name: string;
   test_type: "parser" | "evaluation" | "reproducibility" | "batch_stability";
-  expected_output: unknown;
-  actual_output: unknown;
+  expected_output: any;
+  actual_output: any;
   status: "passed" | "failed" | "error";
   failure_reason: string | null;
   debug_hint: string | null;

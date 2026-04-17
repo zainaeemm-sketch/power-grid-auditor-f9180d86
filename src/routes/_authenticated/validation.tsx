@@ -49,9 +49,9 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "passed") return <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Passed</Badge>;
-  if (status === "failed") return <Badge className="bg-red-500/15 text-red-400 border border-red-500/30">Failed</Badge>;
-  return <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/30">Error</Badge>;
+  if (status === "passed") return <Badge className="border border-primary/30 bg-primary/15 text-primary">Passed</Badge>;
+  if (status === "failed") return <Badge variant="destructive">Failed</Badge>;
+  return <Badge variant="outline" className="border-muted-foreground/40 text-muted-foreground">Error</Badge>;
 }
 
 function ValidationPage() {
@@ -131,8 +131,8 @@ function ValidationPage() {
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total tests</div><div className="text-2xl font-bold">{total}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-400" /> Passed</div><div className="text-2xl font-bold text-emerald-400">{passed}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground flex items-center gap-1"><XCircle className="h-3 w-3 text-red-400" /> Failed / errored</div><div className="text-2xl font-bold text-red-400">{failed + errored}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 className="h-3 w-3 text-primary" /> Passed</div><div className="text-2xl font-bold text-primary">{passed}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-1 text-xs text-muted-foreground"><XCircle className="h-3 w-3 text-destructive" /> Failed / errored</div><div className="text-2xl font-bold text-destructive">{failed + errored}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Avg execution</div><div className="text-2xl font-bold">{avgMs} ms</div></CardContent></Card>
       </div>
 
@@ -181,7 +181,7 @@ function ValidationPage() {
                             <TableCell colSpan={5} className="bg-muted/20">
                               <div className="space-y-3 p-3">
                                 {r.failure_reason && (
-                                  <div className="flex items-start gap-2 text-sm text-red-400">
+                                  <div className="flex items-start gap-2 text-sm text-destructive">
                                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span>{r.failure_reason}</span>
                                   </div>
