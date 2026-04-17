@@ -1,17 +1,18 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Activity, Loader2, Play, RefreshCw } from "lucide-react";
 import { listRecentJobs, cancelJob, retryJob, getJobStats, getJobLogs } from "@/server/queue/queue.functions";
 import { processJobBatch } from "@/server/queue/worker.functions";
 import { toast } from "sonner";
 import type { JobRecord, JobLog } from "@/server/queue/types";
-import { LiveIndicator, type LiveStatus } from "@/components/system-status/LiveIndicator";
+import { LiveIndicator } from "@/components/system-status/LiveIndicator";
 import { KpiCards } from "@/components/system-status/KpiCards";
 import { JobsTable } from "@/components/system-status/JobsTable";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type StatusFilter = "all" | "queued" | "running" | "completed" | "failed" | "cancelled";
 type TypeFilter = "all" | "run_execution" | "batch_execution";
