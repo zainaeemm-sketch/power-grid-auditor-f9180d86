@@ -147,6 +147,20 @@ function NewRunPage() {
               <p className="text-xs text-muted-foreground">Simulation uses the external pandapower service if configured, then falls back to an in-Worker DC power-flow solver for built-in IEEE cases (case5, case14, case30).</p>
             </div>
 
+            <div className="space-y-2">
+              <Label>Ground Truth Scenario (optional)</Label>
+              <Select value={groundTruthId || "none"} onValueChange={(v) => setGroundTruthId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="No ground truth" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No ground truth</SelectItem>
+                  {scenarios.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.scenario_id} — {s.case_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Link to a reference scenario to enable accuracy and optimality-gap metrics.</p>
+            </div>
+
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-primary to-[oklch(0.72_0.14_200)] text-primary-foreground font-semibold shadow-lg hover:shadow-[0_0_25px_oklch(0.696_0.17_162.48/0.3)] transition-shadow duration-300"
