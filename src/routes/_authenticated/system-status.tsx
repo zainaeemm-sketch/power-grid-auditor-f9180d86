@@ -240,14 +240,14 @@ function SystemStatusPage() {
 
       <KpiCards stats={stats.data} />
 
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Filter by status:</span>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Filter:</span>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="h-8 w-[180px] text-xs">
-            <SelectValue />
+          <SelectTrigger className="h-8 w-[170px] text-xs">
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All ({jobList.length})</SelectItem>
+            <SelectItem value="all">All statuses ({jobList.length})</SelectItem>
             <SelectItem value="queued">Queued</SelectItem>
             <SelectItem value="running">Running</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
@@ -255,7 +255,17 @@ function SystemStatusPage() {
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
-        {statusFilter !== "all" && (
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypeFilter)}>
+          <SelectTrigger className="h-8 w-[180px] text-xs">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="run_execution">run_execution</SelectItem>
+            <SelectItem value="batch_execution">batch_execution</SelectItem>
+          </SelectContent>
+        </Select>
+        {filtersActive && (
           <span className="text-xs text-muted-foreground">
             Showing {filteredJobs.length} of {jobList.length}
           </span>
