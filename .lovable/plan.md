@@ -1,106 +1,81 @@
 
-## Phase 10: Research Reporting & Publication-Ready Outputs
+## Layer A: System Validation & Reliability Testing
 
 ### Audit
-Existing CSV export covers raw data. No print layout, no LaTeX, no narrative summaries, no chart exports. Recharts is available (used in `chart.tsx`). Routes follow flat dot convention under `_authenticated/`.
+- Parser logic lives in `src/server/llm.functions.ts` (used by `executeRunLlm`).
+- Evaluation logic computes `violation_improvement`, feasibility, etc. in same file.
+- Constants `PARSER_VERSION` and `EVALUATION_LOGIC_VERSION` already exist.
+- No test infrastructure today. No `validation_results` table.
+- Routes follow flat dot convention under `_authenticated/`.
 
-### Step 1 — Report routes (3 new pages)
+### Step 1 — Schema (migration)
 
-Flat dot-named routes under `src/routes/_authenticated/`:
-- `reports.run.$runId.tsx` — single-run report
-- `reports.batch.$batchId.tsx` — full-batch report (with executive summary)
-- `reports.compare.tsx` — comparison report (reads `?runs=id1,id2,...` from search params; reuses existing compare logic)
+New table `validation_results`:
+- `id uuid pk`, `user_id uuid not null`
+- `test_name text not null`, `test_type text not null` (parser | evaluation | reproducibility | batch_stability)
+- `expected_output jsonb`, `actual_output jsonb`
+- `status text not null` (passed | failed | error)
+- `failure_reason text`, `debug_hint text`
+- `execution_time_ms integer not null default 0`
+- `system_version text`, `parser_version text`, `evaluation_logic_version text`
+- `created_at timestamptz default now()`
 
-Each route has `errorComponent` + `notFoundComponent`, loads via existing server fns (`getRunDetails`, `getBatchDetails`), no new schema.
+RLS: user-scoped (`auth.uid() = user_id`) on all four operations, matching project convention.
 
-### Step 2 — Report layout component
+### Step 2 — Extract pure parser/evaluator
 
-New `src/components/reports/ReportLayout.tsx`:
-- Academic styling: serif headings (Georgia/Times), generous margins, page-break CSS (`@media print`).
-- Sections: Title block, Metadata/Config snapshot, Prompt & Response, Parsed Action, Evaluation Summary, Charts, Notes, Reproducibility footer (parser version, eval version, execution timestamp, parent_run_id).
-- Print-only header with run/batch ID + timestamp.
-- Hide app chrome (`NavHeader`) on print via `print:hidden` Tailwind utilities.
+Refactor (additive, non-breaking) `src/server/llm.functions.ts`:
+- Export pure functions `parseRecommendation(text)` and `evaluateAction(action, baseline)` so validation tests can call them directly without an LLM round-trip.
+- Existing `executeRunLlm` keeps working — it just calls these helpers internally.
 
-Sub-components:
-- `ReportSection.tsx` — titled section wrapper with `break-inside-avoid`.
-- `ReportTable.tsx` — styled comparison table (alternating rows, thin borders).
-- `ReportChart.tsx` — wraps Recharts components with print-friendly colors + downloadable SVG button.
+### Step 3 — Validation test suite
 
-### Step 3 — Charts (Recharts)
+New `src/lib/validation/test-cases.ts` — deterministic fixture set:
+- **Parser cases (~5)**: known recommendation strings → expected `{action_type, target_index, value, enabled}`.
+- **Evaluation cases (~4)**: known action + baseline → expected `{feasibility, violation_improvement, confidence}`.
+- **Reproducibility case**: parser+evaluator run twice on same input → outputs must deep-equal.
+- **Batch stability case**: run all parser+evaluator cases in sequence → all must complete without throwing; report counts.
 
-For batch reports:
-- **Violation improvement bar chart** (per run, grouped by agent).
-- **Feasibility distribution pie/donut** (feasible vs infeasible vs unknown).
-- **Confidence × grounding heatmap** (simple grid of counts).
+New `src/server/validation.functions.ts`:
+- `runAllValidations()` — executes the suite, persists each result to `validation_results`, returns aggregate.
+- `getValidationResults({limit})` — recent results for the dashboard.
+- `clearValidationResults()` — optional reset.
 
-For comparison reports:
-- **Side-by-side metric bar chart** across selected runs.
+All wrapped with `requireSupabaseAuth`. No LLM calls — purely deterministic.
 
-Each chart wrapped in `ReportChart` with a "Download SVG" button (serializes the rendered `<svg>` and triggers download).
+### Step 4 — Validation dashboard route
 
-### Step 4 — Executive summary (batch)
+New route `src/routes/_authenticated/validation.tsx`:
+- Header card: total tests, passed, failed, avg execution time (ms).
+- "Run All Validation Tests" button → calls `runAllValidations`, shows progress toast.
+- Results table grouped by test_type with status badges (green/red/amber).
+- Failed-row expandable panel: failure_reason, expected vs actual diff (JSON side-by-side), debug_hint.
+- "Export Validation Report" dropdown → CSV or JSON download (client-side, mirrors existing csv-export pattern).
+- `errorComponent` + `notFoundComponent` per project convention.
 
-New `src/lib/batch-summary.ts` — pure functions, no LLM:
-- `bestModel(runs)` — highest mean violation_improvement grouped by `metadata.model_name`.
-- `bestAgent(runs)` — same grouped by `run.agent`.
-- `bestCase(runs)` — case_name with highest mean improvement.
-- `robustnessNotes(runs)` — variance of improvement per model; flags high-variance models.
-- `failureModes(runs)` — counts of `feasibility=infeasible`, `grounding_quality=ungrounded`, parser failures (action_type null), recurring substrings in `evaluation.notes`.
+Add nav link "Validation" to `NavHeader.tsx` (icon: `ShieldCheck`).
 
-Rendered as `ExecutiveSummary.tsx` — clean prose paragraphs, not just numbers.
+### Step 5 — Export
 
-### Step 5 — Downloadable formats
-
-Extend `src/lib/csv-export.ts` and add:
-- `src/lib/latex-export.ts`:
-  - `toLatexTable(headers, rows, caption, label)` — produces booktabs-style `\begin{table}...\end{table}` with `\toprule\midrule\bottomrule`.
-  - `exportRunLatex(details)`, `exportBatchLatex(runs)`, `exportComparisonLatex(runs)` — download as `.tex`.
-- `src/lib/svg-export.ts`:
-  - `downloadSvg(svgEl, filename)` — serialize + trigger download.
-  - `downloadPng(svgEl, filename, scale=2)` — rasterize via canvas for figure-friendly PNG.
-
-PDF: use browser print (no library). The print stylesheet on `ReportLayout` produces clean A4 output via `window.print()`. A "Print / Save as PDF" button calls it.
-
-### Step 6 — Report toolbar
-
-New `src/components/reports/ReportToolbar.tsx` (sticky top, hidden on print):
-- Print / Save as PDF button
-- Download CSV
-- Download LaTeX tables
-- Download all charts (PNG zip is overkill — individual download buttons on each chart instead)
-- Back to source page
-
-### Step 7 — Wire up entry points
-
-Add "Generate Report" buttons in:
-- `src/routes/_authenticated/runs.$runId.tsx` — links to `/reports/run/$runId`.
-- `src/routes/_authenticated/batches.$batchId.tsx` — links to `/reports/batch/$batchId`.
-- `src/routes/_authenticated/compare.tsx` — links to `/reports/compare?runs=...`.
+Extend `src/lib/csv-export.ts` with `exportValidationCsv(results)` and add `src/lib/validation-export.ts` for JSON export. Both include: test_name, test_type, status, execution_time_ms, expected/actual (stringified), system_version, parser_version, evaluation_logic_version, timestamp.
 
 ### Files
 
 **Created:**
-- `src/routes/_authenticated/reports.run.$runId.tsx`
-- `src/routes/_authenticated/reports.batch.$batchId.tsx`
-- `src/routes/_authenticated/reports.compare.tsx`
-- `src/components/reports/ReportLayout.tsx`
-- `src/components/reports/ReportSection.tsx`
-- `src/components/reports/ReportTable.tsx`
-- `src/components/reports/ReportChart.tsx`
-- `src/components/reports/ReportToolbar.tsx`
-- `src/components/reports/ExecutiveSummary.tsx`
-- `src/lib/batch-summary.ts`
-- `src/lib/latex-export.ts`
-- `src/lib/svg-export.ts`
+- `supabase/migrations/<ts>_validation_results.sql`
+- `src/lib/validation/test-cases.ts`
+- `src/lib/validation-export.ts`
+- `src/server/validation.functions.ts`
+- `src/routes/_authenticated/validation.tsx`
 
 **Modified:**
-- `src/routes/_authenticated/runs.$runId.tsx` (Generate Report button)
-- `src/routes/_authenticated/batches.$batchId.tsx` (Generate Report button)
-- `src/routes/_authenticated/compare.tsx` (Generate Report button)
-- `src/styles.css` (print-specific @media rules: hide nav, A4 page setup, serif report family)
-- `.lovable/memory/index.md` (note Phase 10 reporting layer)
+- `src/server/llm.functions.ts` (export pure helpers)
+- `src/lib/csv-export.ts` (add `exportValidationCsv`)
+- `src/components/NavHeader.tsx` (Validation nav link)
+- `.lovable/memory/features/db-schema.md` + `.lovable/memory/index.md` (document new table)
 
 ### Stability
-- No schema changes. Reports are read-only views over existing data.
-- All exports are client-side (no new server fns needed).
-- Each report route is independent — failure of one doesn't affect runs/batches pages.
+- Additive schema; no existing tables touched.
+- LLM logic untouched — only refactored to expose pure helpers.
+- Validation route is isolated; failure can't impact runs/batches.
+- Tests run client-triggered, server-executed, deterministic, no external API calls.
