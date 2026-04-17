@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Globe } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getScenario, updateScenario } from "@/server/ground-truth.functions";
@@ -57,7 +57,7 @@ const emptyAction = (): ActionForm => ({
 });
 
 function EditScenarioPage() {
-  const data = Route.useLoaderData() as GroundTruthScenarioWithActions | null;
+  const data = Route.useLoaderData() as (GroundTruthScenarioWithActions & { is_owner: boolean; isAdmin: boolean }) | null;
   const navigate = useNavigate();
   const updateFn = useServerFn(updateScenario);
 
@@ -65,6 +65,7 @@ function EditScenarioPage() {
   const [caseName, setCaseName] = useState(data?.scenario.case_name ?? "");
   const [description, setDescription] = useState(data?.scenario.scenario_description ?? "");
   const [difficulty, setDifficulty] = useState(data?.scenario.difficulty_level ?? "medium");
+  const [isPublic, setIsPublic] = useState(data?.scenario.is_public ?? false);
   const [actions, setActions] = useState<ActionForm[]>(
     data && data.actions.length > 0
       ? data.actions.map((a) => ({
@@ -84,12 +85,19 @@ function EditScenarioPage() {
     return <main className="mx-auto max-w-3xl px-4 py-8"><p className="text-muted-foreground">Loading…</p></main>;
   }
 
+  const canEdit = data.is_owner || data.isAdmin;
+  const canTogglePublic = data.isAdmin;
+
   const updateAction = (idx: number, patch: Partial<ActionForm>) => {
     setActions((prev) => prev.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) {
+      toast.error("You can only edit scenarios you own.");
+      return;
+    }
     setSubmitting(true);
     try {
       await updateFn({
@@ -99,6 +107,7 @@ function EditScenarioPage() {
           case_name: caseName,
           scenario_description: description || null,
           difficulty_level: difficulty,
+          ...(canTogglePublic ? { is_public: isPublic } : {}),
           actions: actions.map((a) => ({
             action_type: a.action_type,
             target_index: a.target_index === "" ? null : Number(a.target_index),
