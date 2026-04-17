@@ -50,6 +50,9 @@ export const Route = createFileRoute("/hooks/process-jobs")({
               if (job.job_type === "run_execution") {
                 const { executeRunLlmAdmin } = await import("@/server/queue/admin-runner");
                 await executeRunLlmAdmin(admin, job.payload?.run_id);
+              } else if (job.job_type === "run_perturbation") {
+                const { runDefaultPerturbationsForRun } = await import("@/server/perturbation/run-executor");
+                await runDefaultPerturbationsForRun(admin, job.payload?.run_id);
               }
               await admin.from("job_queue").update({
                 status: "completed",
