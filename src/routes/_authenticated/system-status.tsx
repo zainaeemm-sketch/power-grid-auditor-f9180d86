@@ -233,8 +233,30 @@ function SystemStatusPage() {
 
       <KpiCards stats={stats.data} />
 
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Filter by status:</span>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="h-8 w-[180px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All ({jobList.length})</SelectItem>
+            <SelectItem value="queued">Queued</SelectItem>
+            <SelectItem value="running">Running</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+        {statusFilter !== "all" && (
+          <span className="text-xs text-muted-foreground">
+            Showing {filteredJobs.length} of {jobList.length}
+          </span>
+        )}
+      </div>
+
       <JobsTable
-        jobs={jobList}
+        jobs={filteredJobs}
         expanded={expanded}
         onToggleExpand={(id) => setExpanded(expanded === id ? null : id)}
         onCancel={handleCancel}
