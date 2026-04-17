@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@tanstack/react-router";
-import { Download, RotateCw } from "lucide-react";
+import { Download, RotateCw, FileText } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getRunDetails, rerunWithSameConfig } from "@/server/runs.functions";
@@ -99,6 +99,12 @@ function RunDetailPage() {
           <Button variant="outline" size="sm" onClick={handleRerun} disabled={rerunning}>
             <RotateCw className={`mr-1.5 h-3.5 w-3.5 ${rerunning ? "animate-spin" : ""}`} />
             {rerunning ? "Cloning…" : "Re-run with Same Configuration"}
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/reports/run/$runId" params={{ runId: run.id }}>
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
+              Generate Report
+            </Link>
           </Button>
           <Button variant="outline" size="sm" onClick={() => exportRunCsv(details)}>
             <Download className="mr-1.5 h-3.5 w-3.5" />
