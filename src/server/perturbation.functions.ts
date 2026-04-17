@@ -222,6 +222,82 @@ export const getBatchPerturbationProgress = createServerFn({ method: "GET" })
     return { ...counts, pending: counts.queued + counts.running };
   });
 
+export interface BatchPerturbationJob {
+  job_id: string;
+  run_id: string;
+  case_name: string | null;
+  agent: string | null;
+  status: string;
+  attempts: number;
+  max_attempts: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  execution_time_ms: number | null;
+  created_at: string;
+}
+
+export const listBatchPerturbationJobs = createServerFn({ method: "GET" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { batchId: string }) => input)
+  .handler(async ({ data, context }): Promise<{ jobs: BatchPerturbationJob[] }> => {
+    const { supabase, userId } = context as any;
+    const { data: jobs, error } = await supabase
+      .from("job_queue")
+      .select("id, payload, status, attempts, max_attempts, error_message, started_at, completed_at, execution_time_ms, created_at")
+      .eq("user_id", userId)
+      .eq("job_type", "run_perturbation")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(`Failed to load jobs: ${error.message}`);
+
+    const filtered = (jobs ?? []).filter((j: any) => j.payload?.batch_id === data.batchId);
+    const runIds = Array.from(new Set(filtered.map((j: any) => j.payload?.run_id).filter(Boolean)));
+    const meta: Record<string, { case_name: string | null; agent: string | null }> = {};
+    if (runIds.length) {
+      const { data: links } = await supabase
+        .from("batch_run_links")
+        .select("run_id, case_name, agent")
+        .eq("batch_id", data.batchId)
+        .in("run_id", runIds);
+      for (const l of (links ?? []) as any[]) {
+        meta[l.run_id] = { case_name: l.case_name ?? null, agent: l.agent ?? null };
+      }
+    }
+
+    return {
+      jobs: filtered.map((j: any) => ({
+        job_id: j.id,
+        run_id: j.payload?.run_id ?? "",
+        case_name: meta[j.payload?.run_id]?.case_name ?? null,
+        agent: meta[j.payload?.run_id]?.agent ?? null,
+        status: j.status,
+        attempts: j.attempts,
+        max_attempts: j.max_attempts,
+        error_message: j.error_message,
+        started_at: j.started_at,
+        completed_at: j.completed_at,
+        execution_time_ms: j.execution_time_ms,
+        created_at: j.created_at,
+      })),
+    };
+  });
+
+export const getPerturbationJobLogs = createServerFn({ method: "GET" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { jobId: string }) => input)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as any;
+    const { data: logs, error } = await supabase
+      .from("job_logs")
+      .select("id, level, message, metadata, created_at")
+      .eq("job_id", data.jobId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (error) throw new Error(`Failed to load logs: ${error.message}`);
+    return { logs: logs ?? [] };
+  });
+
 export interface BatchRobustnessSummary {
   avg_robustness_score: number | null;
   failure_rate: number | null;
