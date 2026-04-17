@@ -751,6 +751,8 @@ function BatchDetailPage() {
           </Card>
         </div>
       )}
+
+      <BatchSensitivitySection batchId={batchId} />
     </main>
   );
 }
