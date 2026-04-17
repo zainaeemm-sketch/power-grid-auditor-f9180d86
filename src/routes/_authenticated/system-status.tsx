@@ -14,6 +14,7 @@ import { JobsTable } from "@/components/system-status/JobsTable";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type StatusFilter = "all" | "queued" | "running" | "completed" | "failed" | "cancelled";
+type TypeFilter = "all" | "run_execution" | "batch_execution";
 
 export const Route = createFileRoute("/_authenticated/system-status")({
   head: () => ({ meta: [{ title: "System Status — GridArena" }] }),
@@ -28,6 +29,7 @@ function SystemStatusPage() {
   const [liveStatus, setLiveStatus] = useState<LiveStatus>("connecting");
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectNowRef = useRef<() => void>(() => {});
@@ -202,7 +204,12 @@ function SystemStatusPage() {
   };
 
   const jobList = (jobs.data?.jobs ?? []) as JobRecord[];
-  const filteredJobs = statusFilter === "all" ? jobList : jobList.filter((j) => j.status === statusFilter);
+  const filteredJobs = jobList.filter(
+    (j) =>
+      (statusFilter === "all" || j.status === statusFilter) &&
+      (typeFilter === "all" || j.job_type === typeFilter),
+  );
+  const filtersActive = statusFilter !== "all" || typeFilter !== "all";
   const logList = (logs.data?.logs ?? []) as JobLog[];
 
   return (
@@ -233,14 +240,14 @@ function SystemStatusPage() {
 
       <KpiCards stats={stats.data} />
 
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Filter by status:</span>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Filter:</span>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="h-8 w-[180px] text-xs">
-            <SelectValue />
+          <SelectTrigger className="h-8 w-[170px] text-xs">
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All ({jobList.length})</SelectItem>
+            <SelectItem value="all">All statuses ({jobList.length})</SelectItem>
             <SelectItem value="queued">Queued</SelectItem>
             <SelectItem value="running">Running</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
@@ -248,7 +255,17 @@ function SystemStatusPage() {
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
-        {statusFilter !== "all" && (
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypeFilter)}>
+          <SelectTrigger className="h-8 w-[180px] text-xs">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="run_execution">run_execution</SelectItem>
+            <SelectItem value="batch_execution">batch_execution</SelectItem>
+          </SelectContent>
+        </Select>
+        {filtersActive && (
           <span className="text-xs text-muted-foreground">
             Showing {filteredJobs.length} of {jobList.length}
           </span>
