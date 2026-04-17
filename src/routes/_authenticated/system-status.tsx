@@ -180,6 +180,18 @@ function SystemStatusPage() {
           <Activity className="h-5 w-5 text-primary" />
           <h1 className="text-2xl font-bold">System Status</h1>
           <LiveIndicator status={liveStatus} reconnectAttempt={reconnectAttempt} />
+          {liveStatus !== "live" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleReconnectNow}
+              className="h-7 px-2 text-xs"
+              title="Reconnect realtime channel now (skip backoff)"
+            >
+              <RefreshCw className="mr-1 h-3 w-3" />
+              Reconnect now
+            </Button>
+          )}
         </div>
         <Button onClick={handleProcessNow} disabled={draining} size="sm">
           {draining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
