@@ -101,11 +101,12 @@ export const createRun = createServerFn({ method: "POST" })
     research_question?: string;
     preset_id?: string;
     evaluation_mode?: "rule_based" | "simulation" | "auto";
+    ground_truth_scenario_id?: string | null;
   }) => input)
   .handler(async ({ data, context }): Promise<{ run: Run }> => {
     const { supabase, userId } = context;
 
-    const { data: run, error: runError } = await supabase
+    const { data: run, error: runError } = await (supabase as any)
       .from("runs")
       .insert({
         title: data.title,
@@ -114,6 +115,7 @@ export const createRun = createServerFn({ method: "POST" })
         case_name: data.case_name,
         research_question: data.research_question || null,
         user_id: userId,
+        ground_truth_scenario_id: data.ground_truth_scenario_id || null,
       })
       .select()
       .single();

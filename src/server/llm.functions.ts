@@ -277,7 +277,33 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       const { applyParsedAction, computeEvaluation } = await import("./evaluation.functions");
       const fullParseResult = { ...parseResult, id: "", run_id: runId, created_at: "", updated_at: "" };
       const actionResult = applyParsedAction(fullParseResult as any);
-      const evalFields = computeEvaluation(fullParseResult as any, actionResult);
+      const evalFields: any = computeEvaluation(fullParseResult as any, actionResult);
+
+      // Ground-truth comparison (optional — only when run has ground_truth_scenario_id)
+      const gtScenarioId = (run as any).ground_truth_scenario_id as string | null | undefined;
+      if (gtScenarioId) {
+        try {
+          const { compareToGroundTruth } = await import("./ground-truth/compare");
+          const { data: refActions } = await (supabase as any)
+            .from("ground_truth_actions")
+            .select("*")
+            .eq("scenario_id", gtScenarioId);
+          if (refActions && refActions.length > 0) {
+            const cmp = compareToGroundTruth(
+              { action_type: parseResult.action_type ?? null, target_index: parseResult.target_index ?? null, value: parseResult.value ?? null },
+              { feasibility: evalFields.feasibility, violation_improvement: evalFields.violation_improvement },
+              refActions,
+            );
+            evalFields.action_match = cmp.action_match;
+            evalFields.feasibility_match = cmp.feasibility_match;
+            evalFields.optimality_gap = cmp.optimality_gap;
+            evalFields.deviation_from_reference = Number.isFinite(cmp.deviation_from_reference) ? cmp.deviation_from_reference : null;
+            evalFields.evaluation_against_ground_truth = true;
+          }
+        } catch (gtErr: any) {
+          console.error("Ground-truth comparison failed:", gtErr?.message);
+        }
+      }
 
       const { data: existingEval } = await (supabase as any)
         .from("run_evaluations").select("id").eq("run_id", runId).maybeSingle();
