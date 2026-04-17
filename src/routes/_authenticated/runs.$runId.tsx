@@ -136,6 +136,7 @@ function RunDetailPage() {
       </div>
 
       <div className="mt-4 grid gap-4">
+        <SensitivityPanel runId={run.id} />
         <ToolTracePanel status={run.status as RunStatus} />
         <ProvenanceTimelinePanel run={run} hasParseResult={!!parseResult} />
       </div>
