@@ -342,6 +342,7 @@ function BatchDetailPage() {
     const exportRuns = runs.map((r) => ({
       run: r.run,
       evaluation: r.evaluation,
+      metadata: r.metadata ?? null,
       recommendation_text: "",
     }));
     exportBatchCsv(exportRuns, batch.id);
@@ -350,6 +351,18 @@ function BatchDetailPage() {
   const handleExportComparison = () => {
     exportComparisonCsv(runs);
   };
+
+  // Phase 7 — config consistency check across runs in the batch
+  const consistencyKeys = ["model_name", "temperature", "prompt_template_version", "parser_version", "evaluation_logic_version"] as const;
+  const metadataList = runs.map((r) => (r.metadata ?? {}) as any).filter((m) => Object.keys(m).length > 0);
+  const consistencyDiffs: string[] = [];
+  if (metadataList.length > 1) {
+    for (const k of consistencyKeys) {
+      const set = new Set(metadataList.map((m) => JSON.stringify(m[k] ?? null)));
+      if (set.size > 1) consistencyDiffs.push(k);
+    }
+  }
+  const allIdentical = consistencyDiffs.length === 0 && metadataList.length > 0;
 
   // Wire refs for keyboard shortcuts
   handlersRef.current.exportBatch = handleExportBatch;
