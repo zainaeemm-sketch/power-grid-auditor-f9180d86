@@ -170,6 +170,86 @@ export type Database = {
         }
         Relationships: []
       }
+      ground_truth_actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          expected_feasibility: boolean
+          expected_violation_improvement: number
+          expected_violations: number
+          id: string
+          notes: string | null
+          scenario_id: string
+          target_index: number | null
+          value: number | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          expected_feasibility?: boolean
+          expected_violation_improvement?: number
+          expected_violations?: number
+          id?: string
+          notes?: string | null
+          scenario_id: string
+          target_index?: number | null
+          value?: number | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          expected_feasibility?: boolean
+          expected_violation_improvement?: number
+          expected_violations?: number
+          id?: string
+          notes?: string | null
+          scenario_id?: string
+          target_index?: number | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ground_truth_actions_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "ground_truth_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ground_truth_scenarios: {
+        Row: {
+          case_name: string
+          created_at: string
+          difficulty_level: string
+          id: string
+          scenario_description: string | null
+          scenario_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          case_name: string
+          created_at?: string
+          difficulty_level?: string
+          id?: string
+          scenario_description?: string | null
+          scenario_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          case_name?: string
+          created_at?: string
+          difficulty_level?: string
+          id?: string
+          scenario_description?: string | null
+          scenario_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       job_logs: {
         Row: {
           created_at: string
@@ -293,14 +373,19 @@ export type Database = {
       run_evaluations: {
         Row: {
           action_applied: string
+          action_match: string | null
           baseline_violations: number
           confidence: string
           created_at: string
+          deviation_from_reference: number | null
           engine_used: string | null
+          evaluation_against_ground_truth: boolean
           feasibility: string
+          feasibility_match: string | null
           grounding_quality: string
           id: string
           notes: string | null
+          optimality_gap: number | null
           post_action_violations: number
           run_id: string
           simulation_details: Json | null
@@ -310,14 +395,19 @@ export type Database = {
         }
         Insert: {
           action_applied?: string
+          action_match?: string | null
           baseline_violations?: number
           confidence?: string
           created_at?: string
+          deviation_from_reference?: number | null
           engine_used?: string | null
+          evaluation_against_ground_truth?: boolean
           feasibility?: string
+          feasibility_match?: string | null
           grounding_quality?: string
           id?: string
           notes?: string | null
+          optimality_gap?: number | null
           post_action_violations?: number
           run_id: string
           simulation_details?: Json | null
@@ -327,14 +417,19 @@ export type Database = {
         }
         Update: {
           action_applied?: string
+          action_match?: string | null
           baseline_violations?: number
           confidence?: string
           created_at?: string
+          deviation_from_reference?: number | null
           engine_used?: string | null
+          evaluation_against_ground_truth?: boolean
           feasibility?: string
+          feasibility_match?: string | null
           grounding_quality?: string
           id?: string
           notes?: string | null
+          optimality_gap?: number | null
           post_action_violations?: number
           run_id?: string
           simulation_details?: Json | null
@@ -554,6 +649,7 @@ export type Database = {
           agent: string
           case_name: string
           created_at: string
+          ground_truth_scenario_id: string | null
           id: string
           parent_run_id: string | null
           rerun_source: string | null
@@ -568,6 +664,7 @@ export type Database = {
           agent: string
           case_name: string
           created_at?: string
+          ground_truth_scenario_id?: string | null
           id?: string
           parent_run_id?: string | null
           rerun_source?: string | null
@@ -582,6 +679,7 @@ export type Database = {
           agent?: string
           case_name?: string
           created_at?: string
+          ground_truth_scenario_id?: string | null
           id?: string
           parent_run_id?: string | null
           rerun_source?: string | null
