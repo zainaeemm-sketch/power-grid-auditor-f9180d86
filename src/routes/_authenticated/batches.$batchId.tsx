@@ -381,6 +381,20 @@ function BatchDetailPage() {
             {batch.task} · {batch.research_question ?? "No research question"}
           </p>
         </div>
+        {metadataList.length > 0 && (
+          allIdentical ? (
+            <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary" title="All runs share the same key configuration">
+              ✓ All runs identical config
+            </span>
+          ) : (
+            <span
+              className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-500"
+              title={`Runs differ on: ${consistencyDiffs.join(", ")}`}
+            >
+              ⚠ Configs differ ({consistencyDiffs.length})
+            </span>
+          )
+        )}
         <StatusBadge status={batch.status as RunStatus} />
       </div>
 
