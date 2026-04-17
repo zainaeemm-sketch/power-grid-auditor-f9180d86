@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,33 +29,75 @@ function SystemStatusPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [draining, setDraining] = useState(false);
   const [liveStatus, setLiveStatus] = useState<"connecting" | "live" | "disconnected">("connecting");
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const channel = supabase
-      .channel("job_queue_status")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "job_queue" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["job-stats"] });
-          queryClient.invalidateQueries({ queryKey: ["recent-jobs"] });
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "job_logs" },
-        (payload) => {
-          const jobId = (payload.new as { job_id?: string } | null)?.job_id;
-          if (jobId) queryClient.invalidateQueries({ queryKey: ["job-logs", jobId] });
-        },
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") setLiveStatus("live");
-        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setLiveStatus("disconnected");
-        else setLiveStatus("connecting");
-      });
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    const connect = () => {
+      if (cancelled) return;
+      setLiveStatus("connecting");
+
+      channel = supabase
+        .channel(`job_queue_status_${Date.now()}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "job_queue" },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ["job-stats"] });
+            queryClient.invalidateQueries({ queryKey: ["recent-jobs"] });
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "job_logs" },
+          (payload) => {
+            const jobId = (payload.new as { job_id?: string } | null)?.job_id;
+            if (jobId) queryClient.invalidateQueries({ queryKey: ["job-logs", jobId] });
+          },
+        )
+        .subscribe((status) => {
+          if (cancelled) return;
+          if (status === "SUBSCRIBED") {
+            setLiveStatus("live");
+            reconnectAttemptRef.current = 0;
+            setReconnectAttempt(0);
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            setLiveStatus("disconnected");
+            scheduleReconnect();
+          } else {
+            setLiveStatus("connecting");
+          }
+        });
+    };
+
+    const scheduleReconnect = () => {
+      if (cancelled || reconnectTimerRef.current) return;
+      const attempt = reconnectAttemptRef.current + 1;
+      reconnectAttemptRef.current = attempt;
+      setReconnectAttempt(attempt);
+      // Exponential backoff: 1s, 2s, 4s, 8s, 16s, capped at 30s, with jitter
+      const base = Math.min(1000 * 2 ** (attempt - 1), 30000);
+      const delay = base + Math.random() * 500;
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        if (channel) supabase.removeChannel(channel);
+        connect();
+      }, delay);
+    };
+
+    connect();
+
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      if (channel) supabase.removeChannel(channel);
     };
   }, [queryClient]);
 
@@ -119,7 +161,7 @@ function SystemStatusPage() {
         <div className="flex items-center gap-3">
           <Activity className="h-5 w-5 text-primary" />
           <h1 className="text-2xl font-bold">System Status</h1>
-          <LiveIndicator status={liveStatus} />
+          <LiveIndicator status={liveStatus} reconnectAttempt={reconnectAttempt} />
         </div>
         <Button onClick={handleProcessNow} disabled={draining} size="sm">
           {draining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
@@ -237,15 +279,16 @@ function KpiCard({ label, value, accent }: { label: string; value: number; accen
   );
 }
 
-function LiveIndicator({ status }: { status: "connecting" | "live" | "disconnected" }) {
+function LiveIndicator({ status, reconnectAttempt = 0 }: { status: "connecting" | "live" | "disconnected"; reconnectAttempt?: number }) {
   const isLive = status === "live";
   const isDown = status === "disconnected";
   const dotColor = isLive ? "bg-emerald-500" : isDown ? "bg-destructive" : "bg-amber-500";
-  const label = isLive ? "Live" : isDown ? "Disconnected" : "Connecting";
+  const baseLabel = isLive ? "Live" : isDown ? "Disconnected" : "Connecting";
+  const label = !isLive && reconnectAttempt > 0 ? `${baseLabel} (retry ${reconnectAttempt})` : baseLabel;
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground"
-      title={`Realtime channel: ${label}`}
+      title={`Realtime channel: ${baseLabel}${reconnectAttempt > 0 ? ` — reconnect attempt ${reconnectAttempt}` : ""}`}
     >
       <span className="relative flex h-2 w-2">
         <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${dotColor}`} />
