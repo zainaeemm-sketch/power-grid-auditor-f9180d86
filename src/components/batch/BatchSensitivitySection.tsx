@@ -1,15 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Activity, Download } from "lucide-react";
 import {
   runBatchPerturbations,
   getBatchRobustnessSummary,
+  getBatchPerturbationProgress,
   type BatchRobustnessSummary,
+  type BatchPerturbationProgress,
 } from "@/server/perturbation.functions";
 import { exportBatchSensitivityCsv } from "@/lib/csv-export";
+import { useJobDrain } from "@/hooks/useJobDrain";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
 } from "@/components/ui/chart";
@@ -24,10 +28,13 @@ const STABILITY_COLORS: Record<string, string> = {
 export function BatchSensitivitySection({ batchId }: { batchId: string }) {
   const runFn = useServerFn(runBatchPerturbations);
   const summaryFn = useServerFn(getBatchRobustnessSummary);
+  const progressFn = useServerFn(getBatchPerturbationProgress);
   const [summary, setSummary] = useState<BatchRobustnessSummary | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<BatchPerturbationProgress | null>(null);
+  const [enqueueing, setEnqueueing] = useState(false);
+  const prevPendingRef = useRef<number | null>(null);
 
-  const refresh = async () => {
+  const refreshSummary = async () => {
     try {
       const s = await summaryFn({ data: { batchId } });
       setSummary(s);
@@ -36,18 +43,53 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
     }
   };
 
-  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [batchId]);
+  const refreshProgress = async () => {
+    try {
+      const p = await progressFn({ data: { batchId } });
+      setProgress(p);
+      // When pending transitions to 0, refresh summary + toast.
+      if (prevPendingRef.current != null && prevPendingRef.current > 0 && p.pending === 0) {
+        toast.success(`Sensitivity tests complete (${p.completed} ok, ${p.failed} failed)`);
+        await refreshSummary();
+      }
+      prevPendingRef.current = p.pending;
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    refreshSummary();
+    refreshProgress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchId]);
+
+  // Drive the worker drain while jobs are pending; poll progress alongside.
+  const pending = progress?.pending ?? 0;
+  useJobDrain({
+    enabled: pending > 0,
+    intervalMs: 4000,
+    onTick: () => { refreshProgress(); },
+  });
+  // Lightweight progress polling fallback (in case drain is idle).
+  useEffect(() => {
+    if (pending === 0) return;
+    const t = setInterval(refreshProgress, 5000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
 
   const handleRun = async () => {
-    setLoading(true);
+    setEnqueueing(true);
     try {
-      const { run_count, total_tests } = await runFn({ data: { batchId } });
-      toast.success(`Ran ${total_tests} sensitivity tests across ${run_count} runs`);
-      await refresh();
+      const { enqueued, run_count } = await runFn({ data: { batchId } });
+      toast.success(`Queued sensitivity tests for ${enqueued}/${run_count} runs`);
+      prevPendingRef.current = null;
+      await refreshProgress();
     } catch (e: any) {
-      toast.error(e.message ?? "Failed to run sensitivity tests");
+      toast.error(e.message ?? "Failed to enqueue sensitivity tests");
     } finally {
-      setLoading(false);
+      setEnqueueing(false);
     }
   };
 
@@ -79,6 +121,11 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
 
   const chartConfig: ChartConfig = { score: { label: "Robustness", color: "hsl(150 70% 50%)" } };
 
+  const progressPct =
+    progress && progress.total > 0
+      ? Math.round(((progress.completed + progress.failed) / progress.total) * 100)
+      : 0;
+
   return (
     <Card className="mb-6 border-border/60 bg-card/60">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -87,8 +134,8 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
           Sensitivity / Robustness
         </CardTitle>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleRun} disabled={loading}>
-            Run Sensitivity Tests for Batch
+          <Button size="sm" variant="outline" onClick={handleRun} disabled={enqueueing || pending > 0}>
+            {pending > 0 ? "Running…" : "Run Sensitivity Tests for Batch"}
           </Button>
           <Button
             size="sm" variant="outline"
@@ -101,6 +148,19 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
         </div>
       </CardHeader>
       <CardContent>
+        {progress && progress.total > 0 && pending > 0 && (
+          <div className="mb-4 rounded border border-border/60 bg-background/40 p-3">
+            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                Background progress · {progress.completed + progress.failed} / {progress.total} runs
+                {progress.failed > 0 ? ` (${progress.failed} failed)` : ""}
+              </span>
+              <span>{progressPct}%</span>
+            </div>
+            <Progress value={progressPct} className="h-1.5" />
+          </div>
+        )}
+
         {!summary || summary.total_tests === 0 ? (
           <p className="text-sm text-muted-foreground">No sensitivity tests executed.</p>
         ) : (
