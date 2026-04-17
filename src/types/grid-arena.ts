@@ -86,6 +86,7 @@ export interface BatchRunLink {
 export interface BatchRunWithEvaluation {
   run: Run;
   evaluation: RunEvaluation | null;
+  metadata?: RunMetadata | null;
 }
 
 export interface BatchDetails {

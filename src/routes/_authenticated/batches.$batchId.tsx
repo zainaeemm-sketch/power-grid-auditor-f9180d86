@@ -342,6 +342,7 @@ function BatchDetailPage() {
     const exportRuns = runs.map((r) => ({
       run: r.run,
       evaluation: r.evaluation,
+      metadata: r.metadata ?? null,
       recommendation_text: "",
     }));
     exportBatchCsv(exportRuns, batch.id);
@@ -350,6 +351,18 @@ function BatchDetailPage() {
   const handleExportComparison = () => {
     exportComparisonCsv(runs);
   };
+
+  // Phase 7 — config consistency check across runs in the batch
+  const consistencyKeys = ["model_name", "temperature", "prompt_template_version", "parser_version", "evaluation_logic_version"] as const;
+  const metadataList = runs.map((r) => (r.metadata ?? {}) as any).filter((m) => Object.keys(m).length > 0);
+  const consistencyDiffs: string[] = [];
+  if (metadataList.length > 1) {
+    for (const k of consistencyKeys) {
+      const set = new Set(metadataList.map((m) => JSON.stringify(m[k] ?? null)));
+      if (set.size > 1) consistencyDiffs.push(k);
+    }
+  }
+  const allIdentical = consistencyDiffs.length === 0 && metadataList.length > 0;
 
   // Wire refs for keyboard shortcuts
   handlersRef.current.exportBatch = handleExportBatch;
@@ -368,6 +381,20 @@ function BatchDetailPage() {
             {batch.task} · {batch.research_question ?? "No research question"}
           </p>
         </div>
+        {metadataList.length > 0 && (
+          allIdentical ? (
+            <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary" title="All runs share the same key configuration">
+              ✓ All runs identical config
+            </span>
+          ) : (
+            <span
+              className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-500"
+              title={`Runs differ on: ${consistencyDiffs.join(", ")}`}
+            >
+              ⚠ Configs differ ({consistencyDiffs.length})
+            </span>
+          )
+        )}
         <StatusBadge status={batch.status as RunStatus} />
       </div>
 

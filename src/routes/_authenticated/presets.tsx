@@ -43,15 +43,19 @@ function PresetsPage() {
   const [datasetVersion, setDatasetVersion] = useState("");
   const [notes, setNotes] = useState("");
   const [defaultPrompt, setDefaultPrompt] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [temperature, setTemperature] = useState("");
+  const [maxTokens, setMaxTokens] = useState("");
+  const [topP, setTopP] = useState("");
+  const [promptTemplateVersion, setPromptTemplateVersion] = useState("");
+  const [parserVersion, setParserVersion] = useState("");
+  const [evalVersion, setEvalVersion] = useState("");
 
   const resetForm = () => {
-    setName("");
-    setProviderName("");
-    setModelName("");
-    setPromptVersion("");
-    setDatasetVersion("");
-    setNotes("");
-    setDefaultPrompt("");
+    setName(""); setProviderName(""); setModelName("");
+    setPromptVersion(""); setDatasetVersion(""); setNotes(""); setDefaultPrompt("");
+    setSystemPrompt(""); setTemperature(""); setMaxTokens(""); setTopP("");
+    setPromptTemplateVersion(""); setParserVersion(""); setEvalVersion("");
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -67,6 +71,13 @@ function PresetsPage() {
           dataset_version: datasetVersion || null,
           notes: notes || null,
           default_prompt_text: defaultPrompt || null,
+          system_prompt: systemPrompt || null,
+          temperature: temperature ? parseFloat(temperature) : null,
+          max_tokens: maxTokens ? parseInt(maxTokens, 10) : null,
+          top_p: topP ? parseFloat(topP) : null,
+          prompt_template_version: promptTemplateVersion || null,
+          parser_version: parserVersion || null,
+          evaluation_logic_version: evalVersion || null,
         },
       });
       resetForm();
@@ -92,7 +103,7 @@ function PresetsPage() {
               New Preset
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Preset</DialogTitle>
             </DialogHeader>
@@ -111,12 +122,42 @@ function PresetsPage() {
                   <Input value={modelName} onChange={(e) => setModelName(e.target.value)} placeholder="e.g. gpt-4o" />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>System Prompt</Label>
+                <Textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={3} placeholder="System message sent to the LLM…" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Temperature</Label>
+                  <Input value={temperature} onChange={(e) => setTemperature(e.target.value)} type="number" step="0.1" placeholder="0.2" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max Tokens</Label>
+                  <Input value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} type="number" placeholder="1024" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Top-p</Label>
+                  <Input value={topP} onChange={(e) => setTopP(e.target.value)} type="number" step="0.05" placeholder="1.0" />
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Prompt Template Ver.</Label>
+                  <Input value={promptTemplateVersion} onChange={(e) => setPromptTemplateVersion(e.target.value)} placeholder="e.g. v1" />
+                </div>
                 <div className="space-y-2">
                   <Label>Prompt Version</Label>
                   <Input value={promptVersion} onChange={(e) => setPromptVersion(e.target.value)} />
                 </div>
                 <div className="space-y-2">
+                  <Label>Parser Version</Label>
+                  <Input value={parserVersion} onChange={(e) => setParserVersion(e.target.value)} placeholder="v1" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Evaluation Version</Label>
+                  <Input value={evalVersion} onChange={(e) => setEvalVersion(e.target.value)} placeholder="v1" />
+                </div>
+                <div className="space-y-2 col-span-2">
                   <Label>Dataset Version</Label>
                   <Input value={datasetVersion} onChange={(e) => setDatasetVersion(e.target.value)} />
                 </div>
@@ -126,7 +167,7 @@ function PresetsPage() {
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
               </div>
               <div className="space-y-2">
-                <Label>Default Prompt Text</Label>
+                <Label>Default Prompt Text (user message)</Label>
                 <Textarea value={defaultPrompt} onChange={(e) => setDefaultPrompt(e.target.value)} rows={3} placeholder="Template prompt text…" />
               </div>
               <Button type="submit" className="w-full bg-gradient-to-r from-primary to-[oklch(0.72_0.14_200)] text-primary-foreground font-semibold" disabled={submitting}>
@@ -138,45 +179,48 @@ function PresetsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {presets.map((preset: ExperimentPreset, i: number) => (
-          <Card
-            key={preset.id}
-            className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up"
-            style={{ animationDelay: `${i * 80}ms` }}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base font-bold">
-                <FlaskConical className="h-4 w-4 gradient-text" />
-                {preset.name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Provider</span>
-                <span>{preset.provider_name || "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Model</span>
-                <span>{preset.model_name || "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Prompt Version</span>
-                <span>{preset.prompt_version || "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Dataset</span>
-                <span>{preset.dataset_version || "—"}</span>
-              </div>
-              {preset.notes && (
-                <p className="mt-2 text-muted-foreground">{preset.notes}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+        {presets.map((preset: ExperimentPreset, i: number) => {
+          const p = preset as any;
+          return (
+            <Card
+              key={preset.id}
+              className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base font-bold">
+                  <FlaskConical className="h-4 w-4 gradient-text" />
+                  {preset.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5 text-sm">
+                <Row label="Provider" value={preset.provider_name} />
+                <Row label="Model" value={preset.model_name} />
+                <Row label="Temperature" value={p.temperature} />
+                <Row label="Max tokens" value={p.max_tokens} />
+                <Row label="Top-p" value={p.top_p} />
+                <Row label="Prompt template" value={p.prompt_template_version} />
+                <Row label="Parser ver." value={p.parser_version} />
+                <Row label="Eval ver." value={p.evaluation_logic_version} />
+                <Row label="Dataset" value={preset.dataset_version} />
+                {preset.notes && <p className="mt-2 text-muted-foreground">{preset.notes}</p>}
+              </CardContent>
+            </Card>
+          );
+        })}
         {presets.length === 0 && (
           <p className="col-span-2 py-12 text-center text-muted-foreground">No presets yet.</p>
         )}
       </div>
     </main>
+  );
+}
+
+function Row({ label, value }: { label: string; value: unknown }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono text-xs">{value === null || value === undefined || value === "" ? "—" : String(value)}</span>
+    </div>
   );
 }

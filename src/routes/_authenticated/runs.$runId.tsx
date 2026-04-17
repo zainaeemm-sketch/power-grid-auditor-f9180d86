@@ -1,13 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
-import { Download } from "lucide-react";
-import { getRunDetails } from "@/server/runs.functions";
+import { Download, RotateCw } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { getRunDetails, rerunWithSameConfig } from "@/server/runs.functions";
 import type { RunDetails, RunStatus } from "@/types/grid-arena";
 import { exportRunCsv } from "@/lib/csv-export";
 
 import { RunHeader } from "@/components/run-details/RunHeader";
 import { RunStatusControls } from "@/components/run-details/RunStatusControls";
+import { RunConfigPanel } from "@/components/run-details/RunConfigPanel";
 import { RunMetadataPanel } from "@/components/run-details/RunMetadataPanel";
 import { RunPromptLogPanel } from "@/components/run-details/RunPromptLogPanel";
 import { RunRecommendationPanel } from "@/components/run-details/RunRecommendationPanel";
@@ -51,6 +55,9 @@ export const Route = createFileRoute("/_authenticated/runs/$runId")({
 function RunDetailPage() {
   const details = Route.useLoaderData() as RunDetails;
   const { run, metadata, promptLog, recommendation, parseResult } = details ?? {};
+  const navigate = useNavigate();
+  const rerunFn = useServerFn(rerunWithSameConfig);
+  const [rerunning, setRerunning] = useState(false);
 
   if (!run) {
     return (
@@ -60,18 +67,41 @@ function RunDetailPage() {
     );
   }
 
+  const handleRerun = async () => {
+    setRerunning(true);
+    try {
+      const { run: newRun } = await rerunFn({ data: { run_id: run.id } });
+      toast.success("Cloned run created. Click Run to execute.");
+      navigate({ to: "/runs/$runId", params: { runId: newRun.id } });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to re-run");
+    } finally {
+      setRerunning(false);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <RunHeader run={run} />
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <RunStatusControls runId={run.id} status={run.status as RunStatus} />
-        <Button variant="outline" size="sm" onClick={() => exportRunCsv(details)}>
-          <Download className="mr-1.5 h-3.5 w-3.5" />
-          Export Run CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRerun} disabled={rerunning}>
+            <RotateCw className={`mr-1.5 h-3.5 w-3.5 ${rerunning ? "animate-spin" : ""}`} />
+            {rerunning ? "Cloning…" : "Re-run with Same Configuration"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportRunCsv(details)}>
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            Export Run CSV
+          </Button>
+        </div>
       </div>
 
-      {/* 2-column grid for editable + read-only panels */}
+      {/* Phase 7 — Full configuration snapshot */}
+      <div className="mb-4 grid gap-4">
+        <RunConfigPanel metadata={metadata ?? null} />
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <RunMetadataPanel runId={run.id} metadata={metadata ?? null} />
         <RunPromptLogPanel runId={run.id} promptLog={promptLog ?? null} />
@@ -81,7 +111,6 @@ function RunDetailPage() {
         <ResultsSummaryPanel evaluation={details.evaluation ?? null} />
       </div>
 
-      {/* Full-width panels */}
       <div className="mt-4 grid gap-4">
         <ToolTracePanel status={run.status as RunStatus} />
         <ProvenanceTimelinePanel run={run} hasParseResult={!!parseResult} />

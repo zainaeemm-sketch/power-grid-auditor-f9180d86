@@ -61,12 +61,20 @@ export const getBatchDetails = createServerFn({ method: "GET" })
       .select("*")
       .in("run_id", runIds);
 
+    const { data: metadatas } = await (supabase as any)
+      .from("run_metadata")
+      .select("*")
+      .in("run_id", runIds);
+
     const evalMap = new Map<string, RunEvaluation>();
     (evaluations ?? []).forEach((e: RunEvaluation) => evalMap.set(e.run_id, e));
+    const metaMap = new Map<string, any>();
+    (metadatas ?? []).forEach((m: any) => metaMap.set(m.run_id, m));
 
     const batchRuns: BatchRunWithEvaluation[] = (runs ?? []).map((run) => ({
       run,
       evaluation: evalMap.get(run.id) ?? null,
+      metadata: metaMap.get(run.id) ?? null,
     }));
 
     return { batch: batch as Batch, runs: batchRuns };
@@ -85,19 +93,6 @@ export const createBatch = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ batch: Batch }> => {
     const { supabase, userId } = context;
 
-    const { data: batch, error: batchErr } = await (supabase as any)
-      .from("batches")
-      .insert({
-        name: data.name,
-        task: data.task,
-        research_question: data.research_question || null,
-        user_id: userId,
-      })
-      .select()
-      .single();
-
-    if (batchErr || !batch) throw new Error(`Failed to create batch: ${batchErr?.message}`);
-
     // Load preset if provided
     let presetData: any = null;
     if (data.preset_id) {
@@ -108,6 +103,35 @@ export const createBatch = createServerFn({ method: "POST" })
         .single();
       presetData = preset;
     }
+
+    const { data: batch, error: batchErr } = await (supabase as any)
+      .from("batches")
+      .insert({
+        name: data.name,
+        task: data.task,
+        research_question: data.research_question || null,
+        user_id: userId,
+        shared_config: presetData ? {
+          provider_name: presetData.provider_name ?? null,
+          model_name: presetData.model_name ?? null,
+          model_version: presetData.model_version ?? null,
+          system_prompt: presetData.system_prompt ?? null,
+          temperature: presetData.temperature ?? null,
+          max_tokens: presetData.max_tokens ?? null,
+          top_p: presetData.top_p ?? null,
+          random_seed: presetData.random_seed ?? null,
+          prompt_template_version: presetData.prompt_template_version ?? null,
+          prompt_version: presetData.prompt_version ?? null,
+          dataset_version: presetData.dataset_version ?? null,
+          parser_version: presetData.parser_version ?? "v1",
+          evaluation_logic_version: presetData.evaluation_logic_version ?? "v1",
+          preset_id: data.preset_id,
+        } : null,
+      })
+      .select()
+      .single();
+
+    if (batchErr || !batch) throw new Error(`Failed to create batch: ${batchErr?.message}`);
 
     // Create runs for each agent x case combination
     for (const agent of data.agents) {
@@ -138,25 +162,36 @@ export const createBatch = createServerFn({ method: "POST" })
             agent,
             case_name: caseName,
           });
-        // Create metadata and prompt log
+        // Create metadata and prompt log (Phase 7 — full snapshot)
         if (presetData) {
-          await supabase.from("run_metadata").insert({
+          await (supabase as any).from("run_metadata").insert({
             run_id: run.id,
-            provider_name: presetData.provider_name,
-            provider_base_url: presetData.provider_base_url,
-            model_name: presetData.model_name,
-            model_version: presetData.model_version,
-            prompt_version: presetData.prompt_version,
-            dataset_version: presetData.dataset_version,
-            random_seed: presetData.random_seed,
-            notes: presetData.notes,
+            provider_name: presetData.provider_name ?? null,
+            provider_base_url: presetData.provider_base_url ?? null,
+            model_name: presetData.model_name ?? null,
+            model_version: presetData.model_version ?? null,
+            prompt_version: presetData.prompt_version ?? null,
+            dataset_version: presetData.dataset_version ?? null,
+            random_seed: presetData.random_seed ?? null,
+            notes: presetData.notes ?? null,
+            system_prompt: presetData.system_prompt ?? null,
+            temperature: presetData.temperature ?? null,
+            max_tokens: presetData.max_tokens ?? null,
+            top_p: presetData.top_p ?? null,
+            prompt_template_version: presetData.prompt_template_version ?? null,
+            parser_version: presetData.parser_version ?? "v1",
+            evaluation_logic_version: presetData.evaluation_logic_version ?? "v1",
           });
           await supabase.from("run_prompt_logs").insert({
             run_id: run.id,
-            prompt_text: presetData.default_prompt_text || null,
+            prompt_text: presetData.system_prompt || presetData.default_prompt_text || null,
           });
         } else {
-          await supabase.from("run_metadata").insert({ run_id: run.id });
+          await (supabase as any).from("run_metadata").insert({
+            run_id: run.id,
+            parser_version: "v1",
+            evaluation_logic_version: "v1",
+          });
           await supabase.from("run_prompt_logs").insert({ run_id: run.id });
         }
 
