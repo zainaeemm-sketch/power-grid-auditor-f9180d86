@@ -111,3 +111,5 @@ export interface BatchDetails {
   batch: Batch;
   runs: BatchRunWithEvaluation[];
 }
+
+export type { JobRecord, JobLog, JobType, JobStatus, JobLogLevel } from "@/server/queue/types";

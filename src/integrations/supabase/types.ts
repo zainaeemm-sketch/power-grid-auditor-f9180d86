@@ -170,6 +170,93 @@ export type Database = {
         }
         Relationships: []
       }
+      job_logs: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          level: string
+          message: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          level?: string
+          message: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          level?: string
+          message?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      job_queue: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          execution_time_ms: number | null
+          id: string
+          job_type: string
+          lease_expires_at: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          worker_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          job_type: string
+          lease_expires_at?: string | null
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          worker_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          execution_time_ms?: number | null
+          id?: string
+          job_type?: string
+          lease_expires_at?: string | null
+          max_attempts?: number
+          payload?: Json
+          priority?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          worker_id?: string | null
+        }
+        Relationships: []
+      }
       run_actions: {
         Row: {
           action_type: string | null
@@ -571,7 +658,38 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_jobs: {
+        Args: {
+          p_lease_seconds?: number
+          p_limit?: number
+          p_user_id: string
+          p_worker_id?: string
+        }
+        Returns: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          execution_time_ms: number | null
+          id: string
+          job_type: string
+          lease_expires_at: string | null
+          max_attempts: number
+          payload: Json
+          priority: number
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          worker_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "job_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       run_status: "queued" | "running" | "completed"

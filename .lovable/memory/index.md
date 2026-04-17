@@ -1,3 +1,8 @@
+---
+name: index
+description: Project memory index for GridArena
+type: index
+---
 # Memory: index.md
 Updated: now
 
@@ -10,7 +15,7 @@ Supabase backend with user-scoped RLS. Email/password auth enabled (auto-confirm
 Server functions in src/server/*.functions.ts, types in src/types/grid-arena.ts.
 Protected routes under src/routes/_authenticated/. Login at /login.
 Auth middleware chain: withAuthHeaders (client) → requireSupabaseAuth (server).
-Evaluation has tiered engines: external pandapower → in-Worker DC PF → rule-based fallback. Mode chosen per-run via run_metadata.evaluation_mode.
+Phase 11: durable job_queue + job_logs tables; processJobBatch worker; useJobDrain client hook; /system-status dashboard.
 
 ## Memories
-- [DB Schema](mem://features/db-schema) — runs, run_metadata (+evaluation_mode), run_evaluations (+engine_used, simulation_details), validation_results, experiment_presets
+- [DB Schema](mem://features/db-schema) — runs, run_metadata, run_prompt_logs, experiment_presets, validation_results, job_queue, job_logs tables
