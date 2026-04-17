@@ -168,8 +168,8 @@ function ValidationPage() {
                     const isOpen = !!expanded[key];
                     const hasFail = r.status !== "passed";
                     return (
-                      <>
-                        <TableRow key={key} className={hasFail ? "cursor-pointer" : undefined} onClick={() => hasFail && setExpanded((s) => ({ ...s, [key]: !s[key] }))}>
+                      <Fragment key={key}>
+                        <TableRow className={hasFail ? "cursor-pointer" : undefined} onClick={() => hasFail && setExpanded((s) => ({ ...s, [key]: !s[key] }))}>
                           <TableCell>{hasFail ? (isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : null}</TableCell>
                           <TableCell className="font-medium">{r.test_name}</TableCell>
                           <TableCell><StatusBadge status={r.status} /></TableCell>
@@ -177,7 +177,7 @@ function ValidationPage() {
                           <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</TableCell>
                         </TableRow>
                         {isOpen && hasFail && (
-                          <TableRow key={key + "-d"}>
+                          <TableRow>
                             <TableCell colSpan={5} className="bg-muted/20">
                               <div className="space-y-3 p-3">
                                 {r.failure_reason && (
@@ -203,7 +203,7 @@ function ValidationPage() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </TableBody>
