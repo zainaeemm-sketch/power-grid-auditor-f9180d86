@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HooksProcessJobsRouteImport } from './routes/hooks/process-jobs'
 import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
+import { Route as AuthenticatedSystemStatusRouteImport } from './routes/_authenticated/system-status'
 import { Route as AuthenticatedRunsRouteImport } from './routes/_authenticated/runs'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedNewRunRouteImport } from './routes/_authenticated/new-run'
@@ -53,6 +54,12 @@ const AuthenticatedValidationRoute = AuthenticatedValidationRouteImport.update({
   path: '/validation',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSystemStatusRoute =
+  AuthenticatedSystemStatusRouteImport.update({
+    id: '/system-status',
+    path: '/system-status',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedRunsRoute = AuthenticatedRunsRouteImport.update({
   id: '/runs',
   path: '/runs',
@@ -138,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/runs': typeof AuthenticatedRunsRouteWithChildren
+  '/system-status': typeof AuthenticatedSystemStatusRoute
   '/validation': typeof AuthenticatedValidationRoute
   '/hooks/process-jobs': typeof HooksProcessJobsRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
@@ -156,6 +164,7 @@ export interface FileRoutesByTo {
   '/health': typeof AuthenticatedHealthRoute
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
+  '/system-status': typeof AuthenticatedSystemStatusRoute
   '/validation': typeof AuthenticatedValidationRoute
   '/hooks/process-jobs': typeof HooksProcessJobsRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
@@ -178,6 +187,7 @@ export interface FileRoutesById {
   '/_authenticated/new-run': typeof AuthenticatedNewRunRoute
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/runs': typeof AuthenticatedRunsRouteWithChildren
+  '/_authenticated/system-status': typeof AuthenticatedSystemStatusRoute
   '/_authenticated/validation': typeof AuthenticatedValidationRoute
   '/hooks/process-jobs': typeof HooksProcessJobsRoute
   '/_authenticated/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/new-run'
     | '/presets'
     | '/runs'
+    | '/system-status'
     | '/validation'
     | '/hooks/process-jobs'
     | '/batches/$batchId'
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/new-run'
     | '/presets'
+    | '/system-status'
     | '/validation'
     | '/hooks/process-jobs'
     | '/batches/$batchId'
@@ -239,6 +251,7 @@ export interface FileRouteTypes {
     | '/_authenticated/new-run'
     | '/_authenticated/presets'
     | '/_authenticated/runs'
+    | '/_authenticated/system-status'
     | '/_authenticated/validation'
     | '/hooks/process-jobs'
     | '/_authenticated/batches/$batchId'
@@ -293,6 +306,13 @@ declare module '@tanstack/react-router' {
       path: '/validation'
       fullPath: '/validation'
       preLoaderRoute: typeof AuthenticatedValidationRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/system-status': {
+      id: '/_authenticated/system-status'
+      path: '/system-status'
+      fullPath: '/system-status'
+      preLoaderRoute: typeof AuthenticatedSystemStatusRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/runs': {
@@ -431,6 +451,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedNewRunRoute: typeof AuthenticatedNewRunRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedRunsRoute: typeof AuthenticatedRunsRouteWithChildren
+  AuthenticatedSystemStatusRoute: typeof AuthenticatedSystemStatusRoute
   AuthenticatedValidationRoute: typeof AuthenticatedValidationRoute
   AuthenticatedReportsCompareRoute: typeof AuthenticatedReportsCompareRoute
   AuthenticatedReportsBatchBatchIdRoute: typeof AuthenticatedReportsBatchBatchIdRoute
@@ -444,6 +465,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNewRunRoute: AuthenticatedNewRunRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedRunsRoute: AuthenticatedRunsRouteWithChildren,
+  AuthenticatedSystemStatusRoute: AuthenticatedSystemStatusRoute,
   AuthenticatedValidationRoute: AuthenticatedValidationRoute,
   AuthenticatedReportsCompareRoute: AuthenticatedReportsCompareRoute,
   AuthenticatedReportsBatchBatchIdRoute: AuthenticatedReportsBatchBatchIdRoute,
