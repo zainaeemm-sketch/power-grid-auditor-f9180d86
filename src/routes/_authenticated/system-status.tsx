@@ -28,6 +28,7 @@ function SystemStatusPage() {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [draining, setDraining] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<"connecting" | "live" | "disconnected">("connecting");
 
   useEffect(() => {
     const channel = supabase
@@ -48,7 +49,11 @@ function SystemStatusPage() {
           if (jobId) queryClient.invalidateQueries({ queryKey: ["job-logs", jobId] });
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setLiveStatus("live");
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setLiveStatus("disconnected");
+        else setLiveStatus("connecting");
+      });
     return () => {
       supabase.removeChannel(channel);
     };
@@ -111,9 +116,10 @@ function SystemStatusPage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Activity className="h-5 w-5 text-primary" />
           <h1 className="text-2xl font-bold">System Status</h1>
+          <LiveIndicator status={liveStatus} />
         </div>
         <Button onClick={handleProcessNow} disabled={draining} size="sm">
           {draining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
@@ -228,5 +234,24 @@ function KpiCard({ label, value, accent }: { label: string; value: number; accen
         <p className={`mt-1 text-2xl font-bold ${accent ?? ""}`}>{value}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function LiveIndicator({ status }: { status: "connecting" | "live" | "disconnected" }) {
+  const isLive = status === "live";
+  const isDown = status === "disconnected";
+  const dotColor = isLive ? "bg-emerald-500" : isDown ? "bg-destructive" : "bg-amber-500";
+  const label = isLive ? "Live" : isDown ? "Disconnected" : "Connecting";
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground"
+      title={`Realtime channel: ${label}`}
+    >
+      <span className="relative flex h-2 w-2">
+        <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${dotColor}`} />
+        <span className={`relative inline-flex h-2 w-2 rounded-full ${dotColor}`} />
+      </span>
+      {label}
+    </span>
   );
 }
