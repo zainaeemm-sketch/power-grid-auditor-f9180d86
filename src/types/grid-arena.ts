@@ -107,6 +107,7 @@ export interface RunDetails {
   recommendation: RunRecommendation | null;
   parseResult: RunParseResult | null;
   evaluation: RunEvaluation | null;
+  groundTruth?: GroundTruthScenarioWithActions | null;
 }
 
 export interface RunAction {
