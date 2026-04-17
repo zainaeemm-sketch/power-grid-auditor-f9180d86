@@ -68,6 +68,7 @@ function RunsPage() {
   const [caseFilter, setCaseFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [gtFilter, setGtFilter] = useState(GT_ALL);
+  const [sortBy, setSortBy] = useState("recent");
 
   const options = useMemo(() => {
     const tasks = new Set<string>();
