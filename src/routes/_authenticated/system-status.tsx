@@ -11,6 +11,9 @@ import type { JobRecord, JobLog } from "@/server/queue/types";
 import { LiveIndicator, type LiveStatus } from "@/components/system-status/LiveIndicator";
 import { KpiCards } from "@/components/system-status/KpiCards";
 import { JobsTable } from "@/components/system-status/JobsTable";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type StatusFilter = "all" | "queued" | "running" | "completed" | "failed" | "cancelled";
 
 export const Route = createFileRoute("/_authenticated/system-status")({
   head: () => ({ meta: [{ title: "System Status — GridArena" }] }),
