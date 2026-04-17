@@ -101,6 +101,7 @@ export type Database = {
           dataset_version: string | null
           default_prompt_text: string | null
           evaluation_logic_version: string | null
+          evaluation_mode: string
           id: string
           max_tokens: number | null
           model_name: string | null
@@ -124,6 +125,7 @@ export type Database = {
           dataset_version?: string | null
           default_prompt_text?: string | null
           evaluation_logic_version?: string | null
+          evaluation_mode?: string
           id?: string
           max_tokens?: number | null
           model_name?: string | null
@@ -147,6 +149,7 @@ export type Database = {
           dataset_version?: string | null
           default_prompt_text?: string | null
           evaluation_logic_version?: string | null
+          evaluation_mode?: string
           id?: string
           max_tokens?: number | null
           model_name?: string | null
@@ -206,12 +209,14 @@ export type Database = {
           baseline_violations: number
           confidence: string
           created_at: string
+          engine_used: string | null
           feasibility: string
           grounding_quality: string
           id: string
           notes: string | null
           post_action_violations: number
           run_id: string
+          simulation_details: Json | null
           updated_at: string
           violation_improvement: number
           violations_found: number
@@ -221,12 +226,14 @@ export type Database = {
           baseline_violations?: number
           confidence?: string
           created_at?: string
+          engine_used?: string | null
           feasibility?: string
           grounding_quality?: string
           id?: string
           notes?: string | null
           post_action_violations?: number
           run_id: string
+          simulation_details?: Json | null
           updated_at?: string
           violation_improvement?: number
           violations_found?: number
@@ -236,12 +243,14 @@ export type Database = {
           baseline_violations?: number
           confidence?: string
           created_at?: string
+          engine_used?: string | null
           feasibility?: string
           grounding_quality?: string
           id?: string
           notes?: string | null
           post_action_violations?: number
           run_id?: string
+          simulation_details?: Json | null
           updated_at?: string
           violation_improvement?: number
           violations_found?: number
@@ -262,6 +271,7 @@ export type Database = {
           created_at: string
           dataset_version: string | null
           evaluation_logic_version: string | null
+          evaluation_mode: string
           execution_timestamp: string | null
           id: string
           max_tokens: number | null
@@ -285,6 +295,7 @@ export type Database = {
           created_at?: string
           dataset_version?: string | null
           evaluation_logic_version?: string | null
+          evaluation_mode?: string
           execution_timestamp?: string | null
           id?: string
           max_tokens?: number | null
@@ -308,6 +319,7 @@ export type Database = {
           created_at?: string
           dataset_version?: string | null
           evaluation_logic_version?: string | null
+          evaluation_mode?: string
           execution_timestamp?: string | null
           id?: string
           max_tokens?: number | null

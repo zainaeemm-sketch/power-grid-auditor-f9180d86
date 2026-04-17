@@ -16,7 +16,7 @@ export function HealthBadge() {
         const status = await getHealthStatus();
         if (cancelled) return;
         if (status.database === "error") setState("error");
-        else if (!status.llmConfigured) setState("warn");
+        else if (!status.llmConfigured || status.simulator.state !== "active") setState("warn");
         else setState("ok");
       } catch {
         if (!cancelled) setState("error");
@@ -41,9 +41,9 @@ export function HealthBadge() {
 
   const label =
     state === "ok"
-      ? "All systems operational"
+      ? "All systems operational (LLM + simulator)"
       : state === "warn"
-        ? "LLM not fully configured"
+        ? "Degraded — LLM or simulator using fallback"
         : state === "error"
           ? "Backend error — click to inspect"
           : "Checking…";
