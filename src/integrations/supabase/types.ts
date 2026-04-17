@@ -503,6 +503,57 @@ export type Database = {
           },
         ]
       }
+      validation_results: {
+        Row: {
+          actual_output: Json | null
+          created_at: string
+          debug_hint: string | null
+          evaluation_logic_version: string | null
+          execution_time_ms: number
+          expected_output: Json | null
+          failure_reason: string | null
+          id: string
+          parser_version: string | null
+          status: string
+          system_version: string | null
+          test_name: string
+          test_type: string
+          user_id: string
+        }
+        Insert: {
+          actual_output?: Json | null
+          created_at?: string
+          debug_hint?: string | null
+          evaluation_logic_version?: string | null
+          execution_time_ms?: number
+          expected_output?: Json | null
+          failure_reason?: string | null
+          id?: string
+          parser_version?: string | null
+          status: string
+          system_version?: string | null
+          test_name: string
+          test_type: string
+          user_id: string
+        }
+        Update: {
+          actual_output?: Json | null
+          created_at?: string
+          debug_hint?: string | null
+          evaluation_logic_version?: string | null
+          execution_time_ms?: number
+          expected_output?: Json | null
+          failure_reason?: string | null
+          id?: string
+          parser_version?: string | null
+          status?: string
+          system_version?: string | null
+          test_name?: string
+          test_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

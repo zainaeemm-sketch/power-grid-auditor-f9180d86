@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon, Activity } from "lucide-react";
+import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon, Activity, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AccentSwitcher } from "@/components/AccentSwitcher";
@@ -21,6 +21,7 @@ const navLinks = [
   { to: "/presets" as const, label: "Presets", icon: FlaskConical, exact: false },
   { to: "/batches" as const, label: "Batches", icon: Layers, exact: false },
   { to: "/compare" as const, label: "Compare", icon: GitCompare, exact: false },
+  { to: "/validation" as const, label: "Validation", icon: ShieldCheck, exact: false },
 ];
 
 export function NavHeader() {
