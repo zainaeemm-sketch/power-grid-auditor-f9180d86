@@ -1,104 +1,185 @@
 
+This is a large feature spanning schema, routes, server functions, UI panels, batch analytics, and exports. I'll present a concise plan covering all 11 parts, organized by implementation order.
 
-## Layer D: Public Release & Documentation
+## Plan: Ground Truth / Reference Solution Layer
 
-### Audit
-- No `/docs` or `/about` routes today. README.md not authored as user-facing.
-- Existing presets table can host demo data; existing `executeRunLlm` produces example runs.
-- Mermaid diagrams renderable via mermaid.js (need to add) or as static SVG. Simplest: ship as static SVG inline in a Docs page — no new dependency.
-- Routes follow flat dot convention under `_authenticated/`. `/about` should be **public** (no auth) so reviewers can read it without signing in — place at top-level `src/routes/about.tsx` and `src/routes/docs.tsx` (and child docs pages).
+### 1. Database schema (migration)
 
-### Step 1 — Public routes (no auth wall)
+Two new tables + one column on `runs`:
 
-New top-level routes (siblings of `index.tsx`, outside `_authenticated/`):
-- `src/routes/about.tsx` — `/about` — purpose, authors, affiliation, citation (BibTeX + APA), links.
-- `src/routes/docs.tsx` — `/docs` layout with sidebar nav + `<Outlet />`.
-- `src/routes/docs.index.tsx` — overview landing.
-- `src/routes/docs.installation.tsx` — install/setup (Lovable Cloud + optional simulation-service deploy + secrets).
-- `src/routes/docs.usage.tsx` — auth, creating runs, presets, batches.
-- `src/routes/docs.workflow.tsx` — end-to-end experiment lifecycle with diagram.
-- `src/routes/docs.architecture.tsx` — system diagram (inline SVG).
-- `src/routes/docs.reproducibility.tsx` — step-by-step reproduction with expected metrics.
-- `src/routes/docs.troubleshooting.tsx` — common failures (LLM timeout, simulator unavailable, queue stuck, RLS errors).
+```text
+ground_truth_scenarios
+├─ id (uuid, pk)
+├─ scenario_id (text, unique)      -- e.g. "IEEE14_OVERLOAD_01"
+├─ case_name (text)
+├─ scenario_description (text)
+├─ difficulty_level (text)         -- easy | medium | hard
+├─ user_id (uuid)                  -- ownership for RLS
+└─ created_at / updated_at
 
-All public — no `_authenticated` parent. Each has `head()` with unique title/description/og tags per the route-architecture rules.
+ground_truth_actions
+├─ id (uuid, pk)
+├─ scenario_id (uuid, fk → ground_truth_scenarios ON DELETE CASCADE)
+├─ action_type (text)
+├─ target_index (int, nullable)
+├─ value (double, nullable)
+├─ expected_feasibility (bool)
+├─ expected_violations (int)
+├─ expected_violation_improvement (numeric)
+├─ notes (text, nullable)
+└─ created_at
 
-### Step 2 — Shared docs components
+runs  (ALTER)
+└─ ground_truth_scenario_id (uuid, nullable, no FK — stays soft-linked for backward compat)
+```
 
-- `src/components/docs/DocsLayout.tsx` — sidebar nav + content area, used inside `docs.tsx` layout route.
-- `src/components/docs/CodeBlock.tsx` — small wrapper using existing Tailwind for code samples (no syntax highlighter dep — use `<pre>` styled).
-- `src/components/docs/ArchitectureDiagram.tsx` — inline SVG showing Frontend (TanStack Start) → Server Functions (Worker) → Postgres + LLM Provider + Simulation Service (pandapower) + DC Solver fallback. Static SVG, no library. Dark-theme friendly.
+RLS: `user_id = auth.uid()` on scenarios; actions inherit via EXISTS on parent scenario (same pattern as `run_metadata`). Scenarios are user-owned (so each researcher curates their own registry). Seed rows will be inserted per-user on first visit — covered in step 7.
 
-### Step 3 — Demo dataset seeder
+### 2. Types & server functions
 
-- `src/lib/demo-dataset.ts` — exported constants: 3 demo presets covering case5 / case14 / case30, each with realistic prompt, evaluation_mode `simulation`, model `google/gemini-2.5-flash`.
-- New server fn `seedDemoData()` in `src/server/demo.functions.ts` — for the **current authenticated user**: idempotently upserts the 3 presets (matched by name prefix `[Demo]`), and creates 1 example completed run per preset by directly inserting rows (no LLM call, deterministic mock prompt + recommendation + evaluation referencing the DC solver result). Returns `{presets_created, runs_created}`.
-- Entry point: a "Load Demo Dataset" button on `/docs/usage` and `/about` that calls `seedDemoData` then toasts a link to `/runs`.
+- `src/types/grid-arena.ts` → add `GroundTruthScenario`, `GroundTruthAction`, `GroundTruthComparison`.
+- `src/server/ground-truth.functions.ts` (new):
+  - `listScenarios()` — list with action counts
+  - `getScenario({ id })` — scenario + actions
+  - `createScenario({ scenario, actions })` — one scenario + N actions in a single call
+  - `deleteScenario({ id })`
+  - `seedExampleScenarios()` — idempotent; inserts IEEE14_OVERLOAD_01 and IEEE39_LINE_OUTAGE if missing for current user
 
-No new tables — uses existing `experiment_presets`, `runs`, `run_metadata`, `run_prompt_logs`, `run_evaluations`. Marker prefix `[Demo]` lets users identify and delete easily.
+All use `requireSupabaseAuth` middleware (RLS-scoped).
 
-### Step 4 — Architecture diagram (inline SVG)
+### 3. Comparison logic (pure function, deterministic)
 
-Hand-authored SVG inside `ArchitectureDiagram.tsx`:
-- Boxes: Browser (TanStack Start UI) → Edge Worker (Server Fns + Queue Worker) → Postgres (RLS, queue, runs, evaluations) — with side connections to LLM Gateway and Simulation Service (pandapower) + in-Worker DC fallback.
-- Uses CSS variables (`--primary`, `--muted`, `--border`) so it inherits theme colors.
-- Re-used on `/docs/architecture` and embedded as a thumbnail on `/about`.
+`src/server/ground-truth/compare.ts`:
 
-### Step 5 — Reproducibility page
+```ts
+compareToGroundTruth(agentAction, agentEval, referenceActions) → {
+  action_match: "exact" | "partial" | "none",
+  feasibility_match: "correct" | "incorrect",
+  optimality_gap: number,           // expected_improvement - actual_improvement
+  deviation_from_reference: number, // |expected_value - agent_value|, or Infinity if type mismatch
+  matched_reference_action_id: string | null,
+}
+```
 
-Documents three reproducible experiments:
-1. **Single-run sanity check** — case5, scale_all_loads 0.9, expected: feasibility=true, baseline≥0, post≤baseline (DC solver, deterministic).
-2. **Batch-of-3 stability** — load 3 demo presets, run, expect 3 completed, 0 failed.
-3. **Validation suite** — run `/validation`, expect parser+evaluation+reproducibility+batch_stability all green.
+Rules:
+- **exact**: same `action_type` AND same `target_index` AND `|value - expected| < 1e-6`
+- **partial**: same `action_type` (and target_index if both set), value differs
+- **none**: different action_type or no reference actions
+- When multiple reference actions exist, pick the best match (exact > partial > none).
 
-Each section shows: configuration (preset name, model, mode), one-click "Load this experiment" button (calls `seedDemoData`), expected metrics table, link to /validation.
+Integrated into `executeRunLlm` in `src/server/runs.functions.ts` **after** the existing evaluation write. Results stored in `run_evaluations` (new columns below). If `run.ground_truth_scenario_id` is null → skip entirely, write `evaluation_against_ground_truth = false`.
 
-### Step 6 — Public navigation
+### 4. Evaluation schema extension
 
-Update `NavHeader.tsx`:
-- Add public links **Docs** and **About** visible to logged-out users (only those two + Sign In). Logged-in users see existing links plus Docs/About.
-- About/Docs reachable at `/about` and `/docs` without login.
+ALTER `run_evaluations`:
+- `action_match` text nullable
+- `feasibility_match` text nullable
+- `optimality_gap` numeric nullable
+- `deviation_from_reference` numeric nullable
+- `evaluation_against_ground_truth` bool default false
 
-Update `__root.tsx` if needed so `/about` and `/docs/*` render outside the `_authenticated` guard (they already will, since they're not under `_authenticated/`).
+All nullable → existing runs unaffected (backward compat ✓).
 
-### Step 7 — Citation block
+### 5. Routes & UI
 
-On `/about` and `/docs`:
-- Plain-text APA: "GridArena (2026). LLM Agent Research Platform for Power System Operations. https://power-grid-auditor.lovable.app"
-- BibTeX block in a copy-to-clipboard `CodeBlock`.
-- Author/affiliation fields use placeholder text (`<Your Name>`, `<Your Institution>`) with an inline note that the user should edit `src/lib/citation.ts` to personalize. Centralizing citation in `src/lib/citation.ts` means one edit propagates everywhere.
+**New routes** (all under `_authenticated`):
+- `/ground-truth` → `_authenticated/ground-truth.index.tsx` — list + "New" button + "Seed examples" button
+- `/ground-truth/new` → `_authenticated/ground-truth.new.tsx` — creation form (scenario fields + repeatable reference-action rows, add/remove)
+- `/ground-truth/$id` → `_authenticated/ground-truth.$id.tsx` — detail view (read-only, with delete)
 
-### Step 8 — README.md (repo root)
+**New-run form** (`_authenticated/new-run.tsx`): add optional `<Select>` "Ground Truth Scenario (optional)" populated from `listScenarios()`. Stored on `runs.ground_truth_scenario_id`.
 
-Rewrite `README.md` as the GitHub-facing entry point: project blurb, screenshot link to `/about`, link to `/docs`, simulation-service deploy summary, citation. Mirrors but doesn't duplicate the in-app docs.
+**NavHeader**: add "Ground Truth" link between existing items.
 
-### Files
+**Run Details** (`_authenticated/runs.$runId.tsx`): new panel component `src/components/run-details/GroundTruthComparisonPanel.tsx`. Renders:
+- "No ground truth available" if `evaluation_against_ground_truth === false`
+- Otherwise: two-column Reference vs Agent action, then badges for Action Match / Feasibility Match / Optimality Gap
 
-**Created**
-- `src/routes/about.tsx`
-- `src/routes/docs.tsx` (layout)
-- `src/routes/docs.index.tsx`
-- `src/routes/docs.installation.tsx`
-- `src/routes/docs.usage.tsx`
-- `src/routes/docs.workflow.tsx`
-- `src/routes/docs.architecture.tsx`
-- `src/routes/docs.reproducibility.tsx`
-- `src/routes/docs.troubleshooting.tsx`
-- `src/components/docs/DocsLayout.tsx`
-- `src/components/docs/CodeBlock.tsx`
-- `src/components/docs/ArchitectureDiagram.tsx`
-- `src/lib/demo-dataset.ts`
-- `src/lib/citation.ts`
-- `src/server/demo.functions.ts`
+Loader fetches scenario+actions alongside existing `getRunDetails` (extend the server function to include them when `ground_truth_scenario_id` is set).
 
-**Modified**
-- `src/components/NavHeader.tsx` (Docs + About links, visible logged-out)
-- `README.md` (rewrite for public consumption)
-- `.lovable/memory/index.md` (note Layer D public-docs surface)
+### 6. Batch analytics (`src/lib/batch-summary.ts` + reports)
 
-### Stability
-- Purely additive — no schema changes, no edits to existing server fns.
-- `seedDemoData` is idempotent (upsert by preset name) and user-scoped via existing RLS.
-- Public docs/about routes don't depend on auth; failure of any docs route can't affect runs/batches.
-- Static SVG diagram avoids new dependencies.
+Add to `src/lib/batch-summary.ts`:
+- `accuracyRate(runs)` — % with `action_match === "exact"` among runs that have ground truth
+- `avgOptimalityGap(runs)`
+- `feasibilityAgreementRate(runs)`
+- `bestAgentVsGroundTruth(runs)` — groups by `run.agent`, picks highest accuracy
 
+New chart in `reports.batch.$batchId.tsx`: bar chart (reusing existing `ReportChart` / recharts) — x: agent, y: accuracy %.
+
+Only shown when at least one run in the batch has `evaluation_against_ground_truth = true`.
+
+### 7. CSV export (`src/lib/csv-export.ts`)
+
+Extend `exportRunCsv` and batch CSV export with columns:
+- `ground_truth_scenario_id`
+- `reference_action_type`
+- `reference_value`
+- `action_match`
+- `feasibility_match`
+- `optimality_gap`
+
+Empty strings when ground truth absent.
+
+### 8. Seed data
+
+On first visit to `/ground-truth`, if the user has zero scenarios, show a "Seed example scenarios" button (not auto-run, avoids surprise writes). Calls `seedExampleScenarios()` which inserts:
+
+```text
+IEEE14_OVERLOAD_01  (easy)  — scale_all_loads, value 0.95, feasible, 0 violations, improvement 3
+IEEE39_LINE_OUTAGE  (medium) — line_outage, target_index 4, feasible, 1 violation, improvement 2
+```
+
+### Implementation order (incremental, app stays green after each)
+
+```text
+1. Migration: new tables + runs.ground_truth_scenario_id + run_evaluations columns
+2. Types + ground-truth.functions.ts (server + seed)
+3. /ground-truth list, new, detail pages + NavHeader link
+4. new-run: optional scenario selector
+5. compareToGroundTruth() pure function + integrate into executeRunLlm
+6. GroundTruthComparisonPanel on run details
+7. Batch analytics + new chart
+8. CSV export columns
+```
+
+### Backward compatibility guarantees
+
+- `ground_truth_scenario_id` nullable → existing runs keep working.
+- Comparison only runs when scenario_id present → no extra compute otherwise.
+- New `run_evaluations` columns all nullable → existing rows untouched.
+- Panel shows "No ground truth available" when absent → UI stable.
+- RLS user-scoped → each researcher's registry is isolated.
+
+### Files to create
+
+```text
+supabase/migrations/<ts>_ground_truth.sql
+src/server/ground-truth.functions.ts
+src/server/ground-truth/compare.ts
+src/routes/_authenticated/ground-truth.index.tsx
+src/routes/_authenticated/ground-truth.new.tsx
+src/routes/_authenticated/ground-truth.$id.tsx
+src/components/run-details/GroundTruthComparisonPanel.tsx
+```
+
+### Files to edit
+
+```text
+src/types/grid-arena.ts
+src/components/NavHeader.tsx
+src/routes/_authenticated/new-run.tsx
+src/routes/_authenticated/runs.$runId.tsx
+src/server/runs.functions.ts            (integrate comparison)
+src/lib/batch-summary.ts
+src/routes/_authenticated/reports.batch.$batchId.tsx
+src/lib/csv-export.ts
+.lovable/memory/features/db-schema.md   (update schema memory)
+```
+
+### Open decisions (reasonable defaults chosen — tell me to change if wrong)
+
+- **Ownership model**: scenarios are per-user (not global). If you want a shared/global registry, say so and I'll drop `user_id` + add admin-only write policy.
+- **Seed behavior**: manual button, not auto-insert on first login.
+- **Exact-match tolerance**: `1e-6` on value comparison.
+- **Optimality gap sign**: `expected_improvement - actual_improvement` (positive = agent underperformed).
