@@ -40,6 +40,7 @@ function NewRunPage() {
   const [caseName, setCaseName] = useState("");
   const [researchQuestion, setResearchQuestion] = useState("");
   const [presetId, setPresetId] = useState<string>("");
+  const [evaluationMode, setEvaluationMode] = useState<"rule_based" | "simulation" | "auto">("rule_based");
   const [submitting, setSubmitting] = useState(false);
 
   const handlePresetChange = (value: string) => {
@@ -48,6 +49,10 @@ function NewRunPage() {
       const preset = presets.find((p: ExperimentPreset) => p.id === value);
       if (preset) {
         setAgent(preset.model_name || "");
+        const presetMode = (preset as any).evaluation_mode;
+        if (presetMode === "rule_based" || presetMode === "simulation" || presetMode === "auto") {
+          setEvaluationMode(presetMode);
+        }
       }
     }
   };
@@ -64,6 +69,7 @@ function NewRunPage() {
           case_name: caseName,
           research_question: researchQuestion || undefined,
           preset_id: presetId || undefined,
+          evaluation_mode: evaluationMode,
         },
       });
       navigate({ to: "/runs/$runId", params: { runId: result.run.id } });
@@ -122,6 +128,19 @@ function NewRunPage() {
             <div className="space-y-2">
               <Label htmlFor="rq">Research Question</Label>
               <Textarea id="rq" value={researchQuestion} onChange={(e) => setResearchQuestion(e.target.value)} placeholder="What is this experiment trying to answer?" rows={3} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Evaluation Mode</Label>
+              <Select value={evaluationMode} onValueChange={(v) => setEvaluationMode(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rule_based">Rule-based (deterministic heuristic)</SelectItem>
+                  <SelectItem value="simulation">Simulation-based (DC PF / pandapower)</SelectItem>
+                  <SelectItem value="auto">Auto (simulation → rule-based fallback)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Simulation uses the external pandapower service if configured, then falls back to an in-Worker DC power-flow solver for built-in IEEE cases (case5, case14, case30).</p>
             </div>
 
             <Button

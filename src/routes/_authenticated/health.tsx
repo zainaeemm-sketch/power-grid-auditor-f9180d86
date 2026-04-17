@@ -78,6 +78,18 @@ function HealthPage() {
           <CheckRow ok={!!status?.hasApiKey} label="LLM provider API key" detail={status?.hasApiKey ? "Configured" : "Missing OPENAI_API_KEY"} />
           <CheckRow ok={!!status?.hasBaseUrl} label="LLM provider base URL" detail={status?.hasBaseUrl ? "Configured" : "Missing OPENAI_BASE_URL"} />
           <CheckRow warn={!status?.hasModel} label="Default model name" detail={status?.hasModel ? "Configured" : "Optional — falls back to gpt-4o-mini"} />
+          <CheckRow
+            ok={status?.simulator.state === "active"}
+            warn={status?.simulator.state === "fallback"}
+            label="Simulation Engine"
+            detail={
+              status?.simulator.state === "active"
+                ? `Active — pandapower service responding (${status.simulator.latency_ms} ms)`
+                : status?.simulator.state === "fallback"
+                  ? `Fallback — using in-Worker DC power-flow solver${status.simulator.error ? ` (${status.simulator.error})` : ""}`
+                  : "Unavailable"
+            }
+          />
           <CheckRow ok={exportAvailable} label="CSV export available (Blob/URL)" />
         </CardContent>
       </Card>

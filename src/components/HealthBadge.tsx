@@ -41,9 +41,9 @@ export function HealthBadge() {
 
   const label =
     state === "ok"
-      ? "All systems operational"
+      ? "All systems operational (LLM + simulator)"
       : state === "warn"
-        ? "LLM not fully configured"
+        ? "Degraded — LLM or simulator using fallback"
         : state === "error"
           ? "Backend error — click to inspect"
           : "Checking…";
