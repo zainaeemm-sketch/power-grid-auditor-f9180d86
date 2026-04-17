@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Activity, Download } from "lucide-react";
+import { Activity, Download, FileText } from "lucide-react";
+import { BatchPerturbationJobsDialog } from "./BatchPerturbationJobsDialog";
 import {
   runBatchPerturbations,
   getBatchRobustnessSummary,
