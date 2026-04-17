@@ -1,6 +1,6 @@
 import type { Tables } from "@/integrations/supabase/types";
 
-export type Run = Tables<"runs">;
+export type Run = Tables<"runs"> & { ground_truth_scenario_id?: string | null };
 export type RunMetadata = Tables<"run_metadata">;
 export type RunPromptLog = Tables<"run_prompt_logs">;
 export type ExperimentPreset = Tables<"experiment_presets">;
@@ -57,8 +57,47 @@ export interface RunEvaluation {
   notes: string | null;
   engine_used?: SimulationEngine | null;
   simulation_details?: SimulationDetails | null;
+  // Ground truth comparison (nullable — backward compat)
+  action_match?: "exact" | "partial" | "none" | null;
+  feasibility_match?: "correct" | "incorrect" | null;
+  optimality_gap?: number | null;
+  deviation_from_reference?: number | null;
+  evaluation_against_ground_truth?: boolean | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface GroundTruthScenario {
+  id: string;
+  scenario_id: string;
+  case_name: string;
+  scenario_description: string | null;
+  difficulty_level: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroundTruthAction {
+  id: string;
+  scenario_id: string;
+  action_type: string;
+  target_index: number | null;
+  value: number | null;
+  expected_feasibility: boolean;
+  expected_violations: number;
+  expected_violation_improvement: number;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface GroundTruthScenarioWithActions {
+  scenario: GroundTruthScenario;
+  actions: GroundTruthAction[];
+}
+
+export interface GroundTruthScenarioListItem extends GroundTruthScenario {
+  action_count: number;
 }
 
 export interface RunDetails {

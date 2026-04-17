@@ -31,9 +31,12 @@ import { Route as AuthenticatedHealthRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedCompareRouteImport } from './routes/_authenticated/compare'
 import { Route as AuthenticatedBatchesRouteImport } from './routes/_authenticated/batches'
 import { Route as AuthenticatedRunsIndexRouteImport } from './routes/_authenticated/runs.index'
+import { Route as AuthenticatedGroundTruthIndexRouteImport } from './routes/_authenticated/ground-truth.index'
 import { Route as AuthenticatedBatchesIndexRouteImport } from './routes/_authenticated/batches.index'
 import { Route as AuthenticatedRunsRunIdRouteImport } from './routes/_authenticated/runs.$runId'
 import { Route as AuthenticatedReportsCompareRouteImport } from './routes/_authenticated/reports.compare'
+import { Route as AuthenticatedGroundTruthNewRouteImport } from './routes/_authenticated/ground-truth.new'
+import { Route as AuthenticatedGroundTruthIdRouteImport } from './routes/_authenticated/ground-truth.$id'
 import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches.new'
 import { Route as AuthenticatedBatchesBatchIdRouteImport } from './routes/_authenticated/batches.$batchId'
 import { Route as AuthenticatedReportsRunRunIdRouteImport } from './routes/_authenticated/reports.run.$runId'
@@ -149,6 +152,12 @@ const AuthenticatedRunsIndexRoute = AuthenticatedRunsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRunsRoute,
 } as any)
+const AuthenticatedGroundTruthIndexRoute =
+  AuthenticatedGroundTruthIndexRouteImport.update({
+    id: '/ground-truth/',
+    path: '/ground-truth/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedBatchesIndexRoute =
   AuthenticatedBatchesIndexRouteImport.update({
     id: '/',
@@ -164,6 +173,18 @@ const AuthenticatedReportsCompareRoute =
   AuthenticatedReportsCompareRouteImport.update({
     id: '/reports/compare',
     path: '/reports/compare',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedGroundTruthNewRoute =
+  AuthenticatedGroundTruthNewRouteImport.update({
+    id: '/ground-truth/new',
+    path: '/ground-truth/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedGroundTruthIdRoute =
+  AuthenticatedGroundTruthIdRouteImport.update({
+    id: '/ground-truth/$id',
+    path: '/ground-truth/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedBatchesNewRoute = AuthenticatedBatchesNewRouteImport.update({
@@ -213,9 +234,12 @@ export interface FileRoutesByFullPath {
   '/docs/': typeof DocsIndexRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
+  '/ground-truth/$id': typeof AuthenticatedGroundTruthIdRoute
+  '/ground-truth/new': typeof AuthenticatedGroundTruthNewRoute
   '/reports/compare': typeof AuthenticatedReportsCompareRoute
   '/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/batches/': typeof AuthenticatedBatchesIndexRoute
+  '/ground-truth/': typeof AuthenticatedGroundTruthIndexRoute
   '/runs/': typeof AuthenticatedRunsIndexRoute
   '/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
   '/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
@@ -240,9 +264,12 @@ export interface FileRoutesByTo {
   '/docs': typeof DocsIndexRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
+  '/ground-truth/$id': typeof AuthenticatedGroundTruthIdRoute
+  '/ground-truth/new': typeof AuthenticatedGroundTruthNewRoute
   '/reports/compare': typeof AuthenticatedReportsCompareRoute
   '/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/batches': typeof AuthenticatedBatchesIndexRoute
+  '/ground-truth': typeof AuthenticatedGroundTruthIndexRoute
   '/runs': typeof AuthenticatedRunsIndexRoute
   '/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
   '/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
@@ -272,9 +299,12 @@ export interface FileRoutesById {
   '/docs/': typeof DocsIndexRoute
   '/_authenticated/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/_authenticated/batches/new': typeof AuthenticatedBatchesNewRoute
+  '/_authenticated/ground-truth/$id': typeof AuthenticatedGroundTruthIdRoute
+  '/_authenticated/ground-truth/new': typeof AuthenticatedGroundTruthNewRoute
   '/_authenticated/reports/compare': typeof AuthenticatedReportsCompareRoute
   '/_authenticated/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/_authenticated/batches/': typeof AuthenticatedBatchesIndexRoute
+  '/_authenticated/ground-truth/': typeof AuthenticatedGroundTruthIndexRoute
   '/_authenticated/runs/': typeof AuthenticatedRunsIndexRoute
   '/_authenticated/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
   '/_authenticated/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
@@ -304,9 +334,12 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/batches/$batchId'
     | '/batches/new'
+    | '/ground-truth/$id'
+    | '/ground-truth/new'
     | '/reports/compare'
     | '/runs/$runId'
     | '/batches/'
+    | '/ground-truth/'
     | '/runs/'
     | '/reports/batch/$batchId'
     | '/reports/run/$runId'
@@ -331,9 +364,12 @@ export interface FileRouteTypes {
     | '/docs'
     | '/batches/$batchId'
     | '/batches/new'
+    | '/ground-truth/$id'
+    | '/ground-truth/new'
     | '/reports/compare'
     | '/runs/$runId'
     | '/batches'
+    | '/ground-truth'
     | '/runs'
     | '/reports/batch/$batchId'
     | '/reports/run/$runId'
@@ -362,9 +398,12 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/_authenticated/batches/$batchId'
     | '/_authenticated/batches/new'
+    | '/_authenticated/ground-truth/$id'
+    | '/_authenticated/ground-truth/new'
     | '/_authenticated/reports/compare'
     | '/_authenticated/runs/$runId'
     | '/_authenticated/batches/'
+    | '/_authenticated/ground-truth/'
     | '/_authenticated/runs/'
     | '/_authenticated/reports/batch/$batchId'
     | '/_authenticated/reports/run/$runId'
@@ -535,6 +574,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRunsIndexRouteImport
       parentRoute: typeof AuthenticatedRunsRoute
     }
+    '/_authenticated/ground-truth/': {
+      id: '/_authenticated/ground-truth/'
+      path: '/ground-truth'
+      fullPath: '/ground-truth/'
+      preLoaderRoute: typeof AuthenticatedGroundTruthIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/batches/': {
       id: '/_authenticated/batches/'
       path: '/'
@@ -554,6 +600,20 @@ declare module '@tanstack/react-router' {
       path: '/reports/compare'
       fullPath: '/reports/compare'
       preLoaderRoute: typeof AuthenticatedReportsCompareRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/ground-truth/new': {
+      id: '/_authenticated/ground-truth/new'
+      path: '/ground-truth/new'
+      fullPath: '/ground-truth/new'
+      preLoaderRoute: typeof AuthenticatedGroundTruthNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/ground-truth/$id': {
+      id: '/_authenticated/ground-truth/$id'
+      path: '/ground-truth/$id'
+      fullPath: '/ground-truth/$id'
+      preLoaderRoute: typeof AuthenticatedGroundTruthIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/batches/new': {
@@ -624,7 +684,10 @@ interface AuthenticatedRouteChildren {
   AuthenticatedRunsRoute: typeof AuthenticatedRunsRouteWithChildren
   AuthenticatedSystemStatusRoute: typeof AuthenticatedSystemStatusRoute
   AuthenticatedValidationRoute: typeof AuthenticatedValidationRoute
+  AuthenticatedGroundTruthIdRoute: typeof AuthenticatedGroundTruthIdRoute
+  AuthenticatedGroundTruthNewRoute: typeof AuthenticatedGroundTruthNewRoute
   AuthenticatedReportsCompareRoute: typeof AuthenticatedReportsCompareRoute
+  AuthenticatedGroundTruthIndexRoute: typeof AuthenticatedGroundTruthIndexRoute
   AuthenticatedReportsBatchBatchIdRoute: typeof AuthenticatedReportsBatchBatchIdRoute
   AuthenticatedReportsRunRunIdRoute: typeof AuthenticatedReportsRunRunIdRoute
 }
@@ -638,7 +701,10 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedRunsRoute: AuthenticatedRunsRouteWithChildren,
   AuthenticatedSystemStatusRoute: AuthenticatedSystemStatusRoute,
   AuthenticatedValidationRoute: AuthenticatedValidationRoute,
+  AuthenticatedGroundTruthIdRoute: AuthenticatedGroundTruthIdRoute,
+  AuthenticatedGroundTruthNewRoute: AuthenticatedGroundTruthNewRoute,
   AuthenticatedReportsCompareRoute: AuthenticatedReportsCompareRoute,
+  AuthenticatedGroundTruthIndexRoute: AuthenticatedGroundTruthIndexRoute,
   AuthenticatedReportsBatchBatchIdRoute: AuthenticatedReportsBatchBatchIdRoute,
   AuthenticatedReportsRunRunIdRoute: AuthenticatedReportsRunRunIdRoute,
 }
