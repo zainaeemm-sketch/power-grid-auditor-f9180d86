@@ -231,6 +231,18 @@ function RunsPage() {
             <SelectItem value={GT_NONE}>Without ground truth</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recent">Most recent</SelectItem>
+            <SelectItem value="gap_asc">Optimality gap (best first)</SelectItem>
+            <SelectItem value="gap_desc">Optimality gap (worst first)</SelectItem>
+            <SelectItem value="match_desc">Action match (best first)</SelectItem>
+            <SelectItem value="match_asc">Action match (worst first)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-3">
