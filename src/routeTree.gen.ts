@@ -41,6 +41,7 @@ import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authentic
 import { Route as AuthenticatedBatchesBatchIdRouteImport } from './routes/_authenticated/batches.$batchId'
 import { Route as AuthenticatedReportsRunRunIdRouteImport } from './routes/_authenticated/reports.run.$runId'
 import { Route as AuthenticatedReportsBatchBatchIdRouteImport } from './routes/_authenticated/reports.batch.$batchId'
+import { Route as AuthenticatedGroundTruthEditIdRouteImport } from './routes/_authenticated/ground-truth.edit.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -210,6 +211,12 @@ const AuthenticatedReportsBatchBatchIdRoute =
     path: '/reports/batch/$batchId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedGroundTruthEditIdRoute =
+  AuthenticatedGroundTruthEditIdRouteImport.update({
+    id: '/ground-truth/edit/$id',
+    path: '/ground-truth/edit/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/batches/': typeof AuthenticatedBatchesIndexRoute
   '/ground-truth/': typeof AuthenticatedGroundTruthIndexRoute
   '/runs/': typeof AuthenticatedRunsIndexRoute
+  '/ground-truth/edit/$id': typeof AuthenticatedGroundTruthEditIdRoute
   '/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
   '/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
 }
@@ -271,6 +279,7 @@ export interface FileRoutesByTo {
   '/batches': typeof AuthenticatedBatchesIndexRoute
   '/ground-truth': typeof AuthenticatedGroundTruthIndexRoute
   '/runs': typeof AuthenticatedRunsIndexRoute
+  '/ground-truth/edit/$id': typeof AuthenticatedGroundTruthEditIdRoute
   '/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
   '/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
 }
@@ -306,6 +315,7 @@ export interface FileRoutesById {
   '/_authenticated/batches/': typeof AuthenticatedBatchesIndexRoute
   '/_authenticated/ground-truth/': typeof AuthenticatedGroundTruthIndexRoute
   '/_authenticated/runs/': typeof AuthenticatedRunsIndexRoute
+  '/_authenticated/ground-truth/edit/$id': typeof AuthenticatedGroundTruthEditIdRoute
   '/_authenticated/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
   '/_authenticated/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
 }
@@ -341,6 +351,7 @@ export interface FileRouteTypes {
     | '/batches/'
     | '/ground-truth/'
     | '/runs/'
+    | '/ground-truth/edit/$id'
     | '/reports/batch/$batchId'
     | '/reports/run/$runId'
   fileRoutesByTo: FileRoutesByTo
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/batches'
     | '/ground-truth'
     | '/runs'
+    | '/ground-truth/edit/$id'
     | '/reports/batch/$batchId'
     | '/reports/run/$runId'
   id:
@@ -405,6 +417,7 @@ export interface FileRouteTypes {
     | '/_authenticated/batches/'
     | '/_authenticated/ground-truth/'
     | '/_authenticated/runs/'
+    | '/_authenticated/ground-truth/edit/$id'
     | '/_authenticated/reports/batch/$batchId'
     | '/_authenticated/reports/run/$runId'
   fileRoutesById: FileRoutesById
@@ -644,6 +657,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportsBatchBatchIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/ground-truth/edit/$id': {
+      id: '/_authenticated/ground-truth/edit/$id'
+      path: '/ground-truth/edit/$id'
+      fullPath: '/ground-truth/edit/$id'
+      preLoaderRoute: typeof AuthenticatedGroundTruthEditIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -688,6 +708,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedGroundTruthNewRoute: typeof AuthenticatedGroundTruthNewRoute
   AuthenticatedReportsCompareRoute: typeof AuthenticatedReportsCompareRoute
   AuthenticatedGroundTruthIndexRoute: typeof AuthenticatedGroundTruthIndexRoute
+  AuthenticatedGroundTruthEditIdRoute: typeof AuthenticatedGroundTruthEditIdRoute
   AuthenticatedReportsBatchBatchIdRoute: typeof AuthenticatedReportsBatchBatchIdRoute
   AuthenticatedReportsRunRunIdRoute: typeof AuthenticatedReportsRunRunIdRoute
 }
@@ -705,6 +726,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedGroundTruthNewRoute: AuthenticatedGroundTruthNewRoute,
   AuthenticatedReportsCompareRoute: AuthenticatedReportsCompareRoute,
   AuthenticatedGroundTruthIndexRoute: AuthenticatedGroundTruthIndexRoute,
+  AuthenticatedGroundTruthEditIdRoute: AuthenticatedGroundTruthEditIdRoute,
   AuthenticatedReportsBatchBatchIdRoute: AuthenticatedReportsBatchBatchIdRoute,
   AuthenticatedReportsRunRunIdRoute: AuthenticatedReportsRunRunIdRoute,
 }

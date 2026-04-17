@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getScenario, deleteScenario } from "@/server/ground-truth.functions";
@@ -58,9 +58,16 @@ function ScenarioDetailPage() {
         <Button variant="outline" size="sm" asChild>
           <Link to="/ground-truth"><ArrowLeft className="mr-1.5 h-3.5 w-3.5" />Back</Link>
         </Button>
-        <Button variant="destructive" size="sm" onClick={handleDelete}>
-          <Trash2 className="mr-1.5 h-3.5 w-3.5" />Delete
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/ground-truth/edit/$id" params={{ id: scenario.id }}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />Edit
+            </Link>
+          </Button>
+          <Button variant="destructive" size="sm" onClick={handleDelete}>
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />Delete
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-4 border-border/40 bg-card/60">

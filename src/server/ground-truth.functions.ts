@@ -124,6 +124,55 @@ export const createScenario = createServerFn({ method: "POST" })
     return { scenario: scenario as GroundTruthScenario };
   });
 
+export const updateScenario = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: {
+    id: string;
+    scenario_id: string;
+    case_name: string;
+    scenario_description?: string | null;
+    difficulty_level: string;
+    actions: CreateActionInput[];
+  }) => input)
+  .handler(async ({ data, context }): Promise<{ scenario: GroundTruthScenario }> => {
+    const sb = context.supabase as any;
+    const { data: scenario, error } = await sb
+      .from("ground_truth_scenarios")
+      .update({
+        scenario_id: data.scenario_id,
+        case_name: data.case_name,
+        scenario_description: data.scenario_description ?? null,
+        difficulty_level: data.difficulty_level,
+      })
+      .eq("id", data.id)
+      .select()
+      .single();
+    if (error || !scenario) throw new Error(`Failed to update scenario: ${error?.message}`);
+
+    // Replace actions: delete existing then insert new
+    const { error: delErr } = await sb
+      .from("ground_truth_actions")
+      .delete()
+      .eq("scenario_id", data.id);
+    if (delErr) throw new Error(`Failed to clear actions: ${delErr.message}`);
+
+    if (data.actions.length > 0) {
+      const rows = data.actions.map((a) => ({
+        scenario_id: data.id,
+        action_type: a.action_type,
+        target_index: a.target_index ?? null,
+        value: a.value ?? null,
+        expected_feasibility: a.expected_feasibility,
+        expected_violations: a.expected_violations,
+        expected_violation_improvement: a.expected_violation_improvement,
+        notes: a.notes ?? null,
+      }));
+      const { error: actErr } = await sb.from("ground_truth_actions").insert(rows);
+      if (actErr) throw new Error(`Failed to create actions: ${actErr.message}`);
+    }
+    return { scenario: scenario as GroundTruthScenario };
+  });
+
 export const deleteScenario = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { id: string }) => input)
