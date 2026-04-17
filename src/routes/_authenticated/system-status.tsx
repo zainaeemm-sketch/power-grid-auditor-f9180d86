@@ -28,6 +28,7 @@ function SystemStatusPage() {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [draining, setDraining] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<"connecting" | "live" | "disconnected">("connecting");
 
   useEffect(() => {
     const channel = supabase
@@ -48,7 +49,11 @@ function SystemStatusPage() {
           if (jobId) queryClient.invalidateQueries({ queryKey: ["job-logs", jobId] });
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setLiveStatus("live");
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setLiveStatus("disconnected");
+        else setLiveStatus("connecting");
+      });
     return () => {
       supabase.removeChannel(channel);
     };
