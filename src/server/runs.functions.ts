@@ -87,6 +87,7 @@ function metadataFromPreset(runId: string, preset: any) {
     prompt_template_version: preset.prompt_template_version ?? null,
     parser_version: preset.parser_version ?? PARSER_VERSION,
     evaluation_logic_version: preset.evaluation_logic_version ?? EVALUATION_LOGIC_VERSION,
+    evaluation_mode: (preset.evaluation_mode as string | null) ?? "rule_based",
   };
 }
 
@@ -99,6 +100,7 @@ export const createRun = createServerFn({ method: "POST" })
     case_name: string;
     research_question?: string;
     preset_id?: string;
+    evaluation_mode?: "rule_based" | "simulation" | "auto";
   }) => input)
   .handler(async ({ data, context }): Promise<{ run: Run }> => {
     const { supabase, userId } = context;
@@ -126,7 +128,9 @@ export const createRun = createServerFn({ method: "POST" })
         .single();
 
       if (preset) {
-        await (supabase as any).from("run_metadata").insert(metadataFromPreset(run.id, preset));
+        const metaRow: any = metadataFromPreset(run.id, preset);
+        if (data.evaluation_mode) metaRow.evaluation_mode = data.evaluation_mode;
+        await (supabase as any).from("run_metadata").insert(metaRow);
 
         await supabase.from("run_prompt_logs").insert({
           run_id: run.id,
@@ -138,6 +142,7 @@ export const createRun = createServerFn({ method: "POST" })
         run_id: run.id,
         parser_version: PARSER_VERSION,
         evaluation_logic_version: EVALUATION_LOGIC_VERSION,
+        evaluation_mode: data.evaluation_mode ?? "rule_based",
       });
       await supabase.from("run_prompt_logs").insert({ run_id: run.id });
     }
@@ -289,6 +294,7 @@ export const createPreset = createServerFn({ method: "POST" })
     prompt_template_version?: string | null;
     parser_version?: string | null;
     evaluation_logic_version?: string | null;
+    evaluation_mode?: "rule_based" | "simulation" | "auto" | null;
   }) => input)
   .handler(async ({ data, context }): Promise<{ preset: ExperimentPreset }> => {
     const { supabase, userId } = context;
