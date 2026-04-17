@@ -21,8 +21,11 @@ import { Route as AuthenticatedBatchesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRunsIndexRouteImport } from './routes/_authenticated/runs.index'
 import { Route as AuthenticatedBatchesIndexRouteImport } from './routes/_authenticated/batches.index'
 import { Route as AuthenticatedRunsRunIdRouteImport } from './routes/_authenticated/runs.$runId'
+import { Route as AuthenticatedReportsCompareRouteImport } from './routes/_authenticated/reports.compare'
 import { Route as AuthenticatedBatchesNewRouteImport } from './routes/_authenticated/batches.new'
 import { Route as AuthenticatedBatchesBatchIdRouteImport } from './routes/_authenticated/batches.$batchId'
+import { Route as AuthenticatedReportsRunRunIdRouteImport } from './routes/_authenticated/reports.run.$runId'
+import { Route as AuthenticatedReportsBatchBatchIdRouteImport } from './routes/_authenticated/reports.batch.$batchId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -84,6 +87,12 @@ const AuthenticatedRunsRunIdRoute = AuthenticatedRunsRunIdRouteImport.update({
   path: '/$runId',
   getParentRoute: () => AuthenticatedRunsRoute,
 } as any)
+const AuthenticatedReportsCompareRoute =
+  AuthenticatedReportsCompareRouteImport.update({
+    id: '/reports/compare',
+    path: '/reports/compare',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedBatchesNewRoute = AuthenticatedBatchesNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -94,6 +103,18 @@ const AuthenticatedBatchesBatchIdRoute =
     id: '/$batchId',
     path: '/$batchId',
     getParentRoute: () => AuthenticatedBatchesRoute,
+  } as any)
+const AuthenticatedReportsRunRunIdRoute =
+  AuthenticatedReportsRunRunIdRouteImport.update({
+    id: '/reports/run/$runId',
+    path: '/reports/run/$runId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedReportsBatchBatchIdRoute =
+  AuthenticatedReportsBatchBatchIdRouteImport.update({
+    id: '/reports/batch/$batchId',
+    path: '/reports/batch/$batchId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -107,9 +128,12 @@ export interface FileRoutesByFullPath {
   '/runs': typeof AuthenticatedRunsRouteWithChildren
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
+  '/reports/compare': typeof AuthenticatedReportsCompareRoute
   '/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/batches/': typeof AuthenticatedBatchesIndexRoute
   '/runs/': typeof AuthenticatedRunsIndexRoute
+  '/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
+  '/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -120,9 +144,12 @@ export interface FileRoutesByTo {
   '/presets': typeof AuthenticatedPresetsRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
+  '/reports/compare': typeof AuthenticatedReportsCompareRoute
   '/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/batches': typeof AuthenticatedBatchesIndexRoute
   '/runs': typeof AuthenticatedRunsIndexRoute
+  '/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
+  '/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -137,9 +164,12 @@ export interface FileRoutesById {
   '/_authenticated/runs': typeof AuthenticatedRunsRouteWithChildren
   '/_authenticated/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/_authenticated/batches/new': typeof AuthenticatedBatchesNewRoute
+  '/_authenticated/reports/compare': typeof AuthenticatedReportsCompareRoute
   '/_authenticated/runs/$runId': typeof AuthenticatedRunsRunIdRoute
   '/_authenticated/batches/': typeof AuthenticatedBatchesIndexRoute
   '/_authenticated/runs/': typeof AuthenticatedRunsIndexRoute
+  '/_authenticated/reports/batch/$batchId': typeof AuthenticatedReportsBatchBatchIdRoute
+  '/_authenticated/reports/run/$runId': typeof AuthenticatedReportsRunRunIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -154,9 +184,12 @@ export interface FileRouteTypes {
     | '/runs'
     | '/batches/$batchId'
     | '/batches/new'
+    | '/reports/compare'
     | '/runs/$runId'
     | '/batches/'
     | '/runs/'
+    | '/reports/batch/$batchId'
+    | '/reports/run/$runId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -167,9 +200,12 @@ export interface FileRouteTypes {
     | '/presets'
     | '/batches/$batchId'
     | '/batches/new'
+    | '/reports/compare'
     | '/runs/$runId'
     | '/batches'
     | '/runs'
+    | '/reports/batch/$batchId'
+    | '/reports/run/$runId'
   id:
     | '__root__'
     | '/'
@@ -183,9 +219,12 @@ export interface FileRouteTypes {
     | '/_authenticated/runs'
     | '/_authenticated/batches/$batchId'
     | '/_authenticated/batches/new'
+    | '/_authenticated/reports/compare'
     | '/_authenticated/runs/$runId'
     | '/_authenticated/batches/'
     | '/_authenticated/runs/'
+    | '/_authenticated/reports/batch/$batchId'
+    | '/_authenticated/reports/run/$runId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -280,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRunsRunIdRouteImport
       parentRoute: typeof AuthenticatedRunsRoute
     }
+    '/_authenticated/reports/compare': {
+      id: '/_authenticated/reports/compare'
+      path: '/reports/compare'
+      fullPath: '/reports/compare'
+      preLoaderRoute: typeof AuthenticatedReportsCompareRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/batches/new': {
       id: '/_authenticated/batches/new'
       path: '/new'
@@ -293,6 +339,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/batches/$batchId'
       preLoaderRoute: typeof AuthenticatedBatchesBatchIdRouteImport
       parentRoute: typeof AuthenticatedBatchesRoute
+    }
+    '/_authenticated/reports/run/$runId': {
+      id: '/_authenticated/reports/run/$runId'
+      path: '/reports/run/$runId'
+      fullPath: '/reports/run/$runId'
+      preLoaderRoute: typeof AuthenticatedReportsRunRunIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/reports/batch/$batchId': {
+      id: '/_authenticated/reports/batch/$batchId'
+      path: '/reports/batch/$batchId'
+      fullPath: '/reports/batch/$batchId'
+      preLoaderRoute: typeof AuthenticatedReportsBatchBatchIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
@@ -332,6 +392,9 @@ interface AuthenticatedRouteChildren {
   AuthenticatedNewRunRoute: typeof AuthenticatedNewRunRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedRunsRoute: typeof AuthenticatedRunsRouteWithChildren
+  AuthenticatedReportsCompareRoute: typeof AuthenticatedReportsCompareRoute
+  AuthenticatedReportsBatchBatchIdRoute: typeof AuthenticatedReportsBatchBatchIdRoute
+  AuthenticatedReportsRunRunIdRoute: typeof AuthenticatedReportsRunRunIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -341,6 +404,9 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNewRunRoute: AuthenticatedNewRunRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedRunsRoute: AuthenticatedRunsRouteWithChildren,
+  AuthenticatedReportsCompareRoute: AuthenticatedReportsCompareRoute,
+  AuthenticatedReportsBatchBatchIdRoute: AuthenticatedReportsBatchBatchIdRoute,
+  AuthenticatedReportsRunRunIdRoute: AuthenticatedReportsRunRunIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -355,3 +421,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
