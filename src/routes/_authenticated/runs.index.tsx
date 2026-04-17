@@ -89,24 +89,65 @@ function RunsPage() {
     };
   }, [runs]);
 
-  const filtered = runs.filter((r) => {
-    if (taskFilter !== ALL && r.task !== taskFilter) return false;
-    if (agentFilter !== ALL && r.agent !== agentFilter) return false;
-    if (caseFilter !== ALL && r.case_name !== caseFilter) return false;
-    if (statusFilter !== ALL && r.status !== statusFilter) return false;
-    const hasGt = Boolean(r.ground_truth_scenario_id) || r.evaluation_against_ground_truth === true;
-    if (gtFilter === GT_ONLY && !hasGt) return false;
-    if (gtFilter === GT_NONE && hasGt) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        r.title.toLowerCase().includes(q) ||
-        r.agent.toLowerCase().includes(q) ||
-        r.task.toLowerCase().includes(q)
-      );
+  const matchRank: Record<string, number> = { exact: 3, partial: 2, none: 1 };
+
+  const filtered = useMemo(() => {
+    const base = runs.filter((r) => {
+      if (taskFilter !== ALL && r.task !== taskFilter) return false;
+      if (agentFilter !== ALL && r.agent !== agentFilter) return false;
+      if (caseFilter !== ALL && r.case_name !== caseFilter) return false;
+      if (statusFilter !== ALL && r.status !== statusFilter) return false;
+      const hasGt = Boolean(r.ground_truth_scenario_id) || r.evaluation_against_ground_truth === true;
+      if (gtFilter === GT_ONLY && !hasGt) return false;
+      if (gtFilter === GT_NONE && hasGt) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          r.title.toLowerCase().includes(q) ||
+          r.agent.toLowerCase().includes(q) ||
+          r.task.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+
+    const gapVal = (r: RunListItem) =>
+      r.optimality_gap == null || !Number.isFinite(r.optimality_gap) ? null : Number(r.optimality_gap);
+    const matchVal = (r: RunListItem) => (r.action_match ? matchRank[r.action_match] ?? 0 : 0);
+
+    const sorted = [...base];
+    switch (sortBy) {
+      case "gap_asc": // best first (smallest / most negative gap = agent matched or beat reference)
+        sorted.sort((a, b) => {
+          const av = gapVal(a), bv = gapVal(b);
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          return av - bv;
+        });
+        break;
+      case "gap_desc": // worst first (largest positive gap)
+        sorted.sort((a, b) => {
+          const av = gapVal(a), bv = gapVal(b);
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          return bv - av;
+        });
+        break;
+      case "match_desc": // best match quality first
+        sorted.sort((a, b) => matchVal(b) - matchVal(a));
+        break;
+      case "match_asc":
+        sorted.sort((a, b) => matchVal(a) - matchVal(b));
+        break;
+      default:
+        sorted.sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
     }
-    return true;
-  });
+    return sorted;
+  }, [runs, taskFilter, agentFilter, caseFilter, statusFilter, gtFilter, search, sortBy]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
