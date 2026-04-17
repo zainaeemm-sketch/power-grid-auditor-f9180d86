@@ -155,3 +155,13 @@ export interface BatchDetails {
 }
 
 export type { JobRecord, JobLog, JobType, JobStatus, JobLogLevel } from "@/server/queue/types";
+
+export type {
+  PerturbationType,
+  RobustnessResult,
+  FeasibilityStability,
+  PerturbationSpec,
+  PerturbationTestRow as PerturbationTest,
+  PerturbationResultRow as PerturbationResult,
+  PerturbationTestWithResult,
+} from "@/server/perturbation/types";
