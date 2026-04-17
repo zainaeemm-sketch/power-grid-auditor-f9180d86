@@ -41,9 +41,31 @@ function SystemStatusPage() {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "job_queue" },
-          () => {
+          (payload) => {
             queryClient.invalidateQueries({ queryKey: ["job-stats"] });
             queryClient.invalidateQueries({ queryKey: ["recent-jobs"] });
+
+            if (payload.eventType === "UPDATE") {
+              const newRow = payload.new as { id?: string; status?: string; job_type?: string; error_message?: string | null } | null;
+              const oldRow = payload.old as { status?: string } | null;
+              if (newRow?.status === "failed" && oldRow?.status !== "failed" && newRow.id) {
+                const jobId = newRow.id;
+                toast.error(`Job failed: ${newRow.job_type ?? "unknown"}`, {
+                  description: newRow.error_message ?? "See logs for details.",
+                  action: {
+                    label: "View logs",
+                    onClick: () => {
+                      setExpanded(jobId);
+                      requestAnimationFrame(() => {
+                        document
+                          .getElementById(`job-row-${jobId}`)
+                          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      });
+                    },
+                  },
+                });
+              }
+            }
           },
         )
         .on(
