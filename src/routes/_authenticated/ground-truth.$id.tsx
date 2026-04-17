@@ -81,7 +81,7 @@ function ScenarioDetailPage() {
         <CardContent className="space-y-3">
           {actions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No reference actions.</p>
-          ) : actions.map((a) => (
+          ) : actions.map((a: typeof actions[number]) => (
             <div key={a.id} className="rounded-md border border-border/40 bg-background/40 p-3 text-xs">
               <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                 <div><span className="text-muted-foreground">type:</span> <span className="font-mono">{a.action_type}</span></div>
