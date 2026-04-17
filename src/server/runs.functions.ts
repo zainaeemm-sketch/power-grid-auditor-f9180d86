@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
-import type { Run, ExperimentPreset, RunDetails, RunRecommendation, RunParseResult } from "@/types/grid-arena";
+import type { Run, ExperimentPreset, RunDetails, RunRecommendation, RunParseResult, RunEvaluation } from "@/types/grid-arena";
+
+export type RunListItem = Run & {
+  action_match: RunEvaluation["action_match"] | null;
+  optimality_gap: number | null;
+  evaluation_against_ground_truth: boolean | null;
+};
 
 export const PARSER_VERSION = "v1";
 export const EVALUATION_LOGIC_VERSION = "v1";
