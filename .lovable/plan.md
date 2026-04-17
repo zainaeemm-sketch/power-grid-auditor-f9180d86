@@ -1,120 +1,74 @@
 
 
-## Plan: Sensitivity / Perturbation Testing Layer
+User confirmed email `zain.naeem@unipa.it` — likely the bootstrap admin. Proceeding with the previously-proposed plan, defaulting open questions:
 
-Build a robustness-testing system that re-evaluates an agent's action under perturbed grid conditions. Additive only — existing flows untouched.
+- **Email**: Use Lovable Cloud's built-in email infrastructure (transactional email scaffold).
+- **Existing users**: Auto-approve all existing users (incl. `zain.naeem@unipa.it`), and ensure this email gets the `admin` role so they can access the admin panel.
+- **Sender domain**: Email-domain setup requires workspace admin permissions and may need DNS verification. Approval flow will work immediately; welcome email goes through the queue and will start delivering once a verified sender domain is configured (Lovable Cloud → Emails).
 
-### 1. Schema (migration)
+## Plan: Admin Approval Flow + Welcome Email
+
+### 1. Migration
 
 ```text
-perturbation_tests
-├─ id uuid pk
-├─ run_id uuid (→ runs.id, user-scoped via RLS EXISTS check)
-├─ perturbation_type text  -- enum-like: increase_load_percent | decrease_load_percent
-│                          --           line_outage | line_restoration
-│                          --           generator_limit_change | generator_dispatch_change
-│                          --           n1_contingency | voltage_setpoint_shift
-├─ parameter_name text
-├─ parameter_value numeric
-├─ description text
-├─ created_at timestamptz default now()
-
-perturbation_results
-├─ id uuid pk
-├─ perturbation_test_id uuid (→ perturbation_tests.id)
-├─ baseline_feasibility text          -- feasible | infeasible | unknown
-├─ perturbed_feasibility text
-├─ baseline_violations int
-├─ perturbed_violations int
-├─ violation_change int               -- perturbed − baseline
-├─ feasibility_stability text         -- unchanged | lost | gained
-├─ robustness_result text             -- stable | degraded | failed
-├─ robustness_score numeric           -- 0..1
+user_approvals
+├─ user_id uuid pk → auth.users(id) ON DELETE CASCADE
+├─ status text default 'pending'   -- pending | approved | rejected
+├─ email text not null
+├─ requested_at timestamptz default now()
+├─ reviewed_at timestamptz
+├─ reviewed_by uuid
 ├─ notes text
-├─ execution_time_ms int
-├─ failure_reason text                -- nullable; populated on test error
-├─ created_at timestamptz default now()
 ```
 
-RLS: user-scoped via `EXISTS (runs WHERE runs.id = perturbation_tests.run_id AND runs.user_id = auth.uid())`. Same pattern for results joined through tests.
+- Trigger `on_auth_user_created` (AFTER INSERT on `auth.users`) → insert pending row.
+- RLS: user can SELECT own row; admin can SELECT/UPDATE all.
+- SECURITY DEFINER fn `is_user_approved(uid)` returns true if approved OR admin.
+- Backfill: all existing `auth.users` → `approved`.
+- Bootstrap admin: insert `user_roles(user_id, 'admin')` for the user whose email = `zain.naeem@unipa.it`.
 
-### 2. Perturbation engine (`src/server/perturbation/`)
+### 2. Auth gating
 
-- `types.ts` — `PerturbationType`, `PerturbationSpec`, `PerturbationResult`.
-- `defaults.ts` — `getDefaultPerturbationSet()` returns: `+5%` load, `−5%` load, `line_outage line_id=0`, `generator_limit_change −10%`, `voltage_setpoint_shift +0.02 pu`.
-- `apply.ts` — `applyPerturbation(caseDef, spec)` returns a mutated case (deep clone). Pure, deterministic.
-- `execute.ts` — orchestrates: load case → apply structured action → baseline eval → for each spec: apply perturbation to case → re-evaluate → compute metrics → write `perturbation_results` (catch per-test errors → record `failure_reason`, continue).
-- Reuses existing `runSimulation` (`src/server/simulation/engine.ts`) and rule-based fallback. Honors run's `evaluation_mode`.
+- Server fn `getApprovalStatus()` → `{status, isAdmin}`.
+- New public route `/pending-approval` (auth-required, NOT under `_authenticated`): shows status + sign-out + realtime listener on `user_approvals` for own row → redirects to `/` once approved.
+- `_authenticated.tsx`: after auth check, fetch approval status; if pending/rejected and not admin → redirect `/pending-approval`.
 
-### 3. Robustness metrics (`src/server/perturbation/metrics.ts`)
+### 3. Admin panel (`src/routes/_authenticated/admin.tsx`)
+
+- `beforeLoad` checks admin role; non-admins → `/`.
+- Tabs: Pending · Approved · Rejected · All.
+- Table: Email · Requested · Status · Reviewed by · Actions (Approve / Reject / Revoke) + notes textarea.
+- New nav link "Admin" (ShieldCheck icon) in `NavHeader.tsx`, visible only when `isAdmin`.
+
+Server fns (`src/server/admin.functions.ts`, all guarded by `has_role`):
+- `listUserApprovals({ status? })`
+- `approveUser({ user_id, notes? })` → updates row, enqueues welcome email
+- `rejectUser({ user_id, notes? })`
+- `revokeUser({ user_id })`
+
+### 4. Welcome email
+
+- Run email infrastructure setup (transactional scaffold) using Lovable Cloud's built-in queue.
+- Create transactional template `welcome.tsx` (React Email) — GridArena branding, link to `/`.
+- `approveUser` enqueues the welcome email; failures are logged in `job_logs` but don't block approval.
+- If sender domain isn't yet verified, surface a notice in the admin panel: "Welcome emails are queued and will send once your sender domain is verified."
+
+### 5. Files
 
 ```text
-violation_change   = perturbed_violations − baseline_violations
-feasibility_stab   = unchanged | lost (feasible→infeasible) | gained (infeasible→feasible)
-robustness_result  = stable    if violation_change ≤ 0 AND feasibility unchanged/gained
-                     degraded  if 0 < violation_change ≤ 2 AND feasibility unchanged
-                     failed    otherwise
-robustness_score   = clamp(1 − (max(0, violation_change) / max(1, baseline_violations)) − (lost?0.5:0), 0, 1)
+supabase/migrations/<ts>_user_approvals.sql
+src/server/admin.functions.ts
+src/routes/_authenticated/admin.tsx
+src/routes/pending-approval.tsx
+src/routes/_authenticated.tsx               (add gate)
+src/components/NavHeader.tsx                (admin link)
+supabase/functions/_shared/email-templates/welcome.tsx
++ transactional email edge function (scaffolded)
 ```
 
-### 4. Server functions (`src/server/perturbation.functions.ts`)
+### 6. Defaults applied
 
-- `listPerturbationTests({ runId })` — tests + their latest result.
-- `runDefaultPerturbations({ runId })` — generate default set + execute.
-- `addCustomPerturbation({ runId, perturbation_type, parameter_name, parameter_value, description? })` — insert + execute one.
-- `runBatchPerturbations({ batchId })` — iterate batch runs, run defaults, return aggregate metrics.
-- `getBatchRobustnessSummary({ batchId })` — avg score, failure rate, worst-case Δviolations, most sensitive scenario (case_name).
-
-### 5. Run Details panel
-
-New component `src/components/run-details/SensitivityPanel.tsx`, mounted in `src/routes/_authenticated/runs.$runId.tsx` below `GroundTruthComparisonPanel` (no layout redesign — same Card/grid pattern as other panels).
-
-Contents:
-- Buttons: **Run Sensitivity Test** (default set), **Add Custom Perturbation** (Dialog: type select / parameter name / value).
-- Table cols: Type · Parameter · Baseline feas. · Perturbed feas. · Δ violations · Robustness (badge stable/degraded/failed).
-- Empty state: "No sensitivity tests executed."
-- Failed-test rows show warning icon + `failure_reason`.
-
-### 6. Batch analytics
-
-In `src/routes/_authenticated/batches.$batchId.tsx` add a "Sensitivity" section (collapsed Card) with:
-- **Run Sensitivity Tests for Batch** button.
-- Stats: avg robustness, failure rate, worst Δ, most sensitive scenario.
-- Charts (recharts, already in project):
-  - Robustness distribution — bar (x: agent, y: avg score).
-  - Feasibility stability — pie (stable/degraded/failed).
-  - Sensitivity heatmap — simple grid (rows: perturbation type, cols: scenario, cell color by Δviolations) implemented with Tailwind div grid (no extra dep).
-
-### 7. CSV export (`src/lib/csv-export.ts`)
-
-- Add `exportSensitivityCsv(runId)` → `sensitivity_run_{runId}.csv` with columns: `perturbation_type, parameter_name, parameter_value, baseline_feasibility, perturbed_feasibility, violation_change, robustness_result, robustness_score, failure_reason`.
-- Add `exportBatchSensitivityCsv(batchId)` → `batch_sensitivity_{batchId}.csv` (run_id, case_name, agent + same fields).
-- Wire export buttons into the new panels.
-
-### 8. Types
-
-Extend `src/types/grid-arena.ts` with `PerturbationTest`, `PerturbationResult`, `PerturbationType`, `RobustnessResult`, `FeasibilityStability`.
-
-### 9. Determinism & backward compat
-
-- Engine never mutates inputs; uses deterministic ordering of default set; no randomness.
-- All new tables/panels are additive. If no perturbation rows exist, run details renders the empty-state message and existing evaluation flow is unchanged.
-
-### Step order during implementation
-
-1. Migration (tables + RLS).
-2. `types.ts` + `defaults.ts` + `apply.ts` + `metrics.ts`.
-3. `execute.ts` + server functions.
-4. `SensitivityPanel` + mount in run details.
-5. Batch section + charts.
-6. CSV exports.
-7. Build + invoke server fns to verify.
-
-### Open defaults (will use unless told otherwise)
-
-- Robustness thresholds as above (0 / 2 violation_change boundaries).
-- Default `line_outage` targets line index 0 (first line of case).
-- `voltage_setpoint_shift` value = +0.02 pu.
-- Custom perturbations execute immediately on add.
-- Batch runs perturbations sequentially in one server call (no job queue) — fine for current batch sizes; can move to `job_queue` later if needed.
+- Existing users auto-approved; `zain.naeem@unipa.it` granted admin role.
+- Welcome email is fire-and-forget; approval succeeds even if email fails.
+- Rejected users see "Account not approved" + sign-out only.
 
