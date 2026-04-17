@@ -139,7 +139,7 @@ function SystemStatusPage() {
       }
       if (channel) supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, router]);
 
   const handleReconnectNow = () => {
     reconnectNowRef.current();
