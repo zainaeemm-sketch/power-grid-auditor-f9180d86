@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Activity, Download } from "lucide-react";
+import { Activity, Download, FileText } from "lucide-react";
+import { BatchPerturbationJobsDialog } from "./BatchPerturbationJobsDialog";
 import {
   runBatchPerturbations,
   getBatchRobustnessSummary,
@@ -32,6 +33,7 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
   const [summary, setSummary] = useState<BatchRobustnessSummary | null>(null);
   const [progress, setProgress] = useState<BatchPerturbationProgress | null>(null);
   const [enqueueing, setEnqueueing] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
   const prevPendingRef = useRef<number | null>(null);
 
   const refreshSummary = async () => {
@@ -137,6 +139,10 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
           <Button size="sm" variant="outline" onClick={handleRun} disabled={enqueueing || pending > 0}>
             {pending > 0 ? "Running…" : "Run Sensitivity Tests for Batch"}
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setLogsOpen(true)}>
+            <FileText className="mr-1 h-3.5 w-3.5" />
+            Job Logs
+          </Button>
           <Button
             size="sm" variant="outline"
             onClick={() => summary && exportBatchSensitivityCsv(batchId, summary)}
@@ -147,6 +153,7 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
           </Button>
         </div>
       </CardHeader>
+      <BatchPerturbationJobsDialog batchId={batchId} open={logsOpen} onOpenChange={setLogsOpen} />
       <CardContent>
         {progress && progress.total > 0 && pending > 0 && (
           <div className="mb-4 rounded border border-border/60 bg-background/40 p-3">
