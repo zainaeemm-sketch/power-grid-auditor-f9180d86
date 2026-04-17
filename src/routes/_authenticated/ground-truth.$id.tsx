@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Globe, Lock } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getScenario, deleteScenario } from "@/server/ground-truth.functions";
@@ -32,14 +32,15 @@ export const Route = createFileRoute("/_authenticated/ground-truth/$id")({
 });
 
 function ScenarioDetailPage() {
-  const data = Route.useLoaderData() as GroundTruthScenarioWithActions | null;
+  const data = Route.useLoaderData() as (GroundTruthScenarioWithActions & { is_owner: boolean; isAdmin: boolean }) | null;
   const navigate = useNavigate();
   const deleteFn = useServerFn(deleteScenario);
 
   if (!data) {
     return <main className="mx-auto max-w-4xl px-4 py-8"><p className="text-muted-foreground">Loading…</p></main>;
   }
-  const { scenario, actions } = data;
+  const { scenario, actions, is_owner, isAdmin } = data;
+  const canModify = is_owner || isAdmin;
 
   const handleDelete = async () => {
     if (!confirm("Delete this scenario and all its reference actions?")) return;
@@ -58,23 +59,31 @@ function ScenarioDetailPage() {
         <Button variant="outline" size="sm" asChild>
           <Link to="/ground-truth"><ArrowLeft className="mr-1.5 h-3.5 w-3.5" />Back</Link>
         </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/ground-truth/edit/$id" params={{ id: scenario.id }}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />Edit
-            </Link>
-          </Button>
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />Delete
-          </Button>
-        </div>
+        {canModify && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/ground-truth/edit/$id" params={{ id: scenario.id }}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />Edit
+              </Link>
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />Delete
+            </Button>
+          </div>
+        )}
       </div>
 
       <Card className="mb-4 border-border/40 bg-card/60">
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl">
             <span className="font-mono text-primary">{scenario.scenario_id}</span>
+            {scenario.is_public ? (
+              <Badge variant="default" className="gap-1"><Globe className="h-3 w-3" />Shared</Badge>
+            ) : (
+              <Badge variant="secondary" className="gap-1"><Lock className="h-3 w-3" />Private</Badge>
+            )}
             <Badge variant="outline">{scenario.difficulty_level}</Badge>
+            {!is_owner && <Badge variant="outline" className="text-xs">read-only</Badge>}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
