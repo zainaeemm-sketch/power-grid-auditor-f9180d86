@@ -14,14 +14,24 @@ export const EVALUATION_LOGIC_VERSION = "v1";
 
 export const listRuns = createServerFn({ method: "GET" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ runs: Run[] }> => {
+  .handler(async ({ context }): Promise<{ runs: RunListItem[] }> => {
     const { data, error } = await context.supabase
       .from("runs")
-      .select("*")
+      .select("*, run_evaluations(action_match, optimality_gap, evaluation_against_ground_truth)")
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(`Failed to fetch runs: ${error.message}`);
-    return { runs: data ?? [] };
+    const runs: RunListItem[] = (data ?? []).map((r: any) => {
+      const ev = Array.isArray(r.run_evaluations) ? r.run_evaluations[0] : r.run_evaluations;
+      const { run_evaluations, ...rest } = r;
+      return {
+        ...rest,
+        action_match: ev?.action_match ?? null,
+        optimality_gap: ev?.optimality_gap ?? null,
+        evaluation_against_ground_truth: ev?.evaluation_against_ground_truth ?? null,
+      };
+    });
+    return { runs };
   });
 
 export const getRun = createServerFn({ method: "GET" })
