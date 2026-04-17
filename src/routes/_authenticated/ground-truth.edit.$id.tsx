@@ -167,6 +167,15 @@ function EditScenarioPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center justify-between rounded-md border border-border/40 px-3 py-2">
+              <div>
+                <Label className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" />Shared with all researchers</Label>
+                <p className="text-xs text-muted-foreground">
+                  {canTogglePublic ? "Public scenarios are visible to every signed-in user." : "Only admins can toggle sharing."}
+                </p>
+              </div>
+              <Switch checked={isPublic} onCheckedChange={setIsPublic} disabled={!canTogglePublic} />
+            </div>
           </CardContent>
         </Card>
 
