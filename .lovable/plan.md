@@ -1,92 +1,101 @@
 
-## Layer B: Real Power-System Simulation Integration
+## Layer C: Performance Optimization & Scaling
 
-### Audit & key constraint
+### Audit & constraint
+- Workers are short-lived (no long-running background workers, no in-memory queue across requests). Current `executeBatchRuns` is synchronous, capped at concurrency 3 via `runWithConcurrency`. UI polls via Supabase queries.
+- We must implement the "queue" using the database as the source of truth — every job is a row, workers (server fns) claim and process them. This is the only Worker-compatible pattern.
 
-Current evaluation (`src/server/evaluation.functions.ts`) returns hand-coded numbers (e.g. baseline=10, post=8 for `scale_all_loads<1`). Action types in scope: `scale_all_loads`, `set_generator_p_mw`, `line_outage`. No simulation.
+### Step 1 — Schema (one migration)
 
-**Hard constraint**: GridArena's server runs on Cloudflare Workers (TanStack Start SSR). **pandapower / MATPOWER / PowerModels.jl / GridLAB-D all require Python, MATLAB, Julia or C++ runtimes with native binaries — none can execute inside a Worker.** Running them in-process is not possible.
+**`job_queue`** — durable queue of background jobs:
+- `id uuid pk`, `user_id uuid not null`
+- `job_type text` (`run_execution` | `batch_execution`)
+- `payload jsonb` (e.g. `{run_id}` or `{batch_id}`)
+- `status text` (`queued | running | completed | failed | cancelled`) default `queued`
+- `priority int default 0`
+- `attempts int default 0`, `max_attempts int default 3`
+- `started_at timestamptz`, `completed_at timestamptz`
+- `execution_time_ms int`, `error_message text`
+- `worker_id text` (lease holder), `lease_expires_at timestamptz`
+- `created_at`, `updated_at`
 
-### Architectural decision
+**`job_logs`** — execution + error logs + perf metrics:
+- `id`, `job_id` (fk by id, no constraint), `level text` (`info | warn | error | metric`), `message text`, `metadata jsonb`, `created_at`
 
-Two viable approaches; both keep evaluation modular and rule-based fallback intact:
+RLS: user-scoped on both. Indexes on `(status, priority, created_at)` and `(job_id, created_at)`.
 
-- **A. External pandapower microservice (recommended)** — separate Python FastAPI service (hosted anywhere: Fly.io, Render, Hugging Face Space, user's machine). Worker calls it over HTTPS. The repo includes the Python source under `simulation-service/` so the user can deploy or run locally.
-- **B. In-Worker JS approximation** — port a tiny DC power-flow solver to TypeScript for the small built-in cases (`case5`, `case14`, `case30`). Physics-correct for DC flow only (no voltage magnitudes, no AC violations). Lower fidelity but zero ops overhead.
+### Step 2 — Queue helpers (`src/server/queue/`)
 
-I'll use **a tiered system**: try external simulator first → fall back to JS DC power flow → fall back to existing rule-based logic. The user picks the preferred mode per-run; system advertises which engine actually executed.
+- `types.ts` — `JobType`, `JobStatus`, `JobRecord`, `JobLog`.
+- `queue.ts` server fns:
+  - `enqueueJob({job_type, payload, priority?, max_attempts?})` — inserts row, returns id.
+  - `claimNextJobs({limit, lease_seconds=60})` — atomic SQL update via RPC: select `queued` or expired-lease rows, set `status='running'`, `worker_id`, `lease_expires_at`. Uses `SELECT … FOR UPDATE SKIP LOCKED` in a SECURITY DEFINER Postgres function created in the migration.
+  - `completeJob(id, {execution_time_ms})`, `failJob(id, error, retryable)` — increments attempts; if `attempts < max_attempts` reverts to `queued`, else marks `failed`.
+  - `cancelJob(id)`, `retryJob(id)`.
+  - `appendJobLog(id, level, message, metadata?)`.
+- `worker.ts`:
+  - `processJobBatch({limit=3, timeout_ms=20000})` — server fn: claims up to N jobs, dispatches by `job_type` with `Promise.race` against per-job timeout, logs metrics, releases lease. Reuses existing `executeRunLlm` and inline batch logic (no recursive enqueue).
 
-### Step 1 — Database additions (one migration)
+### Step 3 — Trigger mechanism
 
-- `run_metadata.evaluation_mode text default 'rule_based'` — values: `rule_based | simulation | auto`.
-- `run_evaluations.engine_used text` — what actually ran: `rule_based | dc_powerflow | pandapower`.
-- `run_evaluations.simulation_details jsonb` — raw line loadings, voltage magnitudes, generator outputs, violation list.
+Workers can't have always-on background processes, so we use **two triggers**:
+1. **Client-side drain loop**: when a user enqueues a batch, the UI calls `processJobBatch` repeatedly (every 5s) until queue is empty for that user. Already-open browsers also drain. Non-blocking — uses background `fetch` + React Query invalidation.
+2. **Cron drain (optional, recommended)**: `pg_cron` job every minute calls a `/hooks/process-jobs` route that runs `processJobBatch`. This guarantees jobs progress even when no UI is open. Uses bearer token auth pattern from skill docs.
 
-No table renames; existing rows default cleanly.
+### Step 4 — Refactor batch execution
 
-### Step 2 — Simulator abstraction
+- `executeBatchRuns` (existing) → enqueues one `run_execution` job per pending run, returns immediately with `{enqueued: N}`. UI no longer waits for completion.
+- New per-run worker calls `executeRunLlm` with timeout (15s default) + retry on transient errors (already in `withRetry`). On non-retryable failure the run remains in `queued` (existing convention) and the job is marked `failed` after max attempts.
+- Keeps existing `runWithConcurrency` cap inside one worker invocation; horizontal scale comes from cron + multiple browsers triggering drains.
 
-New `src/server/simulation/` module:
-- `types.ts` — `PowerSystemCase`, `StructuredAction`, `SimulationResult { feasibility, violations_found, baseline_violations, post_action_violations, line_loadings[], voltage_violations[], generator_violations[], engine }`.
-- `cases.ts` — embedded JSON for `case5`, `case14`, `case30` (bus/branch/gen arrays, IEEE standard data).
-- `dc-powerflow.ts` — pure TypeScript DC power-flow solver (B·θ = P, Gauss elimination on small matrices), applies action, returns line loadings & violation counts.
-- `external-client.ts` — POSTs `{case_name, action}` to `process.env.SIMULATION_SERVICE_URL` with `SIMULATION_SERVICE_TOKEN` auth header; 10s timeout; one retry on 5xx.
-- `engine.ts` — `runSimulation(caseName, action, mode)` orchestrator implementing the tiered fallback chain and returning the engine actually used.
+### Step 5 — `/system-status` dashboard
 
-### Step 3 — Python microservice scaffold
+New route `src/routes/_authenticated/system-status.tsx`:
+- KPI cards: Active (running) / Queued / Completed (24h) / Failed (24h) / Avg execution time (ms).
+- Live-updating table of recent jobs (last 50) with status badges, attempts, duration.
+- Per-row actions: **Cancel** (queued/running), **Retry** (failed). Uses `cancelJob`/`retryJob`.
+- Expandable row → recent `job_logs` (info/warn/error/metric).
+- "Process queue now" button → calls `processJobBatch` manually for ops use.
+- Auto-refresh every 5s via React Query.
+- Add "System Status" nav link in `NavHeader` (icon: `Activity`).
 
-New top-level `simulation-service/` (not bundled into the Worker — separate deploy):
-- `main.py` — FastAPI app, single `POST /simulate` endpoint accepting `{case_name, action}`.
-- `pandapower_runner.py` — loads `pp.networks.case5/case14/case30`, applies action, runs `pp.runpp`, returns violations.
-- `requirements.txt`, `Dockerfile`, `README.md` with deploy instructions for Fly.io / Render / local.
-- Token auth via `SIMULATION_API_TOKEN` env var.
+### Step 6 — Resource limits
 
-### Step 4 — Wire into evaluation
+- **Per-job timeout**: `Promise.race` with `setTimeout` reject inside worker. Default 15s (`run_execution`), configurable via job payload.
+- **Memory**: enforced by Worker runtime; we add a soft guard by limiting `processJobBatch` concurrency to 3 and capping `claimNextJobs` limit.
+- **Retry limits**: `max_attempts` column (default 3); exponential backoff handled by reschedule delay (`lease_expires_at + attempt * 5s`).
 
-Refactor `src/server/evaluation.functions.ts`:
-- Keep `applyParsedAction` & `computeEvaluation` as the **rule-based fallback path**, unchanged signature.
-- New `evaluateWithSimulation(parseResult, mode)` calls `runSimulation`; on success returns full evaluation fields + `engine_used` + `simulation_details`; on failure returns rule-based result with `engine_used='rule_based'`.
-- `evaluateRun` and `reparseAndEvaluate` server fns read `run_metadata.evaluation_mode` and dispatch accordingly. `executeRunLlm` flow unchanged otherwise.
+### Step 7 — Logging
 
-### Step 5 — UI: mode selection + status indicator
+- Every state transition emits a `job_logs` row (`info`).
+- Worker emits `metric` rows with `{phase, duration_ms}` for `claim`, `dispatch`, `total`.
+- Errors logged with stack trace truncated to 1KB.
+- Old logs pruned by daily `pg_cron` `DELETE FROM job_logs WHERE created_at < now() - interval '7 days'`.
 
-- **New Run / Presets forms** (`src/routes/_authenticated/new-run.tsx`, `presets.tsx`): add `Evaluation Mode` select (Rule-based / Simulation / Auto). Persists to `experiment_presets` and `run_metadata`.
-- **Run details** (`src/components/run-details/ResultsSummaryPanel.tsx`): show `Engine Used` badge (green=pandapower, blue=dc_powerflow, slate=rule_based) and an expandable "Simulation Details" panel listing per-line loadings & voltage violations when `simulation_details` is present.
-- **Health page** (`src/routes/_authenticated/health.tsx`): add "Simulation Engine" row that pings `${SIMULATION_SERVICE_URL}/health` → `active | fallback | unavailable` with latency.
-- **NavHeader** (`src/components/HealthBadge.tsx`): include simulator status in the badge tooltip.
+### Step 8 — Wire UI updates
 
-### Step 6 — Validation suite extension
-
-Add `simulation` test cases to `src/lib/validation/test-cases.ts`: known case + action → expected violation count from DC solver. Confirms the JS fallback is deterministic.
-
-### Step 7 — Secret request
-
-After approval, I'll request two secrets via `add_secret`:
-- `SIMULATION_SERVICE_URL` (optional — if absent, system silently uses DC fallback)
-- `SIMULATION_SERVICE_TOKEN` (optional)
-
-The user can deploy `simulation-service/` later without code changes.
+- `batches.$batchId.tsx`: "Run Batch" now calls enqueue + starts a 5s drain loop hook (`useJobDrain`) that pings `processJobBatch` until the batch's runs are all completed/failed. Existing per-row status display works unchanged (run statuses still update via Supabase query).
+- New shared hook `src/hooks/useJobDrain.ts` — handles drain timing, abort on unmount, exponential backoff when queue is empty.
 
 ### Files
 
 **Created**
-- `supabase/migrations/<ts>_simulation_fields.sql`
-- `src/server/simulation/{types,cases,dc-powerflow,external-client,engine}.ts`
-- `simulation-service/{main.py,pandapower_runner.py,requirements.txt,Dockerfile,README.md}`
+- `supabase/migrations/<ts>_job_queue.sql` (tables, RLS, `claim_jobs` SECURITY DEFINER function, indexes, optional pg_cron registration via insert tool after approval)
+- `src/server/queue/{types,queue,worker}.ts`
+- `src/routes/hooks/process-jobs.ts` (cron-triggered drain endpoint)
+- `src/routes/_authenticated/system-status.tsx`
+- `src/hooks/useJobDrain.ts`
 
 **Modified**
-- `src/server/evaluation.functions.ts` (tiered dispatch, fallback)
-- `src/server/llm.functions.ts` (pass evaluation_mode through)
-- `src/server/health.functions.ts` (simulator health probe)
-- `src/server/runs.functions.ts` (persist evaluation_mode from preset)
-- `src/routes/_authenticated/new-run.tsx`, `presets.tsx` (mode selector)
-- `src/routes/_authenticated/health.tsx` (simulator row)
-- `src/components/run-details/ResultsSummaryPanel.tsx` (engine badge + details)
-- `src/components/HealthBadge.tsx` (include simulator)
-- `src/types/grid-arena.ts` (extend `RunEvaluation` with `engine_used`, `simulation_details`)
+- `src/server/batch.functions.ts` — `executeBatchRuns` enqueues instead of awaiting
+- `src/components/NavHeader.tsx` — add System Status link
+- `src/routes/_authenticated/batches.$batchId.tsx` — use `useJobDrain`, show queue progress
+- `src/types/grid-arena.ts` — add `JobRecord`, `JobLog`
+- `src/integrations/supabase/types.ts` (auto-regenerated)
 - `.lovable/memory/index.md`, `.lovable/memory/features/db-schema.md`
 
 ### Stability & determinism
-- DC solver is deterministic (no RNG). External simulator is deterministic for fixed inputs (pandapower Newton-Raphson on fixed networks).
-- Existing rule-based path remains as final fallback — no run can ever lose evaluation.
-- All changes additive; old runs without new fields render as before (engine badge hidden).
+- All changes additive. Old single-run path (`executeRunLlm` direct call from new-run.tsx) untouched; users can still execute a single run synchronously.
+- Failure of the queue subsystem can't corrupt runs — runs remain authoritative; jobs are pure orchestration metadata.
+- Lease + `SKIP LOCKED` prevents double-processing across concurrent drains.
+- After approval I'll request whether to enable the optional `pg_cron` drain (requires running an insert-tool SQL with the project anon key).
