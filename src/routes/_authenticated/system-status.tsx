@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,8 +25,34 @@ function statusVariant(s: string): "default" | "secondary" | "destructive" | "ou
 
 function SystemStatusPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [draining, setDraining] = useState(false);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("job_queue_status")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "job_queue" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["job-stats"] });
+          queryClient.invalidateQueries({ queryKey: ["recent-jobs"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "job_logs" },
+        (payload) => {
+          const jobId = (payload.new as { job_id?: string } | null)?.job_id;
+          if (jobId) queryClient.invalidateQueries({ queryKey: ["job-logs", jobId] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const stats = useQuery({
     queryKey: ["job-stats"],
