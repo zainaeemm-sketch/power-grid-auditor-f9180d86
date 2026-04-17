@@ -61,12 +61,20 @@ export const getBatchDetails = createServerFn({ method: "GET" })
       .select("*")
       .in("run_id", runIds);
 
+    const { data: metadatas } = await (supabase as any)
+      .from("run_metadata")
+      .select("*")
+      .in("run_id", runIds);
+
     const evalMap = new Map<string, RunEvaluation>();
     (evaluations ?? []).forEach((e: RunEvaluation) => evalMap.set(e.run_id, e));
+    const metaMap = new Map<string, any>();
+    (metadatas ?? []).forEach((m: any) => metaMap.set(m.run_id, m));
 
     const batchRuns: BatchRunWithEvaluation[] = (runs ?? []).map((run) => ({
       run,
       evaluation: evalMap.get(run.id) ?? null,
+      metadata: metaMap.get(run.id) ?? null,
     }));
 
     return { batch: batch as Batch, runs: batchRuns };
