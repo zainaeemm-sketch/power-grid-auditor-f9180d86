@@ -116,9 +116,10 @@ function SystemStatusPage() {
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Activity className="h-5 w-5 text-primary" />
           <h1 className="text-2xl font-bold">System Status</h1>
+          <LiveIndicator status={liveStatus} />
         </div>
         <Button onClick={handleProcessNow} disabled={draining} size="sm">
           {draining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
