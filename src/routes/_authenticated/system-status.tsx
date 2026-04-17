@@ -46,7 +46,7 @@ function SystemStatusPage() {
             queryClient.invalidateQueries({ queryKey: ["recent-jobs"] });
 
             if (payload.eventType === "UPDATE") {
-              const newRow = payload.new as { id?: string; status?: string; job_type?: string; error_message?: string | null } | null;
+              const newRow = payload.new as { id?: string; status?: string; job_type?: string; error_message?: string | null; payload?: { run_id?: string } | null } | null;
               const oldRow = payload.old as { status?: string } | null;
               if (newRow?.status === "failed" && oldRow?.status !== "failed" && newRow.id) {
                 const jobId = newRow.id;
@@ -63,6 +63,17 @@ function SystemStatusPage() {
                       });
                     },
                   },
+                });
+              }
+              if (newRow?.status === "completed" && oldRow?.status !== "completed" && newRow.id) {
+                const runId = newRow.payload?.run_id;
+                toast.success(`Job completed: ${newRow.job_type ?? "unknown"}`, {
+                  action: runId
+                    ? {
+                        label: "View result",
+                        onClick: () => router.navigate({ to: "/runs/$runId", params: { runId } }),
+                      }
+                    : undefined,
                 });
               }
             }
