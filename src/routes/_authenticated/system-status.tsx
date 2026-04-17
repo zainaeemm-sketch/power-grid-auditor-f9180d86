@@ -27,24 +27,12 @@ function SystemStatusPage() {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [draining, setDraining] = useState(false);
-  const [liveStatus, setLiveStatus] = useState<LiveStatus>("connecting");
-  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const reconnectAttemptRef = useRef(0);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectNowRef = useRef<() => void>(() => {});
 
-  useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    let cancelled = false;
-
-    const connect = () => {
-      if (cancelled) return;
-      setLiveStatus("connecting");
-
-      channel = supabase
-        .channel(`job_queue_status_${Date.now()}`)
+  const setupChannel = useCallback(
+    (channel: RealtimeChannel) =>
+      channel
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "job_queue" },
@@ -93,63 +81,17 @@ function SystemStatusPage() {
             const jobId = (payload.new as { job_id?: string } | null)?.job_id;
             if (jobId) queryClient.invalidateQueries({ queryKey: ["job-logs", jobId] });
           },
-        )
-        .subscribe((status) => {
-          if (cancelled) return;
-          if (status === "SUBSCRIBED") {
-            setLiveStatus("live");
-            reconnectAttemptRef.current = 0;
-            setReconnectAttempt(0);
-          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-            setLiveStatus("disconnected");
-            scheduleReconnect();
-          } else {
-            setLiveStatus("connecting");
-          }
-        });
-    };
+        ),
+    [queryClient, router],
+  );
 
-    const scheduleReconnect = () => {
-      if (cancelled || reconnectTimerRef.current) return;
-      const attempt = reconnectAttemptRef.current + 1;
-      reconnectAttemptRef.current = attempt;
-      setReconnectAttempt(attempt);
-      // Exponential backoff: 1s, 2s, 4s, 8s, 16s, capped at 30s, with jitter
-      const base = Math.min(1000 * 2 ** (attempt - 1), 30000);
-      const delay = base + Math.random() * 500;
-      reconnectTimerRef.current = setTimeout(() => {
-        reconnectTimerRef.current = null;
-        if (channel) supabase.removeChannel(channel);
-        connect();
-      }, delay);
-    };
-
-    reconnectNowRef.current = () => {
-      if (cancelled) return;
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-      reconnectAttemptRef.current = 0;
-      setReconnectAttempt(0);
-      if (channel) supabase.removeChannel(channel);
-      connect();
-    };
-
-    connect();
-
-    return () => {
-      cancelled = true;
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [queryClient, router]);
+  const { status: liveStatus, reconnectAttempt, reconnectNow } = useRealtimeChannel({
+    channelName: "job_queue_status",
+    setup: setupChannel,
+  });
 
   const handleReconnectNow = () => {
-    reconnectNowRef.current();
+    reconnectNow();
     toast.success("Reconnecting realtime channel…");
   };
 
