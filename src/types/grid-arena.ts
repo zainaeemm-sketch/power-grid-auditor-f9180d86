@@ -27,6 +27,22 @@ export interface RunParseResult {
   updated_at: string;
 }
 
+export type SimulationEngine = "rule_based" | "dc_powerflow" | "pandapower";
+
+export interface SimulationDetails {
+  line_loadings?: Array<{
+    branch_index: number;
+    from_bus: number;
+    to_bus: number;
+    flow_mw: number;
+    rate_mw: number;
+    loading_pct: number;
+    overloaded: boolean;
+  }>;
+  voltage_violations?: Array<{ bus_index: number; vm_pu: number; type: "low" | "high" }>;
+  generator_violations?: Array<{ generator_index: number; bus: number; p_mw: number; type: "below_min" | "above_max" }>;
+}
+
 export interface RunEvaluation {
   id: string;
   run_id: string;
@@ -39,6 +55,8 @@ export interface RunEvaluation {
   grounding_quality: string;
   action_applied: string;
   notes: string | null;
+  engine_used?: SimulationEngine | null;
+  simulation_details?: SimulationDetails | null;
   created_at: string;
   updated_at: string;
 }

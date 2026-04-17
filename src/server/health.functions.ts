@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
+import { pingExternalSimulator } from "./simulation/external-client";
 
 /**
  * Lightweight health check returning only booleans about secret presence.
@@ -13,6 +14,12 @@ export interface HealthStatus {
   hasBaseUrl: boolean;
   hasModel: boolean;
   llmConfigured: boolean;
+  simulator: {
+    state: "active" | "fallback" | "unavailable";
+    url: string | null;
+    latency_ms: number | null;
+    error: string | null;
+  };
   timestamp: string;
 }
 
@@ -38,6 +45,13 @@ export const getHealthStatus = createServerFn({ method: "GET" })
     const hasBaseUrl = !!process.env.OPENAI_BASE_URL;
     const hasModel = !!process.env.OPENAI_MODEL;
 
+    const sim = await pingExternalSimulator();
+    const simState: HealthStatus["simulator"]["state"] = sim.available
+      ? "active"
+      : sim.url
+        ? "fallback"
+        : "fallback"; // DC fallback is always available in-Worker
+
     return {
       database,
       databaseError,
@@ -45,6 +59,12 @@ export const getHealthStatus = createServerFn({ method: "GET" })
       hasBaseUrl,
       hasModel,
       llmConfigured: hasApiKey && hasBaseUrl,
+      simulator: {
+        state: simState,
+        url: sim.url,
+        latency_ms: sim.latency_ms,
+        error: sim.error,
+      },
       timestamp: new Date().toISOString(),
     };
   });

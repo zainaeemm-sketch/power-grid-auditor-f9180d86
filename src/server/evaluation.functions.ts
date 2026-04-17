@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 import type { RunParseResult, RunEvaluation } from "@/types/grid-arena";
+import { runSimulation } from "./simulation/engine";
+import type { EvaluationMode, SimulationEngine, SimulationResult } from "./simulation/types";
 
 interface ActionResult {
   action_applied: string;
@@ -19,6 +21,8 @@ interface EvaluationFields {
   grounding_quality: string;
   action_applied: string;
   notes: string;
+  engine_used?: SimulationEngine;
+  simulation_details?: any;
 }
 
 export function applyParsedAction(parseResult: RunParseResult | null): ActionResult {
@@ -94,7 +98,58 @@ export function computeEvaluation(parseResult: RunParseResult | null, actionResu
     grounding_quality: grounding,
     action_applied: actionResult.action_applied,
     notes: actionResult.application_notes,
+    engine_used: "rule_based",
   };
+}
+
+/**
+ * Combined evaluator: tries the simulation engine first (per the requested mode),
+ * then falls back to the deterministic rule-based path. Always returns a complete
+ * EvaluationFields result.
+ */
+export async function evaluateWithSimulation(
+  parseResult: RunParseResult | null,
+  caseName: string,
+  mode: EvaluationMode,
+): Promise<EvaluationFields> {
+  const actionResult = applyParsedAction(parseResult);
+
+  if (mode !== "rule_based" && parseResult && actionResult.application_status !== "failed") {
+    const sim: SimulationResult | null = await runSimulation(
+      caseName,
+      {
+        action_type: parseResult.action_type,
+        target_index: parseResult.target_index,
+        value: parseResult.value,
+        enabled: parseResult.enabled,
+      },
+      mode,
+    );
+
+    if (sim) {
+      const grounding = parseResult.source_text ? "grounded" : "ungrounded";
+      return {
+        feasibility: sim.feasibility,
+        violations_found: sim.violations_found,
+        baseline_violations: sim.baseline_violations,
+        post_action_violations: sim.post_action_violations,
+        violation_improvement: sim.violation_improvement,
+        confidence: "high",
+        grounding_quality: grounding,
+        action_applied: actionResult.action_applied,
+        notes: `${actionResult.application_notes} ${sim.notes}`.trim(),
+        engine_used: sim.engine,
+        simulation_details: {
+          line_loadings: sim.line_loadings,
+          voltage_violations: sim.voltage_violations,
+          generator_violations: sim.generator_violations,
+        },
+      };
+    }
+    // simulation requested but unavailable → fall through to rule-based
+  }
+
+  return computeEvaluation(parseResult, actionResult);
 }
 
 export const evaluateRun = createServerFn({ method: "POST" })
@@ -110,8 +165,17 @@ export const evaluateRun = createServerFn({ method: "POST" })
       .eq("run_id", runId)
       .maybeSingle();
 
-    const actionResult = applyParsedAction(parseResult as RunParseResult | null);
-    const evalFields = computeEvaluation(parseResult as RunParseResult | null, actionResult);
+    const { data: run } = await (supabase as any)
+      .from("runs").select("case_name").eq("id", runId).single();
+    const { data: meta } = await (supabase as any)
+      .from("run_metadata").select("evaluation_mode").eq("run_id", runId).maybeSingle();
+    const mode: EvaluationMode = (meta?.evaluation_mode as EvaluationMode) || "rule_based";
+
+    const evalFields = await evaluateWithSimulation(
+      parseResult as RunParseResult | null,
+      run?.case_name ?? "",
+      mode,
+    );
 
     const { data: existing } = await (supabase as any)
       .from("run_evaluations")
@@ -166,10 +230,14 @@ export const reparseAndEvaluate = createServerFn({ method: "POST" })
       await (supabase as any).from("run_parse_results").insert({ run_id, ...parseResult });
     }
 
-    // Compute evaluation
+    const { data: run } = await (supabase as any)
+      .from("runs").select("case_name").eq("id", run_id).single();
+    const { data: meta } = await (supabase as any)
+      .from("run_metadata").select("evaluation_mode").eq("run_id", run_id).maybeSingle();
+    const mode: EvaluationMode = (meta?.evaluation_mode as EvaluationMode) || "rule_based";
+
     const fullParseResult = { ...parseResult, id: "", run_id, created_at: "", updated_at: "" } as RunParseResult;
-    const actionResult = applyParsedAction(fullParseResult);
-    const evalFields = computeEvaluation(fullParseResult, actionResult);
+    const evalFields = await evaluateWithSimulation(fullParseResult, run?.case_name ?? "", mode);
 
     const { data: existingEval } = await (supabase as any)
       .from("run_evaluations")
