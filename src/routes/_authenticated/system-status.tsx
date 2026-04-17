@@ -202,6 +202,7 @@ function SystemStatusPage() {
   };
 
   const jobList = (jobs.data?.jobs ?? []) as JobRecord[];
+  const filteredJobs = statusFilter === "all" ? jobList : jobList.filter((j) => j.status === statusFilter);
   const logList = (logs.data?.logs ?? []) as JobLog[];
 
   return (
