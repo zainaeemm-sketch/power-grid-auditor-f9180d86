@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@tanstack/react-router";
 import { Download, RotateCw } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
@@ -62,7 +63,16 @@ function RunDetailPage() {
   if (!run) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <p className="text-muted-foreground">Loading run details…</p>
+        <Skeleton className="mb-4 h-8 w-2/3" />
+        <Skeleton className="mb-6 h-4 w-1/3" />
+        <Skeleton className="mb-4 h-14 w-full" />
+        <Skeleton className="mb-4 h-32 w-full" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
       </main>
     );
   }

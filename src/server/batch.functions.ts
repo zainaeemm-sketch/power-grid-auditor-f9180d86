@@ -231,22 +231,30 @@ export const executeBatchRuns = createServerFn({ method: "POST" })
     const pendingRunIds = (runs ?? []).map((r) => r.id);
     const results: Array<{ run_id: string; success: boolean; error?: string }> = [];
 
-    // Execute sequentially
+    // Execute with bounded concurrency so one slow/failed run doesn't stall the batch
+    // and the Worker timeout isn't exceeded for big batches.
     const { executeRunLlm } = await import("./llm.functions");
+    const { runWithConcurrency } = await import("@/lib/server-utils");
 
-    for (const runId of pendingRunIds) {
-      try {
-        const res = await executeRunLlm({ data: { run_id: runId } });
-        results.push({ run_id: runId, success: res.success });
-        if (!res.success) {
-          results[results.length - 1].error = res.error;
+    const settled = await runWithConcurrency(
+      pendingRunIds,
+      async (runId) => {
+        try {
+          const res = await executeRunLlm({ data: { run_id: runId } });
+          return { run_id: runId, success: res.success, error: res.success ? undefined : res.error };
+        } catch (err: any) {
+          return { run_id: runId, success: false, error: err?.message ?? "Unknown error" };
         }
-      } catch (err: any) {
-        results.push({ run_id: runId, success: false, error: err.message });
-      }
+      },
+      3,
+    );
+
+    for (const s of settled) {
+      if (s.status === "fulfilled") results.push(s.value);
+      else results.push({ run_id: "unknown", success: false, error: String(s.reason) });
     }
 
-    // Update batch status
+    // Update batch status — always completed, even if some children failed.
     await (supabase as any).from("batches").update({ status: "completed" }).eq("id", batchId);
 
     return { success: true, results, total: runIds.length, executed: pendingRunIds.length };

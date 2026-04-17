@@ -1,6 +1,30 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
+import { withRetry, isTransientHttpStatus } from "@/lib/server-utils";
+
+/**
+ * Persist a human-readable failure message to run_metadata.notes (appended)
+ * and revert the run status back to "queued" so it can be retried.
+ * The DB enum has no "failed" value, so we use the notes field as the source of truth.
+ */
+async function recordRunFailure(supabase: any, runId: string, message: string) {
+  try {
+    const { data: meta } = await supabase
+      .from("run_metadata").select("notes").eq("run_id", runId).maybeSingle();
+    const stamp = new Date().toISOString();
+    const line = `[${stamp}] FAILED: ${message}`;
+    const newNotes = meta?.notes ? `${meta.notes}\n${line}` : line;
+    if (meta) {
+      await supabase.from("run_metadata").update({ notes: newNotes }).eq("run_id", runId);
+    } else {
+      await supabase.from("run_metadata").insert({ run_id: runId, notes: newNotes });
+    }
+    await supabase.from("runs").update({ status: "queued" as const }).eq("id", runId);
+  } catch (err) {
+    console.error("Failed to record run failure:", err);
+  }
+}
 
 const PARSER_VERSION = "v1";
 const EVALUATION_LOGIC_VERSION = "v1";
@@ -120,8 +144,16 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     const topP = typeof metadata?.top_p === "number" ? metadata.top_p : undefined;
     const seed = typeof metadata?.random_seed === "number" ? metadata.random_seed : undefined;
 
-    if (!baseUrl) return { success: false, error: "No provider base URL configured. Set it in run metadata or OPENAI_BASE_URL secret." };
-    if (!apiKey) return { success: false, error: "API key not configured. Set the OPENAI_API_KEY secret." };
+    if (!baseUrl) {
+      const msg = "No provider base URL configured. Set it in run metadata or OPENAI_BASE_URL secret.";
+      await recordRunFailure(supabase, runId, msg);
+      return { success: false, error: msg, retryable: false };
+    }
+    if (!apiKey) {
+      const msg = "API key not configured. Set the OPENAI_API_KEY secret.";
+      await recordRunFailure(supabase, runId, msg);
+      return { success: false, error: msg, retryable: false };
+    }
 
     // Stamp execution timestamp + version constants on metadata BEFORE the call
     const stampFields: Record<string, unknown> = {
@@ -142,43 +174,62 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     const timeout = setTimeout(() => controller.abort(), 60_000);
 
     let responseText: string;
+    const body: any = {
+      model: modelName,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: promptText },
+      ],
+      temperature,
+    };
+    if (maxTokens) body.max_tokens = maxTokens;
+    if (typeof topP === "number") body.top_p = topP;
+    if (typeof seed === "number") body.seed = seed;
+
     try {
-      const body: any = {
-        model: modelName,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: promptText },
-        ],
-        temperature,
-      };
-      if (maxTokens) body.max_tokens = maxTokens;
-      if (typeof topP === "number") body.top_p = topP;
-      if (typeof seed === "number") body.seed = seed;
+      // Retry on transient (5xx / network) failures only — never on 4xx (config/auth).
+      responseText = await withRetry(async () => {
+        const llmRes = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
 
-      const llmRes = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+        if (!llmRes.ok) {
+          const errText = await llmRes.text().catch(() => "");
+          const err = new Error(`Provider request failed (${llmRes.status}): ${errText.slice(0, 200)}`);
+          (err as any).status = llmRes.status;
+          throw err;
+        }
+
+        const llmJson = await llmRes.json();
+        const text = llmJson.choices?.[0]?.message?.content ?? "";
+        if (!text) throw new Error("LLM returned empty response");
+        return text as string;
+      }, {
+        maxAttempts: 2,
+        delayMs: 1000,
+        shouldRetry: (err: any) => {
+          if (err?.name === "AbortError") return false;
+          if (typeof err?.status === "number") return isTransientHttpStatus(err.status);
+          return true; // network error
         },
-        body: JSON.stringify(body),
-        signal: controller.signal,
       });
-
       clearTimeout(timeout);
-
-      if (!llmRes.ok) {
-        const errText = await llmRes.text().catch(() => "");
-        return { success: false, error: `Provider request failed (${llmRes.status}): ${errText.slice(0, 200)}` };
-      }
-
-      const llmJson = await llmRes.json();
-      responseText = llmJson.choices?.[0]?.message?.content ?? "";
-      if (!responseText) return { success: false, error: "LLM returned empty response" };
     } catch (err: any) {
       clearTimeout(timeout);
-      if (err.name === "AbortError") return { success: false, error: "LLM execution timed out (60s)" };
-      return { success: false, error: `Network error: ${err.message}` };
+      const isTimeout = err?.name === "AbortError";
+      const status: number | undefined = err?.status;
+      const retryable = isTimeout || (typeof status === "number" ? isTransientHttpStatus(status) : true);
+      const message = isTimeout
+        ? "LLM execution timed out (60s)"
+        : err?.message ?? "Unknown LLM failure";
+      await recordRunFailure(supabase, runId, message);
+      return { success: false, error: message, retryable };
     }
 
     if (promptLog) {

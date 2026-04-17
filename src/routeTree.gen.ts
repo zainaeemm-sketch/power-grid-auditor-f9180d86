@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRunsRouteImport } from './routes/_authenticated/runs'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedNewRunRouteImport } from './routes/_authenticated/new-run'
+import { Route as AuthenticatedHealthRouteImport } from './routes/_authenticated/health'
 import { Route as AuthenticatedCompareRouteImport } from './routes/_authenticated/compare'
 import { Route as AuthenticatedBatchesRouteImport } from './routes/_authenticated/batches'
 import { Route as AuthenticatedRunsIndexRouteImport } from './routes/_authenticated/runs.index'
@@ -50,6 +51,11 @@ const AuthenticatedPresetsRoute = AuthenticatedPresetsRouteImport.update({
 const AuthenticatedNewRunRoute = AuthenticatedNewRunRouteImport.update({
   id: '/new-run',
   path: '/new-run',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedHealthRoute = AuthenticatedHealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedCompareRoute = AuthenticatedCompareRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/batches': typeof AuthenticatedBatchesRouteWithChildren
   '/compare': typeof AuthenticatedCompareRoute
+  '/health': typeof AuthenticatedHealthRoute
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/runs': typeof AuthenticatedRunsRouteWithChildren
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/compare': typeof AuthenticatedCompareRoute
+  '/health': typeof AuthenticatedHealthRoute
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/batches': typeof AuthenticatedBatchesRouteWithChildren
   '/_authenticated/compare': typeof AuthenticatedCompareRoute
+  '/_authenticated/health': typeof AuthenticatedHealthRoute
   '/_authenticated/new-run': typeof AuthenticatedNewRunRoute
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/runs': typeof AuthenticatedRunsRouteWithChildren
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/batches'
     | '/compare'
+    | '/health'
     | '/new-run'
     | '/presets'
     | '/runs'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/compare'
+    | '/health'
     | '/new-run'
     | '/presets'
     | '/batches/$batchId'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/batches'
     | '/_authenticated/compare'
+    | '/_authenticated/health'
     | '/_authenticated/new-run'
     | '/_authenticated/presets'
     | '/_authenticated/runs'
@@ -224,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/new-run'
       fullPath: '/new-run'
       preLoaderRoute: typeof AuthenticatedNewRunRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/health': {
+      id: '/_authenticated/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof AuthenticatedHealthRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/compare': {
@@ -309,6 +328,7 @@ const AuthenticatedRunsRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedBatchesRoute: typeof AuthenticatedBatchesRouteWithChildren
   AuthenticatedCompareRoute: typeof AuthenticatedCompareRoute
+  AuthenticatedHealthRoute: typeof AuthenticatedHealthRoute
   AuthenticatedNewRunRoute: typeof AuthenticatedNewRunRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedRunsRoute: typeof AuthenticatedRunsRouteWithChildren
@@ -317,6 +337,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedBatchesRoute: AuthenticatedBatchesRouteWithChildren,
   AuthenticatedCompareRoute: AuthenticatedCompareRoute,
+  AuthenticatedHealthRoute: AuthenticatedHealthRoute,
   AuthenticatedNewRunRoute: AuthenticatedNewRunRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedRunsRoute: AuthenticatedRunsRouteWithChildren,
