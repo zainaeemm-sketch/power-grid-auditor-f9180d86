@@ -1,55 +1,92 @@
 
+## Phase 7: Reproducibility & Experiment Control
 
-# Real-Time Status Updates During Batch Execution
+A research-grade upgrade. The schema additions are the foundation; everything else flows from there. I'll build it in 6 incremental, stable steps.
 
-## What this does
+### Step 1 — Schema (migration)
 
-Instead of only seeing progress from the client-side execution loop, the batch details page will subscribe to real-time database changes on the `runs` table. When a run's status changes (e.g. queued → running → completed), the UI updates automatically — even if another tab or user triggers the execution.
+**Extend `experiment_presets`** (additive, nullable):
+- `system_prompt text`, `temperature numeric`, `max_tokens int`, `top_p numeric`
+- `prompt_template_version text`, `parser_version text`, `evaluation_logic_version text`
 
-## Plan
+**Extend `run_metadata`** (additive, nullable):
+- `system_prompt text`, `temperature numeric`, `max_tokens int`, `top_p numeric`
+- `prompt_template_version text`, `parser_version text`, `evaluation_logic_version text`
+- `benchmark_case_version text`, `execution_timestamp timestamptz`
 
-### 1. Enable Realtime on `runs` table
-Add a database migration:
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.runs;
-```
+**Extend `runs`**:
+- `parent_run_id uuid` (self-ref, nullable), `rerun_source text` (nullable)
 
-### 2. Add Supabase Realtime subscription to batch details page
-In `src/routes/_authenticated/batches.$batchId.tsx`:
+**Extend `batches`**:
+- `shared_config jsonb` (nullable) — captures preset/config used at batch creation
 
-- Import `supabase` from `@/integrations/supabase/client` and add `useEffect`
-- Extract the list of `runIds` from the loaded batch runs
-- Subscribe to `postgres_changes` on the `runs` table filtered by the batch's run IDs
-- On each `UPDATE` event, call `router.invalidate()` to refresh loader data (which re-fetches batch details including updated statuses and evaluations)
-- Clean up the subscription channel on unmount
+Decision: extend `run_metadata` rather than create `run_config_snapshots`. Reason — `run_metadata` already has 1:1 unique FK to runs and is exactly the snapshot concept. Avoids dual-source-of-truth bugs. Aligns with current `RunMetadataPanel` architecture.
 
-The subscription hook will look roughly like:
+### Step 2 — Preset wiring
 
-```tsx
-useEffect(() => {
-  if (runIds.length === 0) return;
-  const channel = supabase
-    .channel(`batch-${batch.id}-runs`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'runs' },
-      (payload) => {
-        if (runIds.includes(payload.new.id)) {
-          router.invalidate();
-        }
-      }
-    )
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, [batch.id, runIds, router]);
-```
+- Update `presets.tsx` form to include the new preset fields (system prompt, temp, max_tokens, top_p, versions).
+- In `batches.new.tsx` and `new-run.tsx`: when a preset is selected, copy ALL preset fields into the run_metadata snapshot at creation time, and copy `system_prompt` into `run_prompt_logs.prompt_text`.
 
-### 3. Debounce invalidation
-Add a simple debounce (300ms) to avoid rapid consecutive reloads when multiple runs update in quick succession during batch execution.
+### Step 3 — LLM execution uses full config
 
-### Files changed
-| File | Change |
-|---|---|
-| Migration SQL | `ALTER PUBLICATION supabase_realtime ADD TABLE public.runs` |
-| `src/routes/_authenticated/batches.$batchId.tsx` | Add realtime subscription with debounced `router.invalidate()` |
+- Update `src/server/llm.functions.ts` to read effective config from `run_metadata`: `model_name`, `system_prompt`, `temperature`, `max_tokens`, `top_p`, `random_seed`.
+- Fallback chain: run_metadata field → env default (`OPENAI_MODEL`) → hardcoded sensible default.
+- Stamp `execution_timestamp = now()` on `run_metadata` immediately before the API call.
+- Stamp `parser_version` and `evaluation_logic_version` constants (e.g. `"v1"`) so historical runs are identifiable.
 
+### Step 4 — Run Configuration panel + audit indicator
+
+New `src/components/run-details/RunConfigPanel.tsx` (read-only summary card):
+- Provider/model/versions/temp/max_tokens/top_p/seed/timestamp in compact 2-col layout.
+- Audit footer: "Configuration: Complete ✓" or "Partial — missing: [list]". Required fields = `model_name`, `system_prompt`, `temperature`, `prompt_template_version`, `parser_version`, `evaluation_logic_version`.
+- Inserted into `runs.$runId.tsx` grid above existing `RunMetadataPanel`.
+
+The existing `RunMetadataPanel` stays as the editable surface (no UI redesign).
+
+### Step 5 — Re-run with same configuration
+
+- New server fn `rerunWithSameConfig({ runId })` in `runs.functions.ts`:
+  1. Load source run + metadata + prompt log.
+  2. Insert new run with `parent_run_id = source.id`, `rerun_source = "manual"`.
+  3. Clone all metadata fields into new `run_metadata`.
+  4. Clone `prompt_text` into new `run_prompt_logs`.
+  5. Trigger LLM execution.
+  6. Return new runId for navigation.
+- Add "Re-run with Same Configuration" button to `RunStatusControls` (or as sibling next to Export CSV in `runs.$runId.tsx`).
+- Show parent link badge in `RunHeader` when `parent_run_id` is set.
+
+### Step 6 — Batch reproducibility + exports
+
+**Batches:**
+- On batch creation, snapshot the preset config to `batches.shared_config`.
+- In `batches.$batchId.tsx`: compute config-consistency across child runs (compare key fields: model, temp, prompt_version, parser_version). Show badge: "All runs identical config ✓" or "⚠ N runs differ" with a popover listing the diffs.
+
+**CSV exports** (`src/lib/csv-export.ts`):
+- `exportRunCsv`: append rows for system_prompt, temperature, max_tokens, top_p, prompt_template_version, parser_version, evaluation_logic_version, benchmark_case_version, random_seed, execution_timestamp, parent_run_id.
+- `exportBatchCsv`: add same per-run reproducibility columns.
+
+### Files
+
+**Created:**
+- `src/components/run-details/RunConfigPanel.tsx`
+- New migration file
+
+**Modified:**
+- `src/types/grid-arena.ts` (regen'd via Supabase types automatically)
+- `src/server/runs.functions.ts` (rerun fn, extended metadata update)
+- `src/server/llm.functions.ts` (use full config, stamp versions)
+- `src/server/batch.functions.ts` (snapshot shared_config)
+- `src/server/preset.functions.ts` (extended fields) — if exists, else `presets.tsx` direct
+- `src/routes/_authenticated/runs.$runId.tsx` (mount RunConfigPanel + Re-run button)
+- `src/routes/_authenticated/batches.$batchId.tsx` (consistency badge)
+- `src/routes/_authenticated/batches.new.tsx` (copy preset → snapshot)
+- `src/routes/_authenticated/new-run.tsx` (copy preset → snapshot)
+- `src/routes/_authenticated/presets.tsx` (extended form fields)
+- `src/components/run-details/RunMetadataPanel.tsx` (extended editable fields)
+- `src/components/run-details/RunHeader.tsx` (parent_run_id link)
+- `src/lib/csv-export.ts` (extended fields)
+- `.lovable/memory/features/db-schema.md` (document additions)
+
+### Stability strategy
+
+All schema changes additive + nullable → existing runs/presets continue working with NULL values shown as "—" in the config panel and marked "Partial" by the audit indicator. No data backfill required. Each step is shippable independently.
