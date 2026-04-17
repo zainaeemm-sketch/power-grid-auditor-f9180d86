@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, GitBranch } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { Run, RunStatus } from "@/types/grid-arena";
 
@@ -9,6 +10,9 @@ interface RunHeaderProps {
 }
 
 export function RunHeader({ run }: RunHeaderProps) {
+  const parentId = (run as any).parent_run_id as string | null | undefined;
+  const rerunSource = (run as any).rerun_source as string | null | undefined;
+
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 rounded-xl bg-gradient-to-r from-card to-card/60 p-4 border border-border/40">
       <Button variant="ghost" size="icon" asChild>
@@ -22,6 +26,14 @@ export function RunHeader({ run }: RunHeaderProps) {
             <span className="gradient-text">{run.title}</span>
           </h1>
           <StatusBadge status={run.status as RunStatus} />
+          {parentId && (
+            <Link to="/runs/$runId" params={{ runId: parentId }}>
+              <Badge variant="outline" className="border-primary/40 text-primary hover:bg-primary/10">
+                <GitBranch className="mr-1 h-3 w-3" />
+                Re-run of {parentId.slice(0, 8)}…{rerunSource ? ` (${rerunSource})` : ""}
+              </Badge>
+            </Link>
+          )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">
           {run.agent} · {run.task} · {run.case_name}
@@ -30,10 +42,6 @@ export function RunHeader({ run }: RunHeaderProps) {
           {run.id.slice(0, 8)}… · {new Date(run.created_at).toLocaleString()}
         </p>
       </div>
-      <Button variant="outline" size="sm" disabled title="Export coming soon" className="border-border/40">
-        <Download className="mr-1.5 h-3.5 w-3.5" />
-        Export
-      </Button>
     </div>
   );
 }
