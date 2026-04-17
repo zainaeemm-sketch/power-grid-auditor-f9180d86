@@ -10,9 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DocsRouteImport } from './routes/docs'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as HooksProcessJobsRouteImport } from './routes/hooks/process-jobs'
+import { Route as DocsWorkflowRouteImport } from './routes/docs.workflow'
+import { Route as DocsUsageRouteImport } from './routes/docs.usage'
+import { Route as DocsTroubleshootingRouteImport } from './routes/docs.troubleshooting'
+import { Route as DocsReproducibilityRouteImport } from './routes/docs.reproducibility'
+import { Route as DocsInstallationRouteImport } from './routes/docs.installation'
+import { Route as DocsArchitectureRouteImport } from './routes/docs.architecture'
 import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
 import { Route as AuthenticatedSystemStatusRouteImport } from './routes/_authenticated/system-status'
 import { Route as AuthenticatedRunsRouteImport } from './routes/_authenticated/runs'
@@ -35,6 +44,16 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -44,10 +63,45 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsIndexRoute = DocsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocsRoute,
+} as any)
 const HooksProcessJobsRoute = HooksProcessJobsRouteImport.update({
   id: '/hooks/process-jobs',
   path: '/hooks/process-jobs',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DocsWorkflowRoute = DocsWorkflowRouteImport.update({
+  id: '/workflow',
+  path: '/workflow',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsUsageRoute = DocsUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsTroubleshootingRoute = DocsTroubleshootingRouteImport.update({
+  id: '/troubleshooting',
+  path: '/troubleshooting',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsReproducibilityRoute = DocsReproducibilityRouteImport.update({
+  id: '/reproducibility',
+  path: '/reproducibility',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsInstallationRoute = DocsInstallationRouteImport.update({
+  id: '/installation',
+  path: '/installation',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsArchitectureRoute = DocsArchitectureRouteImport.update({
+  id: '/architecture',
+  path: '/architecture',
+  getParentRoute: () => DocsRoute,
 } as any)
 const AuthenticatedValidationRoute = AuthenticatedValidationRouteImport.update({
   id: '/validation',
@@ -138,6 +192,8 @@ const AuthenticatedReportsBatchBatchIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/docs': typeof DocsRouteWithChildren
   '/login': typeof LoginRoute
   '/batches': typeof AuthenticatedBatchesRouteWithChildren
   '/compare': typeof AuthenticatedCompareRoute
@@ -147,7 +203,14 @@ export interface FileRoutesByFullPath {
   '/runs': typeof AuthenticatedRunsRouteWithChildren
   '/system-status': typeof AuthenticatedSystemStatusRoute
   '/validation': typeof AuthenticatedValidationRoute
+  '/docs/architecture': typeof DocsArchitectureRoute
+  '/docs/installation': typeof DocsInstallationRoute
+  '/docs/reproducibility': typeof DocsReproducibilityRoute
+  '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/docs/usage': typeof DocsUsageRoute
+  '/docs/workflow': typeof DocsWorkflowRoute
   '/hooks/process-jobs': typeof HooksProcessJobsRoute
+  '/docs/': typeof DocsIndexRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/reports/compare': typeof AuthenticatedReportsCompareRoute
@@ -159,6 +222,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/login': typeof LoginRoute
   '/compare': typeof AuthenticatedCompareRoute
   '/health': typeof AuthenticatedHealthRoute
@@ -166,7 +230,14 @@ export interface FileRoutesByTo {
   '/presets': typeof AuthenticatedPresetsRoute
   '/system-status': typeof AuthenticatedSystemStatusRoute
   '/validation': typeof AuthenticatedValidationRoute
+  '/docs/architecture': typeof DocsArchitectureRoute
+  '/docs/installation': typeof DocsInstallationRoute
+  '/docs/reproducibility': typeof DocsReproducibilityRoute
+  '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/docs/usage': typeof DocsUsageRoute
+  '/docs/workflow': typeof DocsWorkflowRoute
   '/hooks/process-jobs': typeof HooksProcessJobsRoute
+  '/docs': typeof DocsIndexRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/reports/compare': typeof AuthenticatedReportsCompareRoute
@@ -180,6 +251,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/about': typeof AboutRoute
+  '/docs': typeof DocsRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/batches': typeof AuthenticatedBatchesRouteWithChildren
   '/_authenticated/compare': typeof AuthenticatedCompareRoute
@@ -189,7 +262,14 @@ export interface FileRoutesById {
   '/_authenticated/runs': typeof AuthenticatedRunsRouteWithChildren
   '/_authenticated/system-status': typeof AuthenticatedSystemStatusRoute
   '/_authenticated/validation': typeof AuthenticatedValidationRoute
+  '/docs/architecture': typeof DocsArchitectureRoute
+  '/docs/installation': typeof DocsInstallationRoute
+  '/docs/reproducibility': typeof DocsReproducibilityRoute
+  '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/docs/usage': typeof DocsUsageRoute
+  '/docs/workflow': typeof DocsWorkflowRoute
   '/hooks/process-jobs': typeof HooksProcessJobsRoute
+  '/docs/': typeof DocsIndexRoute
   '/_authenticated/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/_authenticated/batches/new': typeof AuthenticatedBatchesNewRoute
   '/_authenticated/reports/compare': typeof AuthenticatedReportsCompareRoute
@@ -203,6 +283,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
+    | '/docs'
     | '/login'
     | '/batches'
     | '/compare'
@@ -212,7 +294,14 @@ export interface FileRouteTypes {
     | '/runs'
     | '/system-status'
     | '/validation'
+    | '/docs/architecture'
+    | '/docs/installation'
+    | '/docs/reproducibility'
+    | '/docs/troubleshooting'
+    | '/docs/usage'
+    | '/docs/workflow'
     | '/hooks/process-jobs'
+    | '/docs/'
     | '/batches/$batchId'
     | '/batches/new'
     | '/reports/compare'
@@ -224,6 +313,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/login'
     | '/compare'
     | '/health'
@@ -231,7 +321,14 @@ export interface FileRouteTypes {
     | '/presets'
     | '/system-status'
     | '/validation'
+    | '/docs/architecture'
+    | '/docs/installation'
+    | '/docs/reproducibility'
+    | '/docs/troubleshooting'
+    | '/docs/usage'
+    | '/docs/workflow'
     | '/hooks/process-jobs'
+    | '/docs'
     | '/batches/$batchId'
     | '/batches/new'
     | '/reports/compare'
@@ -244,6 +341,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/about'
+    | '/docs'
     | '/login'
     | '/_authenticated/batches'
     | '/_authenticated/compare'
@@ -253,7 +352,14 @@ export interface FileRouteTypes {
     | '/_authenticated/runs'
     | '/_authenticated/system-status'
     | '/_authenticated/validation'
+    | '/docs/architecture'
+    | '/docs/installation'
+    | '/docs/reproducibility'
+    | '/docs/troubleshooting'
+    | '/docs/usage'
+    | '/docs/workflow'
     | '/hooks/process-jobs'
+    | '/docs/'
     | '/_authenticated/batches/$batchId'
     | '/_authenticated/batches/new'
     | '/_authenticated/reports/compare'
@@ -267,6 +373,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  AboutRoute: typeof AboutRoute
+  DocsRoute: typeof DocsRouteWithChildren
   LoginRoute: typeof LoginRoute
   HooksProcessJobsRoute: typeof HooksProcessJobsRoute
 }
@@ -278,6 +386,20 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -294,12 +416,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/': {
+      id: '/docs/'
+      path: '/'
+      fullPath: '/docs/'
+      preLoaderRoute: typeof DocsIndexRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/hooks/process-jobs': {
       id: '/hooks/process-jobs'
       path: '/hooks/process-jobs'
       fullPath: '/hooks/process-jobs'
       preLoaderRoute: typeof HooksProcessJobsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/docs/workflow': {
+      id: '/docs/workflow'
+      path: '/workflow'
+      fullPath: '/docs/workflow'
+      preLoaderRoute: typeof DocsWorkflowRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/usage': {
+      id: '/docs/usage'
+      path: '/usage'
+      fullPath: '/docs/usage'
+      preLoaderRoute: typeof DocsUsageRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/troubleshooting': {
+      id: '/docs/troubleshooting'
+      path: '/troubleshooting'
+      fullPath: '/docs/troubleshooting'
+      preLoaderRoute: typeof DocsTroubleshootingRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/reproducibility': {
+      id: '/docs/reproducibility'
+      path: '/reproducibility'
+      fullPath: '/docs/reproducibility'
+      preLoaderRoute: typeof DocsReproducibilityRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/installation': {
+      id: '/docs/installation'
+      path: '/installation'
+      fullPath: '/docs/installation'
+      preLoaderRoute: typeof DocsInstallationRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/architecture': {
+      id: '/docs/architecture'
+      path: '/architecture'
+      fullPath: '/docs/architecture'
+      preLoaderRoute: typeof DocsArchitectureRouteImport
+      parentRoute: typeof DocsRoute
     }
     '/_authenticated/validation': {
       id: '/_authenticated/validation'
@@ -476,9 +647,33 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface DocsRouteChildren {
+  DocsArchitectureRoute: typeof DocsArchitectureRoute
+  DocsInstallationRoute: typeof DocsInstallationRoute
+  DocsReproducibilityRoute: typeof DocsReproducibilityRoute
+  DocsTroubleshootingRoute: typeof DocsTroubleshootingRoute
+  DocsUsageRoute: typeof DocsUsageRoute
+  DocsWorkflowRoute: typeof DocsWorkflowRoute
+  DocsIndexRoute: typeof DocsIndexRoute
+}
+
+const DocsRouteChildren: DocsRouteChildren = {
+  DocsArchitectureRoute: DocsArchitectureRoute,
+  DocsInstallationRoute: DocsInstallationRoute,
+  DocsReproducibilityRoute: DocsReproducibilityRoute,
+  DocsTroubleshootingRoute: DocsTroubleshootingRoute,
+  DocsUsageRoute: DocsUsageRoute,
+  DocsWorkflowRoute: DocsWorkflowRoute,
+  DocsIndexRoute: DocsIndexRoute,
+}
+
+const DocsRouteWithChildren = DocsRoute._addFileChildren(DocsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  AboutRoute: AboutRoute,
+  DocsRoute: DocsRouteWithChildren,
   LoginRoute: LoginRoute,
   HooksProcessJobsRoute: HooksProcessJobsRoute,
 }
