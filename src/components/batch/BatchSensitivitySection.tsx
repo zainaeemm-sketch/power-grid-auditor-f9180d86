@@ -33,6 +33,7 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
   const [summary, setSummary] = useState<BatchRobustnessSummary | null>(null);
   const [progress, setProgress] = useState<BatchPerturbationProgress | null>(null);
   const [enqueueing, setEnqueueing] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
   const prevPendingRef = useRef<number | null>(null);
 
   const refreshSummary = async () => {
