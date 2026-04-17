@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon, Activity, ShieldCheck, Gauge } from "lucide-react";
+import { Zap, FlaskConical, Plus, Layers, GitCompare, LayoutList, LogOut, LogIn, User as UserIcon, Activity, ShieldCheck, Gauge, BookOpen, Info } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AccentSwitcher } from "@/components/AccentSwitcher";
@@ -25,6 +25,11 @@ const navLinks = [
   { to: "/system-status" as const, label: "System", icon: Gauge, exact: false },
 ];
 
+const publicLinks = [
+  { to: "/docs" as const, label: "Docs", icon: BookOpen, exact: false },
+  { to: "/about" as const, label: "About", icon: Info, exact: false },
+];
+
 export function NavHeader() {
   const { isAuthenticated, user, logout } = useAuth();
 
@@ -40,7 +45,7 @@ export function NavHeader() {
           <span className="-ml-1.5 gradient-text">Arena</span>
         </Link>
         <nav className="flex flex-1 items-center gap-1">
-          {navLinks.map(({ to, label, icon: Icon, exact }) => (
+          {(isAuthenticated ? [...navLinks, ...publicLinks] : publicLinks).map(({ to, label, icon: Icon, exact }) => (
             <Link
               key={to}
               to={to}
