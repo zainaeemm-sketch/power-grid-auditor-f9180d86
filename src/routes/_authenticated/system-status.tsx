@@ -29,6 +29,7 @@ function SystemStatusPage() {
   const [liveStatus, setLiveStatus] = useState<LiveStatus>("connecting");
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectNowRef = useRef<() => void>(() => {});
