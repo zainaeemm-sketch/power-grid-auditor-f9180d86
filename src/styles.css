@@ -644,13 +644,52 @@
   }
 }
 
-@keyframes page-exit {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
+/* Research Report — print + screen typography */
+.report-root {
+  font-family: Georgia, "Times New Roman", Times, serif;
+}
+.report-title,
+.report-heading {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  letter-spacing: -0.01em;
+}
+.report-table th,
+.report-table td {
+  border-color: oklch(0.85 0.01 250 / 0.4);
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
   }
-  100% {
-    opacity: 0;
-    transform: translateY(-4px);
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .report-root {
+    max-width: none !important;
+    padding: 0 !important;
+    color: #000 !important;
+  }
+  .report-section,
+  .report-chart,
+  .report-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .report-toolbar,
+  nav,
+  header.app-nav {
+    display: none !important;
+  }
+  pre {
+    white-space: pre-wrap !important;
+    word-break: break-word;
+  }
+  a {
+    color: #000 !important;
+    text-decoration: underline;
   }
 }
+
