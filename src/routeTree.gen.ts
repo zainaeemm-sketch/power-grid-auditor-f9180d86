@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
 import { Route as AuthenticatedRunsRouteImport } from './routes/_authenticated/runs'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedNewRunRouteImport } from './routes/_authenticated/new-run'
@@ -40,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedValidationRoute = AuthenticatedValidationRouteImport.update({
+  id: '/validation',
+  path: '/validation',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRunsRoute = AuthenticatedRunsRouteImport.update({
   id: '/runs',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/runs': typeof AuthenticatedRunsRouteWithChildren
+  '/validation': typeof AuthenticatedValidationRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/reports/compare': typeof AuthenticatedReportsCompareRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/health': typeof AuthenticatedHealthRoute
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
+  '/validation': typeof AuthenticatedValidationRoute
   '/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/batches/new': typeof AuthenticatedBatchesNewRoute
   '/reports/compare': typeof AuthenticatedReportsCompareRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/_authenticated/new-run': typeof AuthenticatedNewRunRoute
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/runs': typeof AuthenticatedRunsRouteWithChildren
+  '/_authenticated/validation': typeof AuthenticatedValidationRoute
   '/_authenticated/batches/$batchId': typeof AuthenticatedBatchesBatchIdRoute
   '/_authenticated/batches/new': typeof AuthenticatedBatchesNewRoute
   '/_authenticated/reports/compare': typeof AuthenticatedReportsCompareRoute
@@ -182,6 +191,7 @@ export interface FileRouteTypes {
     | '/new-run'
     | '/presets'
     | '/runs'
+    | '/validation'
     | '/batches/$batchId'
     | '/batches/new'
     | '/reports/compare'
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/new-run'
     | '/presets'
+    | '/validation'
     | '/batches/$batchId'
     | '/batches/new'
     | '/reports/compare'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/_authenticated/new-run'
     | '/_authenticated/presets'
     | '/_authenticated/runs'
+    | '/_authenticated/validation'
     | '/_authenticated/batches/$batchId'
     | '/_authenticated/batches/new'
     | '/_authenticated/reports/compare'
@@ -255,6 +267,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/validation': {
+      id: '/_authenticated/validation'
+      path: '/validation'
+      fullPath: '/validation'
+      preLoaderRoute: typeof AuthenticatedValidationRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/runs': {
       id: '/_authenticated/runs'
@@ -392,6 +411,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedNewRunRoute: typeof AuthenticatedNewRunRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedRunsRoute: typeof AuthenticatedRunsRouteWithChildren
+  AuthenticatedValidationRoute: typeof AuthenticatedValidationRoute
   AuthenticatedReportsCompareRoute: typeof AuthenticatedReportsCompareRoute
   AuthenticatedReportsBatchBatchIdRoute: typeof AuthenticatedReportsBatchBatchIdRoute
   AuthenticatedReportsRunRunIdRoute: typeof AuthenticatedReportsRunRunIdRoute
@@ -404,6 +424,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNewRunRoute: AuthenticatedNewRunRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedRunsRoute: AuthenticatedRunsRouteWithChildren,
+  AuthenticatedValidationRoute: AuthenticatedValidationRoute,
   AuthenticatedReportsCompareRoute: AuthenticatedReportsCompareRoute,
   AuthenticatedReportsBatchBatchIdRoute: AuthenticatedReportsBatchBatchIdRoute,
   AuthenticatedReportsRunRunIdRoute: AuthenticatedReportsRunRunIdRoute,
@@ -421,3 +442,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
