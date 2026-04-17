@@ -35,6 +35,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   ScatterChart, Scatter,
 } from "recharts";
+import { BatchSensitivitySection } from "@/components/batch/BatchSensitivitySection";
 
 export const Route = createFileRoute("/_authenticated/batches/$batchId")({
   head: () => ({
@@ -751,6 +752,8 @@ function BatchDetailPage() {
           </Card>
         </div>
       )}
+
+      <BatchSensitivitySection batchId={batch.id} />
     </main>
   );
 }

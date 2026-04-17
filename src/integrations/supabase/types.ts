@@ -340,6 +340,95 @@ export type Database = {
         }
         Relationships: []
       }
+      perturbation_results: {
+        Row: {
+          baseline_feasibility: string
+          baseline_violations: number
+          created_at: string
+          execution_time_ms: number
+          failure_reason: string | null
+          feasibility_stability: string
+          id: string
+          notes: string | null
+          perturbation_test_id: string
+          perturbed_feasibility: string
+          perturbed_violations: number
+          robustness_result: string
+          robustness_score: number
+          violation_change: number
+        }
+        Insert: {
+          baseline_feasibility?: string
+          baseline_violations?: number
+          created_at?: string
+          execution_time_ms?: number
+          failure_reason?: string | null
+          feasibility_stability?: string
+          id?: string
+          notes?: string | null
+          perturbation_test_id: string
+          perturbed_feasibility?: string
+          perturbed_violations?: number
+          robustness_result?: string
+          robustness_score?: number
+          violation_change?: number
+        }
+        Update: {
+          baseline_feasibility?: string
+          baseline_violations?: number
+          created_at?: string
+          execution_time_ms?: number
+          failure_reason?: string | null
+          feasibility_stability?: string
+          id?: string
+          notes?: string | null
+          perturbation_test_id?: string
+          perturbed_feasibility?: string
+          perturbed_violations?: number
+          robustness_result?: string
+          robustness_score?: number
+          violation_change?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perturbation_results_perturbation_test_id_fkey"
+            columns: ["perturbation_test_id"]
+            isOneToOne: false
+            referencedRelation: "perturbation_tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      perturbation_tests: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          parameter_name: string
+          parameter_value: number | null
+          perturbation_type: string
+          run_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          parameter_name: string
+          parameter_value?: number | null
+          perturbation_type: string
+          run_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          parameter_name?: string
+          parameter_value?: number | null
+          perturbation_type?: string
+          run_id?: string
+        }
+        Relationships: []
+      }
       run_actions: {
         Row: {
           action_type: string | null
