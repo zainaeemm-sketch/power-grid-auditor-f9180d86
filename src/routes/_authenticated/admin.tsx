@@ -61,9 +61,9 @@ function AdminPage() {
         </div>
       </div>
 
-      <Card className="border-amber-500/30 bg-amber-500/5">
+      <Card className="border-warning/30 bg-warning/5">
         <CardContent className="flex items-start gap-3 py-4">
-          <AlertCircle className="mt-0.5 h-4 w-4 text-amber-500" />
+          <AlertCircle className="mt-0.5 h-4 w-4 text-warning" />
           <div className="text-sm">
             <strong>Welcome emails</strong> are queued and will start delivering
             once a sender domain is verified in <em>Lovable Cloud → Emails</em>.
@@ -233,8 +233,8 @@ function ApprovalsTable({ status }: { status: Status }) {
 
 function StatusBadge({ status }: { status: string }) {
   const variants: Record<string, string> = {
-    approved: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
-    pending: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+    approved: "bg-primary/15 text-primary border-primary/30",
+    pending: "bg-muted text-muted-foreground border-border",
     rejected: "bg-destructive/15 text-destructive border-destructive/30",
   };
   return (

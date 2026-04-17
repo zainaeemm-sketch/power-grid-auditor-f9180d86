@@ -36,6 +36,18 @@ const publicLinks = [
 
 export function NavHeader() {
   const { isAuthenticated, user, logout } = useAuth();
+  const checkAdmin = useServerFn(isCurrentUserAdmin);
+  const { data: adminData } = useQuery({
+    queryKey: ["isAdmin", user?.id],
+    queryFn: () => checkAdmin(),
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+  const isAdmin = !!adminData?.isAdmin;
+
+  const allLinks = isAuthenticated
+    ? [...navLinks, ...(isAdmin ? [{ to: "/admin" as const, label: "Admin", icon: UserCog, exact: false }] : []), ...publicLinks]
+    : publicLinks;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/60 backdrop-blur-xl">
@@ -49,7 +61,7 @@ export function NavHeader() {
           <span className="-ml-1.5 gradient-text">Arena</span>
         </Link>
         <nav className="flex flex-1 items-center gap-1">
-          {(isAuthenticated ? [...navLinks, ...publicLinks] : publicLinks).map(({ to, label, icon: Icon, exact }) => (
+          {allLinks.map(({ to, label, icon: Icon, exact }) => (
             <Link
               key={to}
               to={to}

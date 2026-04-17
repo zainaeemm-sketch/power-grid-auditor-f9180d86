@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as AboutRouteImport } from './routes/about'
@@ -30,6 +31,7 @@ import { Route as AuthenticatedNewRunRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedHealthRouteImport } from './routes/_authenticated/health'
 import { Route as AuthenticatedCompareRouteImport } from './routes/_authenticated/compare'
 import { Route as AuthenticatedBatchesRouteImport } from './routes/_authenticated/batches'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedRunsIndexRouteImport } from './routes/_authenticated/runs.index'
 import { Route as AuthenticatedGroundTruthIndexRouteImport } from './routes/_authenticated/ground-truth.index'
 import { Route as AuthenticatedBatchesIndexRouteImport } from './routes/_authenticated/batches.index'
@@ -43,6 +45,11 @@ import { Route as AuthenticatedReportsRunRunIdRouteImport } from './routes/_auth
 import { Route as AuthenticatedReportsBatchBatchIdRouteImport } from './routes/_authenticated/reports.batch.$batchId'
 import { Route as AuthenticatedGroundTruthEditIdRouteImport } from './routes/_authenticated/ground-truth.edit.$id'
 
+const PendingApprovalRoute = PendingApprovalRouteImport.update({
+  id: '/pending-approval',
+  path: '/pending-approval',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -148,6 +155,11 @@ const AuthenticatedBatchesRoute = AuthenticatedBatchesRouteImport.update({
   path: '/batches',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedRunsIndexRoute = AuthenticatedRunsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -223,6 +235,8 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/docs': typeof DocsRouteWithChildren
   '/login': typeof LoginRoute
+  '/pending-approval': typeof PendingApprovalRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/batches': typeof AuthenticatedBatchesRouteWithChildren
   '/compare': typeof AuthenticatedCompareRoute
   '/health': typeof AuthenticatedHealthRoute
@@ -256,6 +270,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/login': typeof LoginRoute
+  '/pending-approval': typeof PendingApprovalRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/compare': typeof AuthenticatedCompareRoute
   '/health': typeof AuthenticatedHealthRoute
   '/new-run': typeof AuthenticatedNewRunRoute
@@ -290,6 +306,8 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/docs': typeof DocsRouteWithChildren
   '/login': typeof LoginRoute
+  '/pending-approval': typeof PendingApprovalRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/batches': typeof AuthenticatedBatchesRouteWithChildren
   '/_authenticated/compare': typeof AuthenticatedCompareRoute
   '/_authenticated/health': typeof AuthenticatedHealthRoute
@@ -326,6 +344,8 @@ export interface FileRouteTypes {
     | '/about'
     | '/docs'
     | '/login'
+    | '/pending-approval'
+    | '/admin'
     | '/batches'
     | '/compare'
     | '/health'
@@ -359,6 +379,8 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/login'
+    | '/pending-approval'
+    | '/admin'
     | '/compare'
     | '/health'
     | '/new-run'
@@ -392,6 +414,8 @@ export interface FileRouteTypes {
     | '/about'
     | '/docs'
     | '/login'
+    | '/pending-approval'
+    | '/_authenticated/admin'
     | '/_authenticated/batches'
     | '/_authenticated/compare'
     | '/_authenticated/health'
@@ -428,11 +452,19 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   DocsRoute: typeof DocsRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PendingApprovalRoute: typeof PendingApprovalRoute
   HooksProcessJobsRoute: typeof HooksProcessJobsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/pending-approval': {
+      id: '/pending-approval'
+      path: '/pending-approval'
+      fullPath: '/pending-approval'
+      preLoaderRoute: typeof PendingApprovalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -580,6 +612,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBatchesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/runs/': {
       id: '/_authenticated/runs/'
       path: '/'
@@ -696,6 +735,7 @@ const AuthenticatedRunsRouteWithChildren =
   AuthenticatedRunsRoute._addFileChildren(AuthenticatedRunsRouteChildren)
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedBatchesRoute: typeof AuthenticatedBatchesRouteWithChildren
   AuthenticatedCompareRoute: typeof AuthenticatedCompareRoute
   AuthenticatedHealthRoute: typeof AuthenticatedHealthRoute
@@ -714,6 +754,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedBatchesRoute: AuthenticatedBatchesRouteWithChildren,
   AuthenticatedCompareRoute: AuthenticatedCompareRoute,
   AuthenticatedHealthRoute: AuthenticatedHealthRoute,
@@ -763,6 +804,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   DocsRoute: DocsRouteWithChildren,
   LoginRoute: LoginRoute,
+  PendingApprovalRoute: PendingApprovalRoute,
   HooksProcessJobsRoute: HooksProcessJobsRoute,
 }
 export const routeTree = rootRouteImport
