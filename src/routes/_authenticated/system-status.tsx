@@ -14,6 +14,7 @@ import { JobsTable } from "@/components/system-status/JobsTable";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type StatusFilter = "all" | "queued" | "running" | "completed" | "failed" | "cancelled";
+type TypeFilter = "all" | "run_execution" | "batch_execution";
 
 export const Route = createFileRoute("/_authenticated/system-status")({
   head: () => ({ meta: [{ title: "System Status — GridArena" }] }),
