@@ -50,12 +50,13 @@ function PresetsPage() {
   const [promptTemplateVersion, setPromptTemplateVersion] = useState("");
   const [parserVersion, setParserVersion] = useState("");
   const [evalVersion, setEvalVersion] = useState("");
+  const [evaluationMode, setEvaluationMode] = useState<"rule_based" | "simulation" | "auto">("rule_based");
 
   const resetForm = () => {
     setName(""); setProviderName(""); setModelName("");
     setPromptVersion(""); setDatasetVersion(""); setNotes(""); setDefaultPrompt("");
     setSystemPrompt(""); setTemperature(""); setMaxTokens(""); setTopP("");
-    setPromptTemplateVersion(""); setParserVersion(""); setEvalVersion("");
+    setPromptTemplateVersion(""); setParserVersion(""); setEvalVersion(""); setEvaluationMode("rule_based");
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -78,6 +79,7 @@ function PresetsPage() {
           prompt_template_version: promptTemplateVersion || null,
           parser_version: parserVersion || null,
           evaluation_logic_version: evalVersion || null,
+          evaluation_mode: evaluationMode,
         },
       });
       resetForm();
@@ -161,6 +163,18 @@ function PresetsPage() {
                   <Label>Dataset Version</Label>
                   <Input value={datasetVersion} onChange={(e) => setDatasetVersion(e.target.value)} />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Evaluation Mode</Label>
+                <select
+                  value={evaluationMode}
+                  onChange={(e) => setEvaluationMode(e.target.value as any)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="rule_based">Rule-based (deterministic heuristic)</option>
+                  <option value="simulation">Simulation-based (DC PF / pandapower)</option>
+                  <option value="auto">Auto (simulation → rule-based fallback)</option>
+                </select>
               </div>
               <div className="space-y-2">
                 <Label>Notes</Label>
