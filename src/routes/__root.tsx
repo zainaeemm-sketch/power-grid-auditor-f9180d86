@@ -1,4 +1,5 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
+import { Outlet, Link, createRootRouteWithContext, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PageTransition } from "@/components/PageTransition";
 import { NavHeader } from "@/components/NavHeader";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -7,6 +8,10 @@ import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { OfflineFallback } from "@/components/OfflineFallback";
 
 import appCss from "../styles.css?url";
+
+interface MyRouterContext {
+  queryClient: QueryClient;
+}
 
 function NotFoundComponent() {
   return (
@@ -30,7 +35,7 @@ function NotFoundComponent() {
   );
 }
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<MyRouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -76,17 +81,20 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const { queryClient } = Route.useRouteContext();
   return (
-    <AuthProvider>
-      <PwaSplashScreen />
-      <PwaInstallBanner />
-      <OfflineFallback />
-      <div className="min-h-screen bg-background text-foreground">
-        <NavHeader />
-        <PageTransition>
-          <Outlet />
-        </PageTransition>
-      </div>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <PwaSplashScreen />
+        <PwaInstallBanner />
+        <OfflineFallback />
+        <div className="min-h-screen bg-background text-foreground">
+          <NavHeader />
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
+        </div>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
