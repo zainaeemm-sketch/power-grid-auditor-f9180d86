@@ -229,33 +229,21 @@ export const executeBatchRuns = createServerFn({ method: "POST" })
       .neq("status", "completed");
 
     const pendingRunIds = (runs ?? []).map((r) => r.id);
-    const results: Array<{ run_id: string; success: boolean; error?: string }> = [];
 
-    // Execute with bounded concurrency so one slow/failed run doesn't stall the batch
-    // and the Worker timeout isn't exceeded for big batches.
-    const { executeRunLlm } = await import("./llm.functions");
-    const { runWithConcurrency } = await import("@/lib/server-utils");
-
-    const settled = await runWithConcurrency(
-      pendingRunIds,
-      async (runId) => {
-        try {
-          const res = await executeRunLlm({ data: { run_id: runId } });
-          return { run_id: runId, success: res.success, error: res.success ? undefined : res.error };
-        } catch (err: any) {
-          return { run_id: runId, success: false, error: err?.message ?? "Unknown error" };
-        }
-      },
-      3,
-    );
-
-    for (const s of settled) {
-      if (s.status === "fulfilled") results.push(s.value);
-      else results.push({ run_id: "unknown", success: false, error: String(s.reason) });
+    // Phase 11 — Enqueue jobs instead of executing synchronously.
+    // Worker drain (client polling + cron) processes them in background.
+    const { userId } = context;
+    let enqueued = 0;
+    for (const runId of pendingRunIds) {
+      const { error: jobErr } = await (supabase as any).from("job_queue").insert({
+        user_id: userId,
+        job_type: "run_execution",
+        payload: { run_id: runId },
+        priority: 0,
+        max_attempts: 3,
+      });
+      if (!jobErr) enqueued++;
     }
 
-    // Update batch status — always completed, even if some children failed.
-    await (supabase as any).from("batches").update({ status: "completed" }).eq("id", batchId);
-
-    return { success: true, results, total: runIds.length, executed: pendingRunIds.length };
+    return { success: true, enqueued, total: runIds.length, results: [] as Array<{ run_id: string; success: boolean; error?: string }> };
   });
