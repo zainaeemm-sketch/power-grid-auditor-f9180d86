@@ -223,6 +223,7 @@ export type Database = {
           created_at: string
           difficulty_level: string
           id: string
+          is_public: boolean
           scenario_description: string | null
           scenario_id: string
           updated_at: string
@@ -233,6 +234,7 @@ export type Database = {
           created_at?: string
           difficulty_level?: string
           id?: string
+          is_public?: boolean
           scenario_description?: string | null
           scenario_id: string
           updated_at?: string
@@ -243,6 +245,7 @@ export type Database = {
           created_at?: string
           difficulty_level?: string
           id?: string
+          is_public?: boolean
           scenario_description?: string | null
           scenario_id?: string
           updated_at?: string
@@ -700,6 +703,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       validation_results: {
         Row: {
           actual_output: Json | null
@@ -788,8 +812,16 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "user"
       run_status: "queued" | "running" | "completed"
     }
     CompositeTypes: {
@@ -918,6 +950,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       run_status: ["queued", "running", "completed"],
     },
   },
