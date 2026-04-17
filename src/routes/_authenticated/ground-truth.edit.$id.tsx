@@ -236,8 +236,8 @@ function EditScenarioPage() {
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => navigate({ to: "/ground-truth/$id", params: { id: data.scenario.id } })}>Cancel</Button>
-          <Button type="submit" disabled={submitting} className="bg-gradient-to-r from-primary to-[oklch(0.72_0.14_200)] text-primary-foreground">
-            {submitting ? "Saving…" : "Save Changes"}
+          <Button type="submit" disabled={submitting || !canEdit} className="bg-gradient-to-r from-primary to-[oklch(0.72_0.14_200)] text-primary-foreground">
+            {submitting ? "Saving…" : canEdit ? "Save Changes" : "Read-only"}
           </Button>
         </div>
       </form>
