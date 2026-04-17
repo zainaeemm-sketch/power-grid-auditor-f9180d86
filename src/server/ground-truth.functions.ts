@@ -3,18 +3,40 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 import type { GroundTruthScenario, GroundTruthAction, GroundTruthScenarioWithActions, GroundTruthScenarioListItem } from "@/types/grid-arena";
 
+async function checkIsAdmin(sb: any, userId: string): Promise<boolean> {
+  const { data } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  return !!data;
+}
+
+export const isCurrentUserAdmin = createServerFn({ method: "GET" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ isAdmin: boolean }> => {
+    const sb = context.supabase as any;
+    const { userId } = context;
+    return { isAdmin: await checkIsAdmin(sb, userId) };
+  });
+
 export const listScenarios = createServerFn({ method: "GET" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ scenarios: GroundTruthScenarioListItem[] }> => {
+  .handler(async ({ context }): Promise<{ scenarios: GroundTruthScenarioListItem[]; isAdmin: boolean }> => {
     const sb = context.supabase as any;
+    const { userId } = context;
+    const isAdmin = await checkIsAdmin(sb, userId);
+
     const { data: scenarios, error } = await sb
       .from("ground_truth_scenarios")
       .select("*")
+      .order("is_public", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw new Error(`Failed to list scenarios: ${error.message}`);
 
     const ids = (scenarios ?? []).map((s: any) => s.id);
-    let counts: Record<string, number> = {};
+    const counts: Record<string, number> = {};
     if (ids.length > 0) {
       const { data: actions } = await sb
         .from("ground_truth_actions")
@@ -28,15 +50,18 @@ export const listScenarios = createServerFn({ method: "GET" })
       scenarios: (scenarios ?? []).map((s: any) => ({
         ...s,
         action_count: counts[s.id] ?? 0,
+        is_owner: s.user_id === userId,
       })),
+      isAdmin,
     };
   });
 
 export const getScenario = createServerFn({ method: "GET" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { id: string }) => input)
-  .handler(async ({ data, context }): Promise<GroundTruthScenarioWithActions> => {
+  .handler(async ({ data, context }): Promise<GroundTruthScenarioWithActions & { is_owner: boolean; isAdmin: boolean }> => {
     const sb = context.supabase as any;
+    const { userId } = context;
     const { data: scenario, error } = await sb
       .from("ground_truth_scenarios")
       .select("*")
@@ -50,7 +75,13 @@ export const getScenario = createServerFn({ method: "GET" })
       .eq("scenario_id", scenario.id)
       .order("created_at", { ascending: true });
 
-    return { scenario: scenario as GroundTruthScenario, actions: (actions ?? []) as GroundTruthAction[] };
+    const isAdmin = await checkIsAdmin(sb, userId);
+    return {
+      scenario: scenario as GroundTruthScenario,
+      actions: (actions ?? []) as GroundTruthAction[],
+      is_owner: scenario.user_id === userId,
+      isAdmin,
+    };
   });
 
 export const getScenarioForRun = createServerFn({ method: "GET" })
@@ -89,11 +120,18 @@ export const createScenario = createServerFn({ method: "POST" })
     case_name: string;
     scenario_description?: string | null;
     difficulty_level: string;
+    is_public?: boolean;
     actions: CreateActionInput[];
   }) => input)
   .handler(async ({ data, context }): Promise<{ scenario: GroundTruthScenario }> => {
     const sb = context.supabase as any;
     const { userId } = context;
+    const requestedPublic = data.is_public === true;
+    const isAdmin = requestedPublic ? await checkIsAdmin(sb, userId) : false;
+    if (requestedPublic && !isAdmin) {
+      throw new Error("Only admins can create public scenarios");
+    }
+
     const { data: scenario, error } = await sb
       .from("ground_truth_scenarios")
       .insert({
@@ -101,6 +139,7 @@ export const createScenario = createServerFn({ method: "POST" })
         case_name: data.case_name,
         scenario_description: data.scenario_description ?? null,
         difficulty_level: data.difficulty_level,
+        is_public: requestedPublic,
         user_id: userId,
       })
       .select()
@@ -132,24 +171,35 @@ export const updateScenario = createServerFn({ method: "POST" })
     case_name: string;
     scenario_description?: string | null;
     difficulty_level: string;
+    is_public?: boolean;
     actions: CreateActionInput[];
   }) => input)
   .handler(async ({ data, context }): Promise<{ scenario: GroundTruthScenario }> => {
     const sb = context.supabase as any;
+    const { userId } = context;
+
+    const updatePayload: Record<string, unknown> = {
+      scenario_id: data.scenario_id,
+      case_name: data.case_name,
+      scenario_description: data.scenario_description ?? null,
+      difficulty_level: data.difficulty_level,
+    };
+    if (typeof data.is_public === "boolean") {
+      if (data.is_public) {
+        const isAdmin = await checkIsAdmin(sb, userId);
+        if (!isAdmin) throw new Error("Only admins can mark scenarios public");
+      }
+      updatePayload.is_public = data.is_public;
+    }
+
     const { data: scenario, error } = await sb
       .from("ground_truth_scenarios")
-      .update({
-        scenario_id: data.scenario_id,
-        case_name: data.case_name,
-        scenario_description: data.scenario_description ?? null,
-        difficulty_level: data.difficulty_level,
-      })
+      .update(updatePayload)
       .eq("id", data.id)
       .select()
       .single();
     if (error || !scenario) throw new Error(`Failed to update scenario: ${error?.message}`);
 
-    // Replace actions: delete existing then insert new
     const { error: delErr } = await sb
       .from("ground_truth_actions")
       .delete()
@@ -250,4 +300,32 @@ export const seedExampleScenarios = createServerFn({ method: "POST" })
       inserted++;
     }
     return { inserted };
+  });
+
+/**
+ * Admin-only: claim admin role if no admin exists yet (first-user bootstrap).
+ * After that, only existing admins can grant admin to others via Cloud backend UI.
+ */
+export const claimFirstAdmin = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ granted: boolean; reason?: string }> => {
+    const sb = context.supabase as any;
+    const { userId } = context;
+
+    // Check if any admin already exists
+    const { data: existingAdmins, error: checkErr } = await sb
+      .from("user_roles")
+      .select("id")
+      .eq("role", "admin")
+      .limit(1);
+    if (checkErr) throw new Error(`Failed to check admins: ${checkErr.message}`);
+    if (existingAdmins && existingAdmins.length > 0) {
+      return { granted: false, reason: "An admin already exists" };
+    }
+
+    const { error: insErr } = await sb
+      .from("user_roles")
+      .insert({ user_id: userId, role: "admin" });
+    if (insErr) throw new Error(`Failed to grant admin: ${insErr.message}`);
+    return { granted: true };
   });
