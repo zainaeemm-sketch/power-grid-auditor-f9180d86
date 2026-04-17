@@ -61,16 +61,12 @@ function EditScenarioPage() {
   const navigate = useNavigate();
   const updateFn = useServerFn(updateScenario);
 
-  if (!data) {
-    return <main className="mx-auto max-w-3xl px-4 py-8"><p className="text-muted-foreground">Loading…</p></main>;
-  }
-
-  const [scenarioId, setScenarioId] = useState(data.scenario.scenario_id);
-  const [caseName, setCaseName] = useState(data.scenario.case_name);
-  const [description, setDescription] = useState(data.scenario.scenario_description ?? "");
-  const [difficulty, setDifficulty] = useState(data.scenario.difficulty_level);
+  const [scenarioId, setScenarioId] = useState(data?.scenario.scenario_id ?? "");
+  const [caseName, setCaseName] = useState(data?.scenario.case_name ?? "");
+  const [description, setDescription] = useState(data?.scenario.scenario_description ?? "");
+  const [difficulty, setDifficulty] = useState(data?.scenario.difficulty_level ?? "medium");
   const [actions, setActions] = useState<ActionForm[]>(
-    data.actions.length > 0
+    data && data.actions.length > 0
       ? data.actions.map((a) => ({
           action_type: a.action_type,
           target_index: a.target_index == null ? "" : String(a.target_index),
@@ -83,6 +79,10 @@ function EditScenarioPage() {
       : [emptyAction()],
   );
   const [submitting, setSubmitting] = useState(false);
+
+  if (!data) {
+    return <main className="mx-auto max-w-3xl px-4 py-8"><p className="text-muted-foreground">Loading…</p></main>;
+  }
 
   const updateAction = (idx: number, patch: Partial<ActionForm>) => {
     setActions((prev) => prev.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
