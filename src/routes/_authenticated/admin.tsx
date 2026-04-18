@@ -20,6 +20,7 @@ import { Check, X, RotateCcw, AlertCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { AdminShell, type AdminSection } from "@/components/admin/AdminShell";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
+import { AdminSettings } from "@/components/admin/AdminSettings";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
