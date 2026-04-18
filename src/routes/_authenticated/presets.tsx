@@ -289,8 +289,28 @@ function PresetsPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {presets.filter((p) => !pendingIds.has(p.id)).map((preset: ExperimentPreset, i: number) => {
+      {visiblePresets.length > 0 && (
+        <div className="mb-2 flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <Checkbox
+            checked={
+              selected.size > 0 && visiblePresets.every((p) => selected.has(p.id))
+                ? true
+                : selected.size > 0
+                  ? "indeterminate"
+                  : false
+            }
+            onCheckedChange={(v) => {
+              if (v) setSelected(new Set(visiblePresets.map((p) => p.id)));
+              else clearSelection();
+            }}
+            aria-label="Select all presets"
+          />
+          <span>Select all ({visiblePresets.length})</span>
+        </div>
+      )}
+
+      <div className="grid gap-4 pb-24 sm:grid-cols-2">
+        {visiblePresets.map((preset: ExperimentPreset, i: number) => {
           const p = preset as any;
           return (
             <Card
