@@ -68,8 +68,26 @@ export const getBatchTraceAnalytics = createServerFn({ method: "GET" })
 
 export const explainTrace = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
-  .inputValidator((input: { runId: string }) => input)
-  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback"; model?: string; error?: string }> => {
+  .inputValidator((input: { runId: string; force?: boolean }) => input)
+  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback" | "cache"; model?: string; cached_at?: string; error?: string }> => {
+    // Cache check (unless force)
+    if (!data.force) {
+      const { data: runRow } = await context.supabase
+        .from("runs")
+        .select("ai_explanation, ai_explanation_model, ai_explanation_generated_at")
+        .eq("id", data.runId)
+        .maybeSingle();
+      const cached = (runRow as any) ?? null;
+      if (cached?.ai_explanation) {
+        return {
+          explanation: cached.ai_explanation,
+          source: "cache",
+          model: cached.ai_explanation_model ?? undefined,
+          cached_at: cached.ai_explanation_generated_at ?? undefined,
+        };
+      }
+    }
+
     // Load traces + evaluation
     const { data: traceRows, error: tErr } = await context.supabase
       .from("decision_traces")
