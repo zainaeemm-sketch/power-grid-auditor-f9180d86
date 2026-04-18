@@ -5,7 +5,7 @@
 GridArena lets researchers evaluate and audit LLM agents on power-system corrective-action tasks with deterministic simulation, structured evaluation, and full provenance logging.
 
 🔗 **Live deployment:** https://power-grid-auditor.lovable.app
-📖 **In-app docs:** [/docs](https://power-grid-auditor.lovable.app/docs)
+📖 **In-app docs:** [/docs](https://gridarena.eu/)
 ℹ️ **About & citation:** [/about](https://power-grid-auditor.lovable.app/about)
 
 ---
