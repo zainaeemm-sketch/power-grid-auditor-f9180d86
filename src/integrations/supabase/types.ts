@@ -795,6 +795,9 @@ export type Database = {
       runs: {
         Row: {
           agent: string
+          ai_explanation: string | null
+          ai_explanation_generated_at: string | null
+          ai_explanation_model: string | null
           case_name: string
           created_at: string
           ground_truth_scenario_id: string | null
@@ -810,6 +813,9 @@ export type Database = {
         }
         Insert: {
           agent: string
+          ai_explanation?: string | null
+          ai_explanation_generated_at?: string | null
+          ai_explanation_model?: string | null
           case_name: string
           created_at?: string
           ground_truth_scenario_id?: string | null
@@ -825,6 +831,9 @@ export type Database = {
         }
         Update: {
           agent?: string
+          ai_explanation?: string | null
+          ai_explanation_generated_at?: string | null
+          ai_explanation_model?: string | null
           case_name?: string
           created_at?: string
           ground_truth_scenario_id?: string | null
