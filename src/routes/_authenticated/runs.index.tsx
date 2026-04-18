@@ -15,12 +15,14 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Plus, Target, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { listRuns, deleteRun, updateRun, type RunListItem } from "@/server/runs.functions";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import type { RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/runs/")({
@@ -72,7 +74,7 @@ function RunsPage() {
   const router = useRouter();
   const deleteRunFn = useServerFn(deleteRun);
   const updateRunFn = useServerFn(updateRun);
-  const { pendingIds, softDelete } = useSoftDelete();
+  const { pendingIds, softDelete, softDeleteMany } = useSoftDelete();
   const [search, setSearch] = useState("");
   const [taskFilter, setTaskFilter] = useState(ALL);
   const [agentFilter, setAgentFilter] = useState(ALL);
@@ -84,6 +86,16 @@ function RunsPage() {
   const [editTarget, setEditTarget] = useState<RunListItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const clearSelection = () => setSelected(new Set());
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -93,6 +105,19 @@ function RunsPage() {
       target.id,
       target.title,
       () => deleteRunFn({ data: { run_id: target.id } }),
+      () => router.invalidate(),
+    );
+  };
+
+  const handleBulkDelete = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkConfirmOpen(false);
+    clearSelection();
+    softDeleteMany(
+      ids,
+      `${ids.length} ${ids.length === 1 ? "run" : "runs"}`,
+      (id) => deleteRunFn({ data: { run_id: id } }),
       () => router.invalidate(),
     );
   };
@@ -286,18 +311,46 @@ function RunsPage() {
         </Select>
       </div>
 
-      <div className="space-y-3">
+      {filtered.length > 0 && (
+        <div className="mb-2 flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <Checkbox
+            checked={
+              selected.size > 0 && filtered.every((r) => selected.has(r.id))
+                ? true
+                : selected.size > 0
+                  ? "indeterminate"
+                  : false
+            }
+            onCheckedChange={(v) => {
+              if (v) setSelected(new Set(filtered.map((r) => r.id)));
+              else clearSelection();
+            }}
+            aria-label="Select all filtered runs"
+          />
+          <span>Select all ({filtered.length})</span>
+        </div>
+      )}
+
+      <div className="space-y-3 pb-24">
         {filtered.map((run) => {
           const hasGt = Boolean(run.ground_truth_scenario_id) || run.evaluation_against_ground_truth === true;
+          const isSelected = selected.has(run.id);
           return (
-            <Card key={run.id} className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
+            <Card key={run.id} className={`gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30 ${isSelected ? "ring-1 ring-primary/60" : ""}`}>
               <CardContent className="flex items-center justify-between gap-4 p-4">
-                <Link to="/runs/$runId" params={{ runId: run.id }} className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="truncate font-semibold">{run.title}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {run.task} · {run.agent} · {run.case_name}
-                  </p>
-                </Link>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleOne(run.id)}
+                    aria-label={`Select ${run.title}`}
+                  />
+                  <Link to="/runs/$runId" params={{ runId: run.id }} className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="truncate font-semibold">{run.title}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {run.task} · {run.agent} · {run.case_name}
+                    </p>
+                  </Link>
+                </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {hasGt && (
                     <div className="flex items-center gap-2 text-xs">
@@ -366,6 +419,30 @@ function RunsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} {selected.size === 1 ? "run" : "runs"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll have 5 seconds to undo. After that, the selected runs and all their traces, metadata, evaluations, and recommendations will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BulkActionBar
+        count={selected.size}
+        itemLabel="run"
+        onDelete={() => setBulkConfirmOpen(true)}
+        onClear={clearSelection}
+      />
     </main>
   );
 }

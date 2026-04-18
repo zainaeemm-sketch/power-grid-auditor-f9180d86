@@ -91,5 +91,88 @@ export function useSoftDelete() {
     };
   }, []);
 
-  return { pendingIds, softDelete };
+  /**
+   * Bulk soft-delete with a single shared Undo toast.
+   * `runDelete(id)` is called for each id after the timer expires.
+   */
+  const softDeleteMany = useCallback(
+    (
+      ids: string[],
+      label: string, // e.g. `3 runs`
+      runDelete: (id: string) => Promise<unknown>,
+      onCommitted?: () => void,
+    ) => {
+      if (ids.length === 0) return;
+      const idSet = new Set(ids);
+
+      // Hide all rows.
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) next.add(id);
+        return next;
+      });
+      // Clear any prior cancellation flags.
+      for (const id of ids) cancelledRef.current.delete(id);
+
+      let cancelled = false;
+      const toastId = toast(`Deleted ${label}`, {
+        description: "Will be permanently removed in 5 seconds.",
+        duration: UNDO_MS,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            cancelled = true;
+            for (const id of ids) {
+              cancelledRef.current.add(id);
+              const t = timersRef.current.get(id);
+              if (t) clearTimeout(t);
+              timersRef.current.delete(id);
+            }
+            setPendingIds((prev) => {
+              const next = new Set(prev);
+              for (const id of ids) next.delete(id);
+              return next;
+            });
+            toast.success(`Restored ${label}`);
+          },
+        },
+      });
+
+      // One shared timer commits all deletes together.
+      const timer = setTimeout(async () => {
+        for (const id of ids) timersRef.current.delete(id);
+        if (cancelled) return;
+        const failures: string[] = [];
+        await Promise.all(
+          ids.map(async (id) => {
+            try { await runDelete(id); }
+            catch (e: any) {
+              failures.push(id);
+              console.error(`Bulk delete failed for ${id}:`, e);
+            }
+          }),
+        );
+        if (failures.length > 0) {
+          // Restore failed rows.
+          setPendingIds((prev) => {
+            const next = new Set(prev);
+            for (const id of failures) next.delete(id);
+            return next;
+          });
+          toast.error(`Failed to delete ${failures.length} of ${ids.length} items`);
+        } else {
+          toast.dismiss(toastId);
+        }
+        onCommitted?.();
+      }, UNDO_MS);
+
+      // Track the timer under each id so unmount cleanup works (any one entry suffices).
+      for (const id of ids) timersRef.current.set(id, timer);
+      // Keep idSet referenced (avoids unused-var lint).
+      void idSet;
+    },
+    [],
+  );
+
+  return { pendingIds, softDelete, softDeleteMany };
 }

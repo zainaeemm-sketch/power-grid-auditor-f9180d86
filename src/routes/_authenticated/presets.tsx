@@ -10,11 +10,13 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, FlaskConical, Pencil, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { listPresets, createPreset, deletePreset, updatePreset } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import type { ExperimentPreset } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/presets")({
@@ -41,7 +43,32 @@ function PresetsPage() {
   const createPresetFn = useServerFn(createPreset);
   const deletePresetFn = useServerFn(deletePreset);
   const updatePresetFn = useServerFn(updatePreset);
-  const { pendingIds, softDelete } = useSoftDelete();
+  const { pendingIds, softDelete, softDeleteMany } = useSoftDelete();
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const clearSelection = () => setSelected(new Set());
+
+  const visiblePresets = presets.filter((p) => !pendingIds.has(p.id));
+
+  const handleBulkDelete = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkConfirmOpen(false);
+    clearSelection();
+    softDeleteMany(
+      ids,
+      `${ids.length} ${ids.length === 1 ? "preset" : "presets"}`,
+      (id) => deletePresetFn({ data: { preset_id: id } }),
+      () => router.invalidate(),
+    );
+  };
 
   const [deleteTarget, setDeleteTarget] = useState<ExperimentPreset | null>(null);
   const [editTarget, setEditTarget] = useState<ExperimentPreset | null>(null);
@@ -262,20 +289,48 @@ function PresetsPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {presets.filter((p) => !pendingIds.has(p.id)).map((preset: ExperimentPreset, i: number) => {
+      {visiblePresets.length > 0 && (
+        <div className="mb-2 flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <Checkbox
+            checked={
+              selected.size > 0 && visiblePresets.every((p) => selected.has(p.id))
+                ? true
+                : selected.size > 0
+                  ? "indeterminate"
+                  : false
+            }
+            onCheckedChange={(v) => {
+              if (v) setSelected(new Set(visiblePresets.map((p) => p.id)));
+              else clearSelection();
+            }}
+            aria-label="Select all presets"
+          />
+          <span>Select all ({visiblePresets.length})</span>
+        </div>
+      )}
+
+      <div className="grid gap-4 pb-24 sm:grid-cols-2">
+        {visiblePresets.map((preset: ExperimentPreset, i: number) => {
           const p = preset as any;
+          const isSelected = selected.has(preset.id);
           return (
             <Card
               key={preset.id}
-              className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up"
+              className={`gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up ${isSelected ? "ring-1 ring-primary/60" : ""}`}
               style={{ animationDelay: `${i * 80}ms` }}
             >
               <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
-                <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <FlaskConical className="h-4 w-4 gradient-text" />
-                  {preset.name}
-                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleOne(preset.id)}
+                    aria-label={`Select ${preset.name}`}
+                  />
+                  <CardTitle className="flex items-center gap-2 text-base font-bold">
+                    <FlaskConical className="h-4 w-4 gradient-text" />
+                    {preset.name}
+                  </CardTitle>
+                </div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" title="Edit preset" onClick={() => openEdit(preset)}>
                     <Pencil className="h-4 w-4" />
@@ -354,6 +409,30 @@ function PresetsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} {selected.size === 1 ? "preset" : "presets"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll have 5 seconds to undo. After that, the selected presets will be permanently deleted. Existing runs that referenced them are unaffected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BulkActionBar
+        count={selected.size}
+        itemLabel="preset"
+        onDelete={() => setBulkConfirmOpen(true)}
+        onClear={clearSelection}
+      />
     </main>
   );
 }
