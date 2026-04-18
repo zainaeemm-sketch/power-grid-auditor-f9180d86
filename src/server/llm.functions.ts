@@ -134,6 +134,14 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       promptText = `You are analyzing the ${run.case_name} power system case. Task: ${run.task}. ${run.research_question ? `Research question: ${run.research_question}.` : ""} Recommend one concise action to address the task.`;
     }
 
+    tracer.record({
+      stage_name: "Prompt received",
+      stage_type: "reasoning",
+      input: `Case: ${run.case_name}, Task: ${run.task}`,
+      output: promptText,
+      execution_time_ms: 0,
+      evidence: { case_name: run.case_name, task: run.task, research_question: run.research_question ?? null },
+    });
     const systemPrompt = metadata?.system_prompt
       || "You are a power systems assistant. Provide concise, actionable recommendations.";
 
