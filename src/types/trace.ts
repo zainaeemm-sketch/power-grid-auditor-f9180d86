@@ -9,6 +9,8 @@ export type StageType =
 
 export type TraceStatus = "success" | "warning" | "failure";
 
+export type TraceEvidence = string | number | boolean | null | { [k: string]: TraceEvidence } | TraceEvidence[];
+
 export interface DecisionTrace {
   id: string;
   run_id: string;
@@ -21,7 +23,7 @@ export interface DecisionTrace {
   status: TraceStatus;
   failure_reason: string | null;
   execution_time_ms: number;
-  evidence: Record<string, unknown> | unknown[] | null;
+  evidence: TraceEvidence;
   created_at: string;
 }
 
