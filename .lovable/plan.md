@@ -1,74 +1,100 @@
 
+This is a substantial layer. Let me scope it tightly and present a focused plan.
 
-User confirmed email `zain.naeem@unipa.it` — likely the bootstrap admin. Proceeding with the previously-proposed plan, defaulting open questions:
+## Plan: Explainability & Decision Trace Layer
 
-- **Email**: Use Lovable Cloud's built-in email infrastructure (transactional email scaffold).
-- **Existing users**: Auto-approve all existing users (incl. `zain.naeem@unipa.it`), and ensure this email gets the `admin` role so they can access the admin panel.
-- **Sender domain**: Email-domain setup requires workspace admin permissions and may need DNS verification. Approval flow will work immediately; welcome email goes through the queue and will start delivering once a verified sender domain is configured (Lovable Cloud → Emails).
+### PART 1 — Schema (migration)
+New table `decision_traces`:
+- `id uuid pk`, `run_id uuid not null`, `sequence int not null` (for deterministic ordering)
+- `stage_name text`, `stage_type text` (enum-like check: retrieval/planning/tool_use/reasoning/validation/execution/evaluation)
+- `input_summary text`, `output_summary text`, `tool_name text`
+- `status text` (success/warning/failure), `failure_reason text nullable`
+- `execution_time_ms int`, `evidence jsonb nullable` (for Part 7)
+- `created_at timestamptz default now()`
+- Index on `(run_id, sequence)`
+- RLS: select/insert/delete via `EXISTS (runs WHERE runs.id = run_id AND runs.user_id = auth.uid())`
 
-## Plan: Admin Approval Flow + Welcome Email
+### PART 2/3 — Trace capture (backend)
+New file: `src/server/trace/recorder.ts` — `TraceRecorder` class with:
+- `record(stage, type, input, output, tool, status, ms, evidence?)` — buffers entries with auto-incrementing sequence
+- `flush(supabase, runId)` — single batch insert (deterministic, ordered)
+- `failure(stage, type, reason, ms)` helper
 
-### 1. Migration
+Hook into `src/server/perturbation/run-executor.ts` (or wherever `executeRunLlm` lives) at these points:
+1. Prompt received → `reasoning`
+2. LLM call → `tool_use` (model name as tool)
+3. Recommendation generated → `reasoning`
+4. Parser → `reasoning` (input: rec text, output: action_type)
+5. Action application → `execution`
+6. Evaluation → `evaluation`
+7. Sensitivity (only if run) → `validation`
+8. Ground truth (only if available) → `evaluation`
 
-```text
-user_approvals
-├─ user_id uuid pk → auth.users(id) ON DELETE CASCADE
-├─ status text default 'pending'   -- pending | approved | rejected
-├─ email text not null
-├─ requested_at timestamptz default now()
-├─ reviewed_at timestamptz
-├─ reviewed_by uuid
-├─ notes text
-```
+Wrap each in try/catch — failures recorded with `status=failure` + `failure_reason`, then re-thrown so existing flow is unchanged.
 
-- Trigger `on_auth_user_created` (AFTER INSERT on `auth.users`) → insert pending row.
-- RLS: user can SELECT own row; admin can SELECT/UPDATE all.
-- SECURITY DEFINER fn `is_user_approved(uid)` returns true if approved OR admin.
-- Backfill: all existing `auth.users` → `approved`.
-- Bootstrap admin: insert `user_roles(user_id, 'admin')` for the user whose email = `zain.naeem@unipa.it`.
+### PART 4/6 — Decision Trace Viewer
+New: `src/components/run-details/DecisionTracePanel.tsx`
+- Loader fetches traces via new server fn `getRunTraces`
+- Two views in same card: **Timeline** (horizontal bar with colored segments per stage_type, width ∝ execution_time) + **Stage list** (vertical chronological list with stage name, type badge, in/out summary, tool, status badge, time)
+- Color: emerald=success, amber=warning, destructive=failure
+- Replace existing mock `ToolTracePanel` usage in `runs.$runId.tsx` with this real panel (keep `ToolTracePanel` file, just stop rendering it)
 
-### 2. Auth gating
+### PART 5 — Failure attribution
+Within `DecisionTracePanel`, if any trace has `status=failure`, show a top alert:
+- Failure type (derived from stage_type: tool_use→"tool failure", reasoning→"reasoning failure", etc.)
+- Reason from `failure_reason`
+- Suggested explanation (static map: solver non-convergence → "Try different engine or simpler case", etc.)
 
-- Server fn `getApprovalStatus()` → `{status, isAdmin}`.
-- New public route `/pending-approval` (auth-required, NOT under `_authenticated`): shows status + sign-out + realtime listener on `user_approvals` for own row → redirects to `/` once approved.
-- `_authenticated.tsx`: after auth check, fetch approval status; if pending/rejected and not admin → redirect `/pending-approval`.
+### PART 7 — Evidence viewer
+Per stage: if `evidence` jsonb present, show expandable `<Collapsible>` with pretty-printed JSON (retrieved docs, sim outputs, tool results).
 
-### 3. Admin panel (`src/routes/_authenticated/admin.tsx`)
+### PART 8 — Decision explanation summary
+New: `src/lib/trace-explainer.ts` — pure function `summarizeTrace(traces, evaluation)` that walks ordered stages and produces 3-5 sentences using templated strings (deterministic, no LLM call). Rendered as a `<Card>` above the timeline titled "Decision Explanation".
 
-- `beforeLoad` checks admin role; non-admins → `/`.
-- Tabs: Pending · Approved · Rejected · All.
-- Table: Email · Requested · Status · Reviewed by · Actions (Approve / Reject / Revoke) + notes textarea.
-- New nav link "Admin" (ShieldCheck icon) in `NavHeader.tsx`, visible only when `isAdmin`.
+### PART 9 — Batch analytics
+Extend `src/components/batch/BatchSensitivitySection.tsx` area in batch report (`reports.batch.$batchId.tsx`):
+- New `TraceAnalyticsCard`: server fn aggregates traces for all runs in batch
+- Bar chart (recharts) of failure count per stage_type
+- Stat tiles: most common failure stage, avg execution time per stage
 
-Server fns (`src/server/admin.functions.ts`, all guarded by `has_role`):
-- `listUserApprovals({ status? })`
-- `approveUser({ user_id, notes? })` → updates row, enqueues welcome email
-- `rejectUser({ user_id, notes? })`
-- `revokeUser({ user_id })`
+### PART 10 — Export
+New: `src/lib/trace-export.ts` — `exportTraceCsv(runId, traces)` writing `trace_run_{run_id}.csv` with fields: stage_name, stage_type, status, execution_time_ms, failure_reason, input_summary, output_summary, tool_name, sequence.
+Add "Export Trace CSV" button to DecisionTracePanel header.
 
-### 4. Welcome email
+### PART 11 — Backward compat
+- All trace logging wrapped in try/catch — never blocks run execution
+- Panel shows "No trace data available yet" when query returns empty array
+- Existing runs without traces continue to work
 
-- Run email infrastructure setup (transactional scaffold) using Lovable Cloud's built-in queue.
-- Create transactional template `welcome.tsx` (React Email) — GridArena branding, link to `/`.
-- `approveUser` enqueues the welcome email; failures are logged in `job_logs` but don't block approval.
-- If sender domain isn't yet verified, surface a notice in the admin panel: "Welcome emails are queued and will send once your sender domain is verified."
+### PART 12 — Seeding
+On first load of a run with no traces, do NOT auto-seed (would mutate historical runs). Instead, only newly executed runs get traces. Provide a "Re-run with Same Configuration" path (already exists) for users to populate traces on old runs.
 
-### 5. Files
+### Files (technical summary)
+**New:**
+- `supabase/migrations/<ts>_decision_traces.sql`
+- `src/server/trace/recorder.ts` — TraceRecorder class
+- `src/server/trace.functions.ts` — `getRunTraces`, `getBatchTraceAnalytics`
+- `src/components/run-details/DecisionTracePanel.tsx`
+- `src/components/reports/TraceAnalyticsCard.tsx`
+- `src/lib/trace-explainer.ts`
+- `src/lib/trace-export.ts`
+- `src/types/trace.ts` (DecisionTrace type, StageType union)
 
-```text
-supabase/migrations/<ts>_user_approvals.sql
-src/server/admin.functions.ts
-src/routes/_authenticated/admin.tsx
-src/routes/pending-approval.tsx
-src/routes/_authenticated.tsx               (add gate)
-src/components/NavHeader.tsx                (admin link)
-supabase/functions/_shared/email-templates/welcome.tsx
-+ transactional email edge function (scaffolded)
-```
+**Edited:**
+- `src/server/perturbation/run-executor.ts` (or actual run executor) — instrument with TraceRecorder
+- `src/routes/_authenticated/runs.$runId.tsx` — render DecisionTracePanel, remove mock ToolTracePanel
+- `src/types/grid-arena.ts` — re-export trace types
+- `src/routes/_authenticated/reports.batch.$batchId.tsx` — add TraceAnalyticsCard
+- `.lovable/memory/features/db-schema.md` — document decision_traces
 
-### 6. Defaults applied
+### Implementation order (single message)
+1. Migration (`decision_traces` table + RLS)
+2. TraceRecorder + instrument executor
+3. Server fns + types
+4. DecisionTracePanel (timeline + list + failure alert + evidence)
+5. Explanation summary + export
+6. Batch analytics card
+7. Wire into run details + batch report
+8. Update memory
 
-- Existing users auto-approved; `zain.naeem@unipa.it` granted admin role.
-- Welcome email is fire-and-forget; approval succeeds even if email fails.
-- Rejected users see "Account not approved" + sign-out only.
-
+No changes to evaluation logic, parser, or simulation engines. Existing runs keep working (empty trace → "No trace data available").
