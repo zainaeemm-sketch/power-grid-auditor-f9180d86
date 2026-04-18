@@ -14,4 +14,4 @@ Public routes (no auth): /about, /docs/* — show Docs+About in nav for logged-o
 Citation metadata centralized in src/lib/citation.ts; demo seeder in src/server/demo.functions.ts (idempotent, marks artifacts with "[Demo]" prefix).
 
 ## Memories
-- [DB Schema](mem://features/db-schema) — runs, run_metadata, run_prompt_logs, experiment_presets tables with user-scoped RLS
+- [DB Schema](mem://features/db-schema) — runs, run_metadata, run_prompt_logs, experiment_presets, decision_traces tables with user-scoped RLS

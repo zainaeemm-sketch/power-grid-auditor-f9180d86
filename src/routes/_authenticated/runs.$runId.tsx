@@ -23,6 +23,7 @@ import { ToolTracePanel } from "@/components/run-details/ToolTracePanel";
 import { ProvenanceTimelinePanel } from "@/components/run-details/ProvenanceTimelinePanel";
 import { GroundTruthComparisonPanel } from "@/components/run-details/GroundTruthComparisonPanel";
 import { SensitivityPanel } from "@/components/run-details/SensitivityPanel";
+import { DecisionTracePanel } from "@/components/run-details/DecisionTracePanel";
 
 export const Route = createFileRoute("/_authenticated/runs/$runId")({
   head: () => ({
@@ -136,6 +137,7 @@ function RunDetailPage() {
       </div>
 
       <div className="mt-4 grid gap-4">
+        <DecisionTracePanel runId={run.id} evaluation={details.evaluation ?? null} />
         <SensitivityPanel runId={run.id} />
         <ToolTracePanel status={run.status as RunStatus} />
         <ProvenanceTimelinePanel run={run} hasParseResult={!!parseResult} />

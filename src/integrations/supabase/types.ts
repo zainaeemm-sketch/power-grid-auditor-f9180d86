@@ -95,6 +95,62 @@ export type Database = {
         }
         Relationships: []
       }
+      decision_traces: {
+        Row: {
+          created_at: string
+          evidence: Json | null
+          execution_time_ms: number
+          failure_reason: string | null
+          id: string
+          input_summary: string | null
+          output_summary: string | null
+          run_id: string
+          sequence: number
+          stage_name: string
+          stage_type: string
+          status: string
+          tool_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          evidence?: Json | null
+          execution_time_ms?: number
+          failure_reason?: string | null
+          id?: string
+          input_summary?: string | null
+          output_summary?: string | null
+          run_id: string
+          sequence: number
+          stage_name: string
+          stage_type: string
+          status?: string
+          tool_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          evidence?: Json | null
+          execution_time_ms?: number
+          failure_reason?: string | null
+          id?: string
+          input_summary?: string | null
+          output_summary?: string | null
+          run_id?: string
+          sequence?: number
+          stage_name?: string
+          stage_type?: string
+          status?: string
+          tool_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_traces_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       experiment_presets: {
         Row: {
           created_at: string

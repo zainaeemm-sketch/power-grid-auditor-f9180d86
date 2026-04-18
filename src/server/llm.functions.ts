@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 import { withRetry, isTransientHttpStatus } from "@/lib/server-utils";
+import { TraceRecorder } from "./trace/recorder";
 
 /**
  * Persist a human-readable failure message to run_metadata.notes (appended)
@@ -114,7 +115,7 @@ export const executeRunLlm = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const runId = data.run_id;
-
+    const tracer = new TraceRecorder();
     const { data: run, error: runErr } = await supabase
       .from("runs").select("*").eq("id", runId).single();
     if (runErr || !run) return { success: false, error: "Run not found" };
@@ -133,6 +134,14 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       promptText = `You are analyzing the ${run.case_name} power system case. Task: ${run.task}. ${run.research_question ? `Research question: ${run.research_question}.` : ""} Recommend one concise action to address the task.`;
     }
 
+    tracer.record({
+      stage_name: "Prompt received",
+      stage_type: "reasoning",
+      input: `Case: ${run.case_name}, Task: ${run.task}`,
+      output: promptText,
+      execution_time_ms: 0,
+      evidence: { case_name: run.case_name, task: run.task, research_question: run.research_question ?? null },
+    });
     const systemPrompt = metadata?.system_prompt
       || "You are a power systems assistant. Provide concise, actionable recommendations.";
 
@@ -186,6 +195,7 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     if (typeof topP === "number") body.top_p = topP;
     if (typeof seed === "number") body.seed = seed;
 
+    const llmStart = Date.now();
     try {
       // Retry on transient (5xx / network) failures only — never on 4xx (config/auth).
       responseText = await withRetry(async () => {
@@ -220,6 +230,15 @@ export const executeRunLlm = createServerFn({ method: "POST" })
         },
       });
       clearTimeout(timeout);
+      tracer.record({
+        stage_name: "LLM invocation",
+        stage_type: "tool_use",
+        tool_name: modelName,
+        input: `temperature=${temperature}, prompt_chars=${promptText.length}`,
+        output: `response_chars=${responseText.length}`,
+        execution_time_ms: Date.now() - llmStart,
+        evidence: { model: modelName, temperature, max_tokens: maxTokens ?? null },
+      });
     } catch (err: any) {
       clearTimeout(timeout);
       const isTimeout = err?.name === "AbortError";
@@ -228,6 +247,14 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       const message = isTimeout
         ? "LLM execution timed out (60s)"
         : err?.message ?? "Unknown LLM failure";
+      tracer.failure({
+        stage_name: "LLM invocation",
+        stage_type: "tool_use",
+        tool_name: modelName,
+        reason: message,
+        execution_time_ms: Date.now() - llmStart,
+      });
+      await tracer.flush(supabase, runId);
       await recordRunFailure(supabase, runId, message);
       return { success: false, error: message, retryable };
     }
@@ -247,6 +274,15 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       await (supabase as any).from("run_recommendations").insert({ run_id: runId, recommendation_text: responseText });
     }
 
+    tracer.record({
+      stage_name: "Recommendation generated",
+      stage_type: "reasoning",
+      input: `LLM response (${responseText.length} chars)`,
+      output: responseText.slice(0, 200),
+      execution_time_ms: 0,
+    });
+
+    const parserStart = Date.now();
     const parseResult = parseRecommendationText(responseText);
     const { data: existingParse } = await (supabase as any)
       .from("run_parse_results").select("id").eq("run_id", runId).maybeSingle();
@@ -256,6 +292,15 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     } else {
       await (supabase as any).from("run_parse_results").insert({ run_id: runId, ...parseResult });
     }
+    tracer.record({
+      stage_name: "Parser execution",
+      stage_type: "reasoning",
+      tool_name: "parser",
+      input: responseText.slice(0, 160),
+      output: parseResult.action_type,
+      execution_time_ms: Date.now() - parserStart,
+      evidence: { parser_notes: parseResult.parser_notes, target_index: parseResult.target_index, value: parseResult.value },
+    });
 
     const actionFields = {
       action_type: parseResult.action_type,
@@ -271,8 +316,16 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     } else {
       await (supabase as any).from("run_actions").insert({ run_id: runId, ...actionFields });
     }
+    tracer.record({
+      stage_name: "Action application",
+      stage_type: "execution",
+      input: parseResult.action_type,
+      output: parseResult.enabled ? `applied: ${parseResult.action_type}` : "skipped (disabled)",
+      execution_time_ms: 0,
+    });
 
     let evaluationResult = null;
+    const evalStart = Date.now();
     try {
       const { applyParsedAction, computeEvaluation } = await import("./evaluation.functions");
       const fullParseResult = { ...parseResult, id: "", run_id: runId, created_at: "", updated_at: "" };
@@ -282,6 +335,7 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       // Ground-truth comparison (optional — only when run has ground_truth_scenario_id)
       const gtScenarioId = (run as any).ground_truth_scenario_id as string | null | undefined;
       if (gtScenarioId) {
+        const gtStart = Date.now();
         try {
           const { compareToGroundTruth } = await import("./ground-truth/compare");
           const { data: refActions } = await (supabase as any)
@@ -299,8 +353,23 @@ export const executeRunLlm = createServerFn({ method: "POST" })
             evalFields.optimality_gap = cmp.optimality_gap;
             evalFields.deviation_from_reference = Number.isFinite(cmp.deviation_from_reference) ? cmp.deviation_from_reference : null;
             evalFields.evaluation_against_ground_truth = true;
+            tracer.record({
+              stage_name: "Ground truth comparison",
+              stage_type: "evaluation",
+              tool_name: "ground_truth_compare",
+              input: `${refActions.length} reference action(s)`,
+              output: `match=${cmp.action_match}, feas_match=${cmp.feasibility_match}, gap=${cmp.optimality_gap}`,
+              execution_time_ms: Date.now() - gtStart,
+              evidence: { reference_count: refActions.length, ...cmp },
+            });
           }
         } catch (gtErr: any) {
+          tracer.failure({
+            stage_name: "Ground truth comparison",
+            stage_type: "evaluation",
+            reason: gtErr?.message ?? "ground truth comparison failed",
+            execution_time_ms: Date.now() - gtStart,
+          });
           console.error("Ground-truth comparison failed:", gtErr?.message);
         }
       }
@@ -315,11 +384,27 @@ export const executeRunLlm = createServerFn({ method: "POST" })
         const { data } = await (supabase as any).from("run_evaluations").insert({ run_id: runId, ...evalFields }).select("*").single();
         evaluationResult = data;
       }
+      tracer.record({
+        stage_name: "Evaluation computation",
+        stage_type: "evaluation",
+        tool_name: evalFields.engine_used ?? "rule_based",
+        input: `action=${parseResult.action_type}`,
+        output: `feasibility=${evalFields.feasibility}, violations=${evalFields.violations_found}, improvement=${evalFields.violation_improvement}`,
+        execution_time_ms: Date.now() - evalStart,
+        evidence: evalFields.simulation_details ?? null,
+      });
     } catch (evalErr: any) {
+      tracer.failure({
+        stage_name: "Evaluation computation",
+        stage_type: "evaluation",
+        reason: evalErr?.message ?? "evaluation failed",
+        execution_time_ms: Date.now() - evalStart,
+      });
       console.error("Evaluation failed:", evalErr.message);
     }
 
     await supabase.from("runs").update({ status: "completed" as const }).eq("id", runId);
+    await tracer.flush(supabase, runId);
 
     return {
       success: true,
