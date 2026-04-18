@@ -3,10 +3,14 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Target, Sparkles, Globe, Lock, ShieldCheck } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Target, Sparkles, Globe, Lock, ShieldCheck, Pencil, Trash2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { listScenarios, seedExampleScenarios, claimFirstAdmin } from "@/server/ground-truth.functions";
+import { listScenarios, seedExampleScenarios, claimFirstAdmin, deleteScenario } from "@/server/ground-truth.functions";
 import type { GroundTruthScenarioListItem } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/ground-truth/")({
@@ -32,8 +36,23 @@ function GroundTruthListPage() {
   const router = useRouter();
   const seedFn = useServerFn(seedExampleScenarios);
   const claimFn = useServerFn(claimFirstAdmin);
+  const deleteFn = useServerFn(deleteScenario);
   const [seeding, setSeeding] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<GroundTruthScenarioListItem | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      await deleteFn({ data: { id: deleteTarget.id } });
+      toast.success("Scenario deleted");
+      setDeleteTarget(null);
+      await router.invalidate();
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setBusy(false); }
+  };
 
   const handleSeed = async () => {
     setSeeding(true);
@@ -110,34 +129,68 @@ function GroundTruthListPage() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {scenarios.map((s) => (
-            <Link key={s.id} to="/ground-truth/$id" params={{ id: s.id }}>
-              <Card className="border-border/40 bg-card/60 transition hover:border-primary/40">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center justify-between text-sm font-bold">
-                    <span className="font-mono text-primary">{s.scenario_id}</span>
-                    <div className="flex items-center gap-1.5">
-                      {s.is_public ? (
-                        <Badge variant="default" className="gap-1 text-[10px]"><Globe className="h-3 w-3" />Shared</Badge>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1 text-[10px]"><Lock className="h-3 w-3" />Private</Badge>
-                      )}
-                      <Badge variant="outline" className="text-xs">{s.difficulty_level}</Badge>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 text-xs">
+            <Card key={s.id} className="border-border/40 bg-card/60 transition hover:border-primary/40">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center justify-between text-sm font-bold">
+                  <Link to="/ground-truth/$id" params={{ id: s.id }} className="font-mono text-primary hover:underline">
+                    {s.scenario_id}
+                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    {s.is_public ? (
+                      <Badge variant="default" className="gap-1 text-[10px]"><Globe className="h-3 w-3" />Shared</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="gap-1 text-[10px]"><Lock className="h-3 w-3" />Private</Badge>
+                    )}
+                    <Badge variant="outline" className="text-xs">{s.difficulty_level}</Badge>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 text-xs">
+                <Link to="/ground-truth/$id" params={{ id: s.id }} className="block space-y-1">
                   <div><span className="text-muted-foreground">Case:</span> {s.case_name}</div>
                   <div className="line-clamp-2 text-muted-foreground">{s.scenario_description || "—"}</div>
-                  <div className="flex items-center justify-between">
-                    <span><span className="text-muted-foreground">Reference actions:</span> {s.action_count}</span>
-                    {!s.is_owner && <span className="text-[10px] text-muted-foreground">read-only</span>}
+                </Link>
+                <div className="flex items-center justify-between pt-1">
+                  <span><span className="text-muted-foreground">Reference actions:</span> {s.action_count}</span>
+                  <div className="flex items-center gap-1">
+                    {s.is_owner ? (
+                      <>
+                        <Button asChild variant="ghost" size="icon" title="Edit scenario" className="h-7 w-7">
+                          <Link to="/ground-truth/edit/$id" params={{ id: s.id }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Delete scenario" className="h-7 w-7" onClick={() => setDeleteTarget(s)}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">read-only</span>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this scenario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{deleteTarget?.scenario_id}" and its reference actions will be removed. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {busy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
