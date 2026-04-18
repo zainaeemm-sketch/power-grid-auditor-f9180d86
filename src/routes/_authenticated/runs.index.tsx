@@ -20,6 +20,7 @@ import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { listRuns, deleteRun, updateRun, type RunListItem } from "@/server/runs.functions";
+import { useSoftDelete } from "@/hooks/useSoftDelete";
 import type { RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/runs/")({
@@ -71,6 +72,7 @@ function RunsPage() {
   const router = useRouter();
   const deleteRunFn = useServerFn(deleteRun);
   const updateRunFn = useServerFn(updateRun);
+  const { pendingIds, softDelete } = useSoftDelete();
   const [search, setSearch] = useState("");
   const [taskFilter, setTaskFilter] = useState(ALL);
   const [agentFilter, setAgentFilter] = useState(ALL);
@@ -83,17 +85,16 @@ function RunsPage() {
   const [editTitle, setEditTitle] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deleteTarget) return;
-    setBusy(true);
-    try {
-      await deleteRunFn({ data: { run_id: deleteTarget.id } });
-      toast.success("Run deleted");
-      setDeleteTarget(null);
-      await router.invalidate();
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to delete run");
-    } finally { setBusy(false); }
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    softDelete(
+      target.id,
+      target.title,
+      () => deleteRunFn({ data: { run_id: target.id } }),
+      () => router.invalidate(),
+    );
   };
 
   const handleEditSave = async () => {
@@ -132,6 +133,7 @@ function RunsPage() {
 
   const filtered = useMemo(() => {
     const base = runs.filter((r) => {
+      if (pendingIds.has(r.id)) return false;
       if (taskFilter !== ALL && r.task !== taskFilter) return false;
       if (agentFilter !== ALL && r.agent !== agentFilter) return false;
       if (caseFilter !== ALL && r.case_name !== caseFilter) return false;
@@ -186,7 +188,7 @@ function RunsPage() {
         );
     }
     return sorted;
-  }, [runs, taskFilter, agentFilter, caseFilter, statusFilter, gtFilter, search, sortBy]);
+  }, [runs, pendingIds, taskFilter, agentFilter, caseFilter, statusFilter, gtFilter, search, sortBy]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -339,13 +341,13 @@ function RunsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this run?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.title}" and all its decision traces, metadata, evaluations, and recommendations will be permanently removed. This cannot be undone.
+              "{deleteTarget?.title}" will be removed. You'll have 5 seconds to undo before it and all related decision traces, metadata, evaluations, and recommendations are permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {busy ? "Deleting…" : "Delete"}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

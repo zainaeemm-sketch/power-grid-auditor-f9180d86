@@ -17,6 +17,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { listBatches, deleteBatch, updateBatch } from "@/server/batch.functions";
+import { useSoftDelete } from "@/hooks/useSoftDelete";
 import type { Batch, RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/batches/")({
@@ -54,6 +55,7 @@ function BatchesPage() {
   const router = useRouter();
   const deleteFn = useServerFn(deleteBatch);
   const updateFn = useServerFn(updateBatch);
+  const { pendingIds, softDelete } = useSoftDelete();
   const [deleteTarget, setDeleteTarget] = useState<BatchRow | null>(null);
   const [editTarget, setEditTarget] = useState<BatchRow | null>(null);
   const [editName, setEditName] = useState("");
@@ -66,16 +68,16 @@ function BatchesPage() {
     setEditRq(b.research_question ?? "");
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deleteTarget) return;
-    setBusy(true);
-    try {
-      await deleteFn({ data: { batch_id: deleteTarget.id } });
-      toast.success("Batch deleted");
-      setDeleteTarget(null);
-      await router.invalidate();
-    } catch (e: any) { toast.error(e?.message || "Failed"); }
-    finally { setBusy(false); }
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    softDelete(
+      target.id,
+      target.name,
+      () => deleteFn({ data: { batch_id: target.id } }),
+      () => router.invalidate(),
+    );
   };
 
   const handleSave = async () => {
@@ -106,7 +108,7 @@ function BatchesPage() {
         <p className="py-12 text-center text-muted-foreground">No batches yet. Create one to get started.</p>
       ) : (
         <div className="space-y-3">
-          {batches.map((batch) => (
+          {batches.filter((b) => !pendingIds.has(b.id)).map((batch) => (
             <Card key={batch.id} className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
               <CardContent className="flex items-center justify-between p-4">
                 <Link to="/batches/$batchId" params={{ batchId: batch.id }} className="flex min-w-0 flex-1 flex-col gap-1">
@@ -141,13 +143,13 @@ function BatchesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this batch?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.name}" will be removed along with its run links. The underlying runs will remain. This cannot be undone.
+              "{deleteTarget?.name}" will be removed. You'll have 5 seconds to undo before its run links are permanently deleted. The underlying runs will remain.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {busy ? "Deleting…" : "Delete"}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

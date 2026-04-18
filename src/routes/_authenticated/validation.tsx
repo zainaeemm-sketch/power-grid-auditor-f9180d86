@@ -14,6 +14,7 @@ import {
   runAllValidations, getValidationResults, clearValidationResults, deleteValidationResult,
 } from "@/server/validation.functions";
 import { exportValidationCsv, exportValidationJson, type ValidationRow } from "@/lib/validation-export";
+import { useSoftDelete } from "@/hooks/useSoftDelete";
 
 export const Route = createFileRoute("/_authenticated/validation")({
   component: ValidationPage,
@@ -56,6 +57,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function ValidationPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const { pendingIds, softDelete } = useSoftDelete();
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["validation-results"],
@@ -80,13 +82,17 @@ function ValidationPage() {
     onSuccess: () => { toast.success("Cleared validation history"); refetch(); },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteValidationResult({ data: { id } }),
-    onSuccess: () => { toast.success("Result deleted"); refetch(); },
-    onError: (e: any) => toast.error(e?.message || "Failed to delete"),
-  });
+  const handleSoftDeleteResult = (id: string, name: string) => {
+    softDelete(
+      id,
+      name,
+      () => deleteValidationResult({ data: { id } }),
+      () => refetch(),
+    );
+  };
 
-  const rows: ValidationRow[] = (data as any)?.results ?? [];
+  const allRows: ValidationRow[] = (data as any)?.results ?? [];
+  const rows = allRows.filter((r: any) => !r.id || !pendingIds.has(r.id));
   const total = rows.length;
   const passed = rows.filter((r) => r.status === "passed").length;
   const failed = rows.filter((r) => r.status === "failed").length;
@@ -185,7 +191,7 @@ function ValidationPage() {
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             {r.id && (
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete result"
-                                onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}>
+                                onClick={() => handleSoftDeleteResult(r.id, r.test_name)}>
                                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
                               </Button>
                             )}
