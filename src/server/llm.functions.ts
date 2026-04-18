@@ -274,6 +274,15 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       await (supabase as any).from("run_recommendations").insert({ run_id: runId, recommendation_text: responseText });
     }
 
+    tracer.record({
+      stage_name: "Recommendation generated",
+      stage_type: "reasoning",
+      input: `LLM response (${responseText.length} chars)`,
+      output: responseText.slice(0, 200),
+      execution_time_ms: 0,
+    });
+
+    const parserStart = Date.now();
     const parseResult = parseRecommendationText(responseText);
     const { data: existingParse } = await (supabase as any)
       .from("run_parse_results").select("id").eq("run_id", runId).maybeSingle();
@@ -283,6 +292,15 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     } else {
       await (supabase as any).from("run_parse_results").insert({ run_id: runId, ...parseResult });
     }
+    tracer.record({
+      stage_name: "Parser execution",
+      stage_type: "reasoning",
+      tool_name: "parser",
+      input: responseText.slice(0, 160),
+      output: parseResult.action_type,
+      execution_time_ms: Date.now() - parserStart,
+      evidence: { parser_notes: parseResult.parser_notes, target_index: parseResult.target_index, value: parseResult.value },
+    });
 
     const actionFields = {
       action_type: parseResult.action_type,
@@ -298,6 +316,13 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     } else {
       await (supabase as any).from("run_actions").insert({ run_id: runId, ...actionFields });
     }
+    tracer.record({
+      stage_name: "Action application",
+      stage_type: "execution",
+      input: parseResult.action_type,
+      output: parseResult.enabled ? `applied: ${parseResult.action_type}` : "skipped (disabled)",
+      execution_time_ms: 0,
+    });
 
     let evaluationResult = null;
     try {
