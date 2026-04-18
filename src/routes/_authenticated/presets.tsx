@@ -269,11 +269,19 @@ function PresetsPage() {
               className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up"
               style={{ animationDelay: `${i * 80}ms` }}
             >
-              <CardHeader>
+              <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
                   <FlaskConical className="h-4 w-4 gradient-text" />
                   {preset.name}
                 </CardTitle>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" title="Edit preset" onClick={() => openEdit(preset)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Delete preset" onClick={() => setDeleteTarget(preset)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-1.5 text-sm">
                 <Row label="Provider" value={preset.provider_name} />
@@ -294,6 +302,56 @@ function PresetsPage() {
           <p className="col-span-2 py-12 text-center text-muted-foreground">No presets yet.</p>
         )}
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this preset?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{deleteTarget?.name}" will be permanently removed. Existing runs that referenced it are unaffected. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePreset} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {busy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit preset</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Provider</Label><Input value={editProvider} onChange={(e) => setEditProvider(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Model</Label><Input value={editModel} onChange={(e) => setEditModel(e.target.value)} /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>System prompt</Label>
+              <Textarea value={editSystem} onChange={(e) => setEditSystem(e.target.value)} rows={3} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2"><Label>Temperature</Label><Input value={editTemp} onChange={(e) => setEditTemp(e.target.value)} type="number" step="0.1" /></div>
+              <div className="space-y-2"><Label>Max tokens</Label><Input value={editMax} onChange={(e) => setEditMax(e.target.value)} type="number" /></div>
+              <div className="space-y-2"><Label>Top-p</Label><Input value={editTopP} onChange={(e) => setEditTopP(e.target.value)} type="number" step="0.05" /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={busy}>Cancel</Button>
+            <Button onClick={handleEditSave} disabled={busy || !editName.trim()}>{busy ? "Saving…" : "Save"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
