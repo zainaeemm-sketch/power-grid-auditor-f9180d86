@@ -165,3 +165,26 @@ export const revokeUser = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { success: true };
   });
+
+export const resendWelcomeEmail = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: unknown) => revokeSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { data: row, error } = await supabaseAdmin
+      .from("user_approvals")
+      .select("user_id, email, status")
+      .eq("user_id", data.user_id)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("User not found");
+    if (row.status !== "approved") {
+      throw new Error("Only approved users can receive a welcome email");
+    }
+
+    await enqueueWelcomeEmail(row.user_id, row.email);
+    return { success: true };
+  });
