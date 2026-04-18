@@ -341,13 +341,13 @@ function RunsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this run?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.title}" and all its decision traces, metadata, evaluations, and recommendations will be permanently removed. This cannot be undone.
+              "{deleteTarget?.title}" will be removed. You'll have 5 seconds to undo before it and all related decision traces, metadata, evaluations, and recommendations are permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {busy ? "Deleting…" : "Delete"}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
