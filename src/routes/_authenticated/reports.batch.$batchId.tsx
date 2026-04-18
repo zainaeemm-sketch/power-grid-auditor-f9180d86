@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { useMemo } from "react";
 import { agentAccuracyVsGroundTruth, accuracyRate, avgOptimalityGap, feasibilityAgreementRate } from "@/lib/batch-summary";
+import { TraceAnalyticsCard } from "@/components/reports/TraceAnalyticsCard";
 
 export const Route = createFileRoute("/_authenticated/reports/batch/$batchId")({
   head: () => ({ meta: [{ title: "Batch Report — GridArena" }] }),
@@ -193,6 +194,8 @@ function BatchReportPage() {
             </ReportSection>
           );
         })()}
+
+        <TraceAnalyticsCard batchId={batch.id} />
 
         <ReportSection title="Run-by-Run Results">
           <ReportTable
