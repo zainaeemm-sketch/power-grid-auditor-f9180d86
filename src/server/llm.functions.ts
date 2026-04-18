@@ -115,7 +115,7 @@ export const executeRunLlm = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const runId = data.run_id;
-
+    const tracer = new TraceRecorder();
     const { data: run, error: runErr } = await supabase
       .from("runs").select("*").eq("id", runId).single();
     if (runErr || !run) return { success: false, error: "Run not found" };
