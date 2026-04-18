@@ -16,8 +16,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ShieldCheck, Check, X, RotateCcw, AlertCircle, Mail } from "lucide-react";
+import { Check, X, RotateCcw, AlertCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { AdminShell, type AdminSection } from "@/components/admin/AdminShell";
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
@@ -28,7 +30,9 @@ type Status = "pending" | "approved" | "rejected" | "all";
 function AdminPage() {
   const navigate = useNavigate();
   const checkAdmin = useServerFn(isCurrentUserAdmin);
+  const list = useServerFn(listUserApprovals);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [section, setSection] = useState<AdminSection>("dashboard");
 
   useEffect(() => {
     checkAdmin()
@@ -42,6 +46,21 @@ function AdminPage() {
       .catch(() => navigate({ to: "/" }));
   }, [checkAdmin, navigate]);
 
+  const { data: allData } = useQuery({
+    queryKey: ["user_approvals", "all"],
+    queryFn: () => list({ data: { status: "all" } }),
+    enabled: !!authorized,
+  });
+
+  const counts = useMemo(() => {
+    const rows = allData?.approvals ?? [];
+    return {
+      pending: rows.filter((r: any) => r.status === "pending").length,
+      approved: rows.filter((r: any) => r.status === "approved").length,
+      rejected: rows.filter((r: any) => r.status === "rejected").length,
+    };
+  }, [allData]);
+
   if (!authorized) {
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
@@ -51,24 +70,37 @@ function AdminPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <ShieldCheck className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Admin · User Approvals</h1>
-          <p className="text-sm text-muted-foreground">
-            Approve or reject new sign-ups. Approved users receive a welcome email.
-          </p>
-        </div>
+    <AdminShell active={section} onChange={setSection} pendingCount={counts.pending}>
+      {section === "dashboard" && (
+        <AdminDashboard
+          pending={counts.pending}
+          approved={counts.approved}
+          rejected={counts.rejected}
+          onJump={() => setSection("users")}
+        />
+      )}
+
+      {section === "users" && <UsersSection />}
+    </AdminShell>
+  );
+}
+
+function UsersSection() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold">User Approvals</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Approve or reject new sign-ups. Approved users receive a welcome email.
+        </p>
       </div>
 
       <Card className="border-warning/30 bg-warning/5">
         <CardContent className="flex items-start gap-3 py-4">
           <AlertCircle className="mt-0.5 h-4 w-4 text-warning" />
           <div className="text-sm">
-            <strong>Welcome emails</strong> are queued and will start delivering
-            once a sender domain is verified in <em>Lovable Cloud → Emails</em>.
-            Approval still works without it.
+            <strong>Welcome emails</strong> are queued and will start delivering once a sender domain
+            is verified in <em>Lovable Cloud → Emails</em>. Approval still works without it.
           </div>
         </CardContent>
       </Card>
