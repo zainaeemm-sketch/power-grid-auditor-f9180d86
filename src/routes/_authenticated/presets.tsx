@@ -10,11 +10,13 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, FlaskConical, Pencil, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { listPresets, createPreset, deletePreset, updatePreset } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import type { ExperimentPreset } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/presets")({

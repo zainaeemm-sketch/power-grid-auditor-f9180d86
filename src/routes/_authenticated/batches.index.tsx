@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Layers, Pencil, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { listBatches, deleteBatch, updateBatch } from "@/server/batch.functions";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import type { Batch, RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/batches/")({
