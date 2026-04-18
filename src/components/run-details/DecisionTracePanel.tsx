@@ -42,6 +42,7 @@ export function DecisionTracePanel({
   const [explanation, setExplanation] = useState<string | null>(null);
   const [explanationSource, setExplanationSource] = useState<"llm" | "fallback" | "cache" | null>(null);
   const [explanationModel, setExplanationModel] = useState<string | null>(null);
+  const [explanationCachedAt, setExplanationCachedAt] = useState<string | null>(null);
   const [explaining, setExplaining] = useState(false);
 
   const loadExplanation = (currentTraces: DecisionTrace[], force = false) => {
@@ -50,12 +51,14 @@ export function DecisionTracePanel({
       setExplanation(summarizeTrace(currentTraces, evaluation));
       setExplanationSource("fallback");
       setExplanationModel(null);
+      setExplanationCachedAt(null);
     }
     explainFn({ data: { runId, force } })
       .then((res) => {
         setExplanation(res.explanation);
         setExplanationSource(res.source);
         setExplanationModel(res.model ?? null);
+        setExplanationCachedAt(res.cached_at ?? null);
       })
       .catch(() => {})
       .finally(() => setExplaining(false));
