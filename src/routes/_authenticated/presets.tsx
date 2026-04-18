@@ -43,7 +43,32 @@ function PresetsPage() {
   const createPresetFn = useServerFn(createPreset);
   const deletePresetFn = useServerFn(deletePreset);
   const updatePresetFn = useServerFn(updatePreset);
-  const { pendingIds, softDelete } = useSoftDelete();
+  const { pendingIds, softDelete, softDeleteMany } = useSoftDelete();
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const clearSelection = () => setSelected(new Set());
+
+  const visiblePresets = presets.filter((p) => !pendingIds.has(p.id));
+
+  const handleBulkDelete = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkConfirmOpen(false);
+    clearSelection();
+    softDeleteMany(
+      ids,
+      `${ids.length} ${ids.length === 1 ? "preset" : "presets"}`,
+      (id) => deletePresetFn({ data: { preset_id: id } }),
+      () => router.invalidate(),
+    );
+  };
 
   const [deleteTarget, setDeleteTarget] = useState<ExperimentPreset | null>(null);
   const [editTarget, setEditTarget] = useState<ExperimentPreset | null>(null);
