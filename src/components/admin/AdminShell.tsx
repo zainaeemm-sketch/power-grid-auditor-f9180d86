@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
-export type AdminSection = "dashboard" | "users";
+export type AdminSection = "dashboard" | "users" | "settings";
 
 interface AdminShellProps {
   active: AdminSection;
@@ -25,6 +25,7 @@ interface AdminShellProps {
 const items: { id: AdminSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "users", label: "Users", icon: Users },
+  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 export function AdminShell({ active, onChange, pendingCount = 0, children }: AdminShellProps) {
