@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { withAuthHeaders } from "@/middleware/auth-headers";
 
 async function assertAdmin(supabase: any, userId: string) {
   const { data, error } = await supabase.rpc("has_role", {
@@ -13,7 +14,7 @@ async function assertAdmin(supabase: any, userId: string) {
 }
 
 export const getApprovalStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
@@ -42,7 +43,7 @@ export const getApprovalStatus = createServerFn({ method: "GET" })
   });
 
 export const isCurrentUserAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data, error } = await supabase.rpc("has_role", {
@@ -58,7 +59,7 @@ const listSchema = z.object({
 });
 
 export const listUserApprovals = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => listSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -98,7 +99,7 @@ const approveSchema = z.object({
 });
 
 export const approveUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => approveSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -123,7 +124,7 @@ export const approveUser = createServerFn({ method: "POST" })
   });
 
 export const rejectUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => approveSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -146,7 +147,7 @@ export const rejectUser = createServerFn({ method: "POST" })
 const revokeSchema = z.object({ user_id: z.string().uuid() });
 
 export const revokeUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => revokeSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
