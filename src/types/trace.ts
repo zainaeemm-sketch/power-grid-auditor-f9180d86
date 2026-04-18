@@ -21,7 +21,7 @@ export interface DecisionTrace {
   status: TraceStatus;
   failure_reason: string | null;
   execution_time_ms: number;
-  evidence: unknown | null;
+  evidence: Record<string, unknown> | unknown[] | null;
   created_at: string;
 }
 

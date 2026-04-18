@@ -43,7 +43,7 @@ export function DecisionTracePanel({
     let cancelled = false;
     setLoading(true);
     fetchFn({ data: { runId } })
-      .then((res) => {
+      .then((res: { traces: DecisionTrace[] }) => {
         if (!cancelled) setTraces(res.traces);
       })
       .catch(() => {
