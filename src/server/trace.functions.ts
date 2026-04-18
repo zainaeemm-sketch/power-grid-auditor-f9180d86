@@ -69,7 +69,7 @@ export const getBatchTraceAnalytics = createServerFn({ method: "GET" })
 export const explainTrace = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { runId: string }) => input)
-  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback"; error?: string }> => {
+  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback"; model?: string; error?: string }> => {
     // Load traces + evaluation
     const { data: traceRows, error: tErr } = await context.supabase
       .from("decision_traces")
@@ -153,15 +153,15 @@ export const explainTrace = createServerFn({ method: "POST" })
       });
       if (!resp.ok) {
         const txt = await resp.text().catch(() => "");
-        return { explanation: fallback(), source: "fallback", error: `OpenAI ${resp.status}: ${txt.slice(0, 200)}` };
+        return { explanation: fallback(), source: "fallback", model, error: `OpenAI ${resp.status}: ${txt.slice(0, 200)}` };
       }
       const json = await resp.json();
       const text = json?.choices?.[0]?.message?.content?.trim();
       if (!text) {
-        return { explanation: fallback(), source: "fallback", error: "Empty LLM response" };
+        return { explanation: fallback(), source: "fallback", model, error: "Empty LLM response" };
       }
-      return { explanation: text, source: "llm" };
+      return { explanation: text, source: "llm", model };
     } catch (e: any) {
-      return { explanation: fallback(), source: "fallback", error: e?.message ?? "Network error" };
+      return { explanation: fallback(), source: "fallback", model, error: e?.message ?? "Network error" };
     }
   });
