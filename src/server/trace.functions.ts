@@ -178,7 +178,21 @@ export const explainTrace = createServerFn({ method: "POST" })
       if (!text) {
         return { explanation: fallback(), source: "fallback", model, error: "Empty LLM response" };
       }
-      return { explanation: text, source: "llm", model };
+      const generatedAt = new Date().toISOString();
+      // Cache result on the run (best-effort)
+      try {
+        await context.supabase
+          .from("runs")
+          .update({
+            ai_explanation: text,
+            ai_explanation_model: model,
+            ai_explanation_generated_at: generatedAt,
+          })
+          .eq("id", data.runId);
+      } catch {
+        // ignore cache write failures
+      }
+      return { explanation: text, source: "llm", model, cached_at: generatedAt };
     } catch (e: any) {
       return { explanation: fallback(), source: "fallback", model, error: e?.message ?? "Network error" };
     }
