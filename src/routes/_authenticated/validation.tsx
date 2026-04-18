@@ -80,6 +80,12 @@ function ValidationPage() {
     onSuccess: () => { toast.success("Cleared validation history"); refetch(); },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteValidationResult({ data: { id } }),
+    onSuccess: () => { toast.success("Result deleted"); refetch(); },
+    onError: (e: any) => toast.error(e?.message || "Failed to delete"),
+  });
+
   const rows: ValidationRow[] = (data as any)?.results ?? [];
   const total = rows.length;
   const passed = rows.filter((r) => r.status === "passed").length;
