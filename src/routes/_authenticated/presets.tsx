@@ -14,6 +14,7 @@ import { listPresets, createPreset, deletePreset, updatePreset } from "@/server/
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useSoftDelete } from "@/hooks/useSoftDelete";
 import type { ExperimentPreset } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/presets")({
@@ -40,6 +41,7 @@ function PresetsPage() {
   const createPresetFn = useServerFn(createPreset);
   const deletePresetFn = useServerFn(deletePreset);
   const updatePresetFn = useServerFn(updatePreset);
+  const { pendingIds, softDelete } = useSoftDelete();
 
   const [deleteTarget, setDeleteTarget] = useState<ExperimentPreset | null>(null);
   const [editTarget, setEditTarget] = useState<ExperimentPreset | null>(null);
@@ -66,16 +68,16 @@ function PresetsPage() {
     setEditNotes(p.notes ?? "");
   };
 
-  const handleDeletePreset = async () => {
+  const handleDeletePreset = () => {
     if (!deleteTarget) return;
-    setBusy(true);
-    try {
-      await deletePresetFn({ data: { preset_id: deleteTarget.id } });
-      toast.success("Preset deleted");
-      setDeleteTarget(null);
-      router.invalidate();
-    } catch (e: any) { toast.error(e?.message || "Failed"); }
-    finally { setBusy(false); }
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    softDelete(
+      target.id,
+      target.name,
+      () => deletePresetFn({ data: { preset_id: target.id } }),
+      () => router.invalidate(),
+    );
   };
 
   const handleEditSave = async () => {
@@ -261,7 +263,7 @@ function PresetsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {presets.map((preset: ExperimentPreset, i: number) => {
+        {presets.filter((p) => !pendingIds.has(p.id)).map((preset: ExperimentPreset, i: number) => {
           const p = preset as any;
           return (
             <Card
@@ -308,13 +310,13 @@ function PresetsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this preset?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.name}" will be permanently removed. Existing runs that referenced it are unaffected. This cannot be undone.
+              "{deleteTarget?.name}" will be removed. You'll have 5 seconds to undo before it's permanently deleted. Existing runs that referenced it are unaffected.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeletePreset} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {busy ? "Deleting…" : "Delete"}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

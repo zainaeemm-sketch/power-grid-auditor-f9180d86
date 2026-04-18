@@ -11,6 +11,7 @@ import { Plus, Target, Sparkles, Globe, Lock, ShieldCheck, Pencil, Trash2 } from
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { listScenarios, seedExampleScenarios, claimFirstAdmin, deleteScenario } from "@/server/ground-truth.functions";
+import { useSoftDelete } from "@/hooks/useSoftDelete";
 import type { GroundTruthScenarioListItem } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/ground-truth/")({
@@ -37,21 +38,22 @@ function GroundTruthListPage() {
   const seedFn = useServerFn(seedExampleScenarios);
   const claimFn = useServerFn(claimFirstAdmin);
   const deleteFn = useServerFn(deleteScenario);
+  const { pendingIds, softDelete } = useSoftDelete();
   const [seeding, setSeeding] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<GroundTruthScenarioListItem | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deleteTarget) return;
-    setBusy(true);
-    try {
-      await deleteFn({ data: { id: deleteTarget.id } });
-      toast.success("Scenario deleted");
-      setDeleteTarget(null);
-      await router.invalidate();
-    } catch (e: any) { toast.error(e?.message || "Failed"); }
-    finally { setBusy(false); }
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    softDelete(
+      target.id,
+      target.scenario_id,
+      () => deleteFn({ data: { id: target.id } }),
+      () => router.invalidate(),
+    );
   };
 
   const handleSeed = async () => {
