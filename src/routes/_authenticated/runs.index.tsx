@@ -109,7 +109,18 @@ function RunsPage() {
     );
   };
 
-  const handleEditSave = async () => {
+  const handleBulkDelete = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkConfirmOpen(false);
+    clearSelection();
+    softDeleteMany(
+      ids,
+      `${ids.length} ${ids.length === 1 ? "run" : "runs"}`,
+      (id) => deleteRunFn({ data: { run_id: id } }),
+      () => router.invalidate(),
+    );
+  };
     if (!editTarget) return;
     setBusy(true);
     try {
