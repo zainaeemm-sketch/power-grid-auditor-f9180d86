@@ -133,35 +133,66 @@ function BatchesPage() {
       {batches.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">No batches yet. Create one to get started.</p>
       ) : (
-        <div className="space-y-3">
-          {batches.filter((b) => !pendingIds.has(b.id)).map((batch) => (
-            <Card key={batch.id} className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
-              <CardContent className="flex items-center justify-between p-4">
-                <Link to="/batches/$batchId" params={{ batchId: batch.id }} className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="flex items-center gap-2 font-semibold">
-                    <Layers className="h-4 w-4 gradient-text" />
-                    {batch.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {batch.task} · {batch.run_count} runs
-                  </p>
-                </Link>
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={batch.status as RunStatus} />
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(batch.created_at).toLocaleDateString()}
-                  </span>
-                  <Button variant="ghost" size="icon" title="Edit batch" onClick={() => openEdit(batch)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" title="Delete batch" onClick={() => setDeleteTarget(batch)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          {visibleBatches.length > 0 && (
+            <div className="mb-2 flex items-center gap-2 px-1 text-xs text-muted-foreground">
+              <Checkbox
+                checked={
+                  selected.size > 0 && visibleBatches.every((b) => selected.has(b.id))
+                    ? true
+                    : selected.size > 0
+                      ? "indeterminate"
+                      : false
+                }
+                onCheckedChange={(v) => {
+                  if (v) setSelected(new Set(visibleBatches.map((b) => b.id)));
+                  else clearSelection();
+                }}
+                aria-label="Select all batches"
+              />
+              <span>Select all ({visibleBatches.length})</span>
+            </div>
+          )}
+          <div className="space-y-3 pb-24">
+            {visibleBatches.map((batch) => {
+              const isSelected = selected.has(batch.id);
+              return (
+                <Card key={batch.id} className={`gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30 ${isSelected ? "ring-1 ring-primary/60" : ""}`}>
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleOne(batch.id)}
+                        aria-label={`Select ${batch.name}`}
+                      />
+                      <Link to="/batches/$batchId" params={{ batchId: batch.id }} className="flex min-w-0 flex-1 flex-col gap-1">
+                        <p className="flex items-center gap-2 font-semibold">
+                          <Layers className="h-4 w-4 gradient-text" />
+                          {batch.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {batch.task} · {batch.run_count} runs
+                        </p>
+                      </Link>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge status={batch.status as RunStatus} />
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(batch.created_at).toLocaleDateString()}
+                      </span>
+                      <Button variant="ghost" size="icon" title="Edit batch" onClick={() => openEdit(batch)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Delete batch" onClick={() => setDeleteTarget(batch)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
