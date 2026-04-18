@@ -311,18 +311,46 @@ function RunsPage() {
         </Select>
       </div>
 
-      <div className="space-y-3">
+      {filtered.length > 0 && (
+        <div className="mb-2 flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <Checkbox
+            checked={
+              selected.size > 0 && filtered.every((r) => selected.has(r.id))
+                ? true
+                : selected.size > 0
+                  ? "indeterminate"
+                  : false
+            }
+            onCheckedChange={(v) => {
+              if (v) setSelected(new Set(filtered.map((r) => r.id)));
+              else clearSelection();
+            }}
+            aria-label="Select all filtered runs"
+          />
+          <span>Select all ({filtered.length})</span>
+        </div>
+      )}
+
+      <div className="space-y-3 pb-24">
         {filtered.map((run) => {
           const hasGt = Boolean(run.ground_truth_scenario_id) || run.evaluation_against_ground_truth === true;
+          const isSelected = selected.has(run.id);
           return (
-            <Card key={run.id} className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
+            <Card key={run.id} className={`gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30 ${isSelected ? "ring-1 ring-primary/60" : ""}`}>
               <CardContent className="flex items-center justify-between gap-4 p-4">
-                <Link to="/runs/$runId" params={{ runId: run.id }} className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="truncate font-semibold">{run.title}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {run.task} · {run.agent} · {run.case_name}
-                  </p>
-                </Link>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleOne(run.id)}
+                    aria-label={`Select ${run.title}`}
+                  />
+                  <Link to="/runs/$runId" params={{ runId: run.id }} className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="truncate font-semibold">{run.title}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {run.task} · {run.agent} · {run.case_name}
+                    </p>
+                  </Link>
+                </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {hasGt && (
                     <div className="flex items-center gap-2 text-xs">
