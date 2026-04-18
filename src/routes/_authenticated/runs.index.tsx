@@ -122,17 +122,17 @@ function RunsPage() {
     );
   };
 
-  const handleEditSave = async () => {
+  const handleEditSave = () => {
     if (!editTarget) return;
     setBusy(true);
-    try {
-      await updateRunFn({ data: { run_id: editTarget.id, title: editTitle } });
-      toast.success("Run updated");
-      setEditTarget(null);
-      await router.invalidate();
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to update run");
-    } finally { setBusy(false); }
+    updateRunFn({ data: { run_id: editTarget.id, title: editTitle } })
+      .then(() => {
+        toast.success("Run updated");
+        setEditTarget(null);
+        return router.invalidate();
+      })
+      .catch((e: any) => toast.error(e?.message || "Failed to update run"))
+      .finally(() => setBusy(false));
   };
 
   const options = useMemo(() => {
