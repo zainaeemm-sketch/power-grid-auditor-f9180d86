@@ -40,16 +40,18 @@ export function DecisionTracePanel({
   const [traces, setTraces] = useState<DecisionTrace[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [explanation, setExplanation] = useState<string | null>(null);
-  const [explanationSource, setExplanationSource] = useState<"llm" | "fallback" | null>(null);
+  const [explanationSource, setExplanationSource] = useState<"llm" | "fallback" | "cache" | null>(null);
   const [explanationModel, setExplanationModel] = useState<string | null>(null);
   const [explaining, setExplaining] = useState(false);
 
-  const loadExplanation = (currentTraces: DecisionTrace[]) => {
+  const loadExplanation = (currentTraces: DecisionTrace[], force = false) => {
     setExplaining(true);
-    setExplanation(summarizeTrace(currentTraces, evaluation));
-    setExplanationSource("fallback");
-    setExplanationModel(null);
-    explainFn({ data: { runId } })
+    if (force || !explanation) {
+      setExplanation(summarizeTrace(currentTraces, evaluation));
+      setExplanationSource("fallback");
+      setExplanationModel(null);
+    }
+    explainFn({ data: { runId, force } })
       .then((res) => {
         setExplanation(res.explanation);
         setExplanationSource(res.source);
@@ -133,12 +135,14 @@ export function DecisionTracePanel({
                 <Badge variant="outline" className="text-[10px]">
                   {explanationSource === "llm" ? (
                     <><Sparkles className="mr-1 h-3 w-3" /> AI</>
+                  ) : explanationSource === "cache" ? (
+                    <><Sparkles className="mr-1 h-3 w-3" /> Cached</>
                   ) : (
                     "Template"
                   )}
                 </Badge>
               )}
-              {explanationModel && explanationSource === "llm" && (
+              {explanationModel && (explanationSource === "llm" || explanationSource === "cache") && (
                 <Badge variant="outline" className="font-mono text-[10px]">
                   {explanationModel}
                 </Badge>
@@ -148,7 +152,7 @@ export function DecisionTracePanel({
                 size="sm"
                 className="h-6 px-2 text-xs"
                 disabled={explaining}
-                onClick={() => loadExplanation(traces)}
+                onClick={() => loadExplanation(traces, true)}
               >
                 <RefreshCw className={`mr-1 h-3 w-3 ${explaining ? "animate-spin" : ""}`} />
                 Regenerate

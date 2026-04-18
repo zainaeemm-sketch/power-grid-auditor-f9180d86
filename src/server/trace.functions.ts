@@ -68,8 +68,26 @@ export const getBatchTraceAnalytics = createServerFn({ method: "GET" })
 
 export const explainTrace = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
-  .inputValidator((input: { runId: string }) => input)
-  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback"; model?: string; error?: string }> => {
+  .inputValidator((input: { runId: string; force?: boolean }) => input)
+  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback" | "cache"; model?: string; cached_at?: string; error?: string }> => {
+    // Cache check (unless force)
+    if (!data.force) {
+      const { data: runRow } = await context.supabase
+        .from("runs")
+        .select("ai_explanation, ai_explanation_model, ai_explanation_generated_at")
+        .eq("id", data.runId)
+        .maybeSingle();
+      const cached = (runRow as any) ?? null;
+      if (cached?.ai_explanation) {
+        return {
+          explanation: cached.ai_explanation,
+          source: "cache",
+          model: cached.ai_explanation_model ?? undefined,
+          cached_at: cached.ai_explanation_generated_at ?? undefined,
+        };
+      }
+    }
+
     // Load traces + evaluation
     const { data: traceRows, error: tErr } = await context.supabase
       .from("decision_traces")
@@ -160,7 +178,21 @@ export const explainTrace = createServerFn({ method: "POST" })
       if (!text) {
         return { explanation: fallback(), source: "fallback", model, error: "Empty LLM response" };
       }
-      return { explanation: text, source: "llm", model };
+      const generatedAt = new Date().toISOString();
+      // Cache result on the run (best-effort)
+      try {
+        await context.supabase
+          .from("runs")
+          .update({
+            ai_explanation: text,
+            ai_explanation_model: model,
+            ai_explanation_generated_at: generatedAt,
+          })
+          .eq("id", data.runId);
+      } catch {
+        // ignore cache write failures
+      }
+      return { explanation: text, source: "llm", model, cached_at: generatedAt };
     } catch (e: any) {
       return { explanation: fallback(), source: "fallback", model, error: e?.message ?? "Network error" };
     }
