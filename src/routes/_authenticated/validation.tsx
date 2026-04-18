@@ -193,7 +193,7 @@ function ValidationPage() {
                         </TableRow>
                         {isOpen && hasFail && (
                           <TableRow>
-                            <TableCell colSpan={5} className="bg-muted/20">
+                            <TableCell colSpan={6} className="bg-muted/20">
                               <div className="space-y-3 p-3">
                                 {r.failure_reason && (
                                   <div className="flex items-start gap-2 text-sm text-destructive">
