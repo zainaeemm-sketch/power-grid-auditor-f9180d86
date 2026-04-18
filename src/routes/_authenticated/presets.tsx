@@ -4,10 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, FlaskConical } from "lucide-react";
-import { listPresets, createPreset } from "@/server/runs.functions";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, FlaskConical, Pencil, Trash2 } from "lucide-react";
+import { listPresets, createPreset, deletePreset, updatePreset } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { useState } from "react";
 import type { ExperimentPreset } from "@/types/grid-arena";
 
@@ -33,6 +38,69 @@ function PresetsPage() {
   const { presets } = Route.useLoaderData() as { presets: ExperimentPreset[] };
   const router = useRouter();
   const createPresetFn = useServerFn(createPreset);
+  const deletePresetFn = useServerFn(deletePreset);
+  const updatePresetFn = useServerFn(updatePreset);
+
+  const [deleteTarget, setDeleteTarget] = useState<ExperimentPreset | null>(null);
+  const [editTarget, setEditTarget] = useState<ExperimentPreset | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editProvider, setEditProvider] = useState("");
+  const [editModel, setEditModel] = useState("");
+  const [editSystem, setEditSystem] = useState("");
+  const [editTemp, setEditTemp] = useState("");
+  const [editMax, setEditMax] = useState("");
+  const [editTopP, setEditTopP] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const openEdit = (p: ExperimentPreset) => {
+    const a = p as any;
+    setEditTarget(p);
+    setEditName(p.name ?? "");
+    setEditProvider(a.provider_name ?? "");
+    setEditModel(a.model_name ?? "");
+    setEditSystem(a.system_prompt ?? "");
+    setEditTemp(a.temperature != null ? String(a.temperature) : "");
+    setEditMax(a.max_tokens != null ? String(a.max_tokens) : "");
+    setEditTopP(a.top_p != null ? String(a.top_p) : "");
+    setEditNotes(p.notes ?? "");
+  };
+
+  const handleDeletePreset = async () => {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      await deletePresetFn({ data: { preset_id: deleteTarget.id } });
+      toast.success("Preset deleted");
+      setDeleteTarget(null);
+      router.invalidate();
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setBusy(false); }
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    setBusy(true);
+    try {
+      await updatePresetFn({
+        data: {
+          preset_id: editTarget.id,
+          name: editName,
+          provider_name: editProvider || null,
+          model_name: editModel || null,
+          system_prompt: editSystem || null,
+          temperature: editTemp ? parseFloat(editTemp) : null,
+          max_tokens: editMax ? parseInt(editMax, 10) : null,
+          top_p: editTopP ? parseFloat(editTopP) : null,
+          notes: editNotes || null,
+        },
+      });
+      toast.success("Preset updated");
+      setEditTarget(null);
+      router.invalidate();
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setBusy(false); }
+  };
 
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -201,11 +269,19 @@ function PresetsPage() {
               className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up"
               style={{ animationDelay: `${i * 80}ms` }}
             >
-              <CardHeader>
+              <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base font-bold">
                   <FlaskConical className="h-4 w-4 gradient-text" />
                   {preset.name}
                 </CardTitle>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" title="Edit preset" onClick={() => openEdit(preset)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Delete preset" onClick={() => setDeleteTarget(preset)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-1.5 text-sm">
                 <Row label="Provider" value={preset.provider_name} />
@@ -226,6 +302,56 @@ function PresetsPage() {
           <p className="col-span-2 py-12 text-center text-muted-foreground">No presets yet.</p>
         )}
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this preset?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{deleteTarget?.name}" will be permanently removed. Existing runs that referenced it are unaffected. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePreset} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {busy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit preset</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Provider</Label><Input value={editProvider} onChange={(e) => setEditProvider(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Model</Label><Input value={editModel} onChange={(e) => setEditModel(e.target.value)} /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>System prompt</Label>
+              <Textarea value={editSystem} onChange={(e) => setEditSystem(e.target.value)} rows={3} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2"><Label>Temperature</Label><Input value={editTemp} onChange={(e) => setEditTemp(e.target.value)} type="number" step="0.1" /></div>
+              <div className="space-y-2"><Label>Max tokens</Label><Input value={editMax} onChange={(e) => setEditMax(e.target.value)} type="number" /></div>
+              <div className="space-y-2"><Label>Top-p</Label><Input value={editTopP} onChange={(e) => setEditTopP(e.target.value)} type="number" step="0.05" /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={busy}>Cancel</Button>
+            <Button onClick={handleEditSave} disabled={busy || !editName.trim()}>{busy ? "Saving…" : "Save"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

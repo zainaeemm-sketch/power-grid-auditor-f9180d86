@@ -203,6 +203,31 @@ export const createBatch = createServerFn({ method: "POST" })
     return { batch: batch as Batch };
   });
 
+export const deleteBatch = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { batch_id: string }) => input)
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    await sb.from("batch_run_links").delete().eq("batch_id", data.batch_id);
+    const { error } = await sb.from("batches").delete().eq("id", data.batch_id);
+    if (error) throw new Error(`Failed to delete batch: ${error.message}`);
+    return { success: true };
+  });
+
+export const updateBatch = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { batch_id: string; name?: string; research_question?: string | null }) => input)
+  .handler(async ({ data, context }) => {
+    const { batch_id, ...fields } = data;
+    const update: Record<string, unknown> = {};
+    if (typeof fields.name === "string") update.name = fields.name;
+    if (fields.research_question !== undefined) update.research_question = fields.research_question;
+    if (Object.keys(update).length === 0) return { success: true };
+    const { error } = await (context.supabase as any).from("batches").update(update).eq("id", batch_id);
+    if (error) throw new Error(`Failed to update batch: ${error.message}`);
+    return { success: true };
+  });
+
 export const executeBatchRuns = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { batch_id: string }) => input)

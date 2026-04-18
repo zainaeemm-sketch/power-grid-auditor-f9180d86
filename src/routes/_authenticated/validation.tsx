@@ -11,7 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  runAllValidations, getValidationResults, clearValidationResults,
+  runAllValidations, getValidationResults, clearValidationResults, deleteValidationResult,
 } from "@/server/validation.functions";
 import { exportValidationCsv, exportValidationJson, type ValidationRow } from "@/lib/validation-export";
 
@@ -78,6 +78,12 @@ function ValidationPage() {
   const clearMutation = useMutation({
     mutationFn: () => clearValidationResults({ data: undefined as any }),
     onSuccess: () => { toast.success("Cleared validation history"); refetch(); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteValidationResult({ data: { id } }),
+    onSuccess: () => { toast.success("Result deleted"); refetch(); },
+    onError: (e: any) => toast.error(e?.message || "Failed to delete"),
   });
 
   const rows: ValidationRow[] = (data as any)?.results ?? [];
@@ -160,6 +166,7 @@ function ValidationPage() {
                     <TableHead className="w-24">Status</TableHead>
                     <TableHead className="w-24">Time</TableHead>
                     <TableHead className="w-44">When</TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -175,10 +182,18 @@ function ValidationPage() {
                           <TableCell><StatusBadge status={r.status} /></TableCell>
                           <TableCell className="text-muted-foreground">{r.execution_time_ms} ms</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {r.id && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete result"
+                                onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}>
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                         {isOpen && hasFail && (
                           <TableRow>
-                            <TableCell colSpan={5} className="bg-muted/20">
+                            <TableCell colSpan={6} className="bg-muted/20">
                               <div className="space-y-3 p-3">
                                 {r.failure_reason && (
                                   <div className="flex items-start gap-2 text-sm text-destructive">

@@ -54,6 +54,20 @@ export const getValidationResults = createServerFn({ method: "POST" })
     return { results: rows ?? [] };
   });
 
+export const deleteValidationResult = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => input)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await (supabase as any)
+      .from("validation_results")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  });
+
 export const clearValidationResults = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }) => {

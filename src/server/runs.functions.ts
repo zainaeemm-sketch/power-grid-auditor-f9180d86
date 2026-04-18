@@ -340,6 +340,88 @@ export const createPreset = createServerFn({ method: "POST" })
   });
 
 /** Phase 7 — clone run with same configuration snapshot and execute. */
+export const deleteRun = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { run_id: string }) => input)
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const runId = data.run_id;
+
+    // Delete perturbation results (need to find tests first)
+    const { data: pTests } = await sb.from("perturbation_tests").select("id").eq("run_id", runId);
+    const pIds = (pTests ?? []).map((t: any) => t.id);
+    if (pIds.length > 0) {
+      await sb.from("perturbation_results").delete().in("perturbation_test_id", pIds);
+    }
+
+    // Delete child rows in parallel where safe
+    await Promise.all([
+      sb.from("decision_traces").delete().eq("run_id", runId),
+      sb.from("run_metadata").delete().eq("run_id", runId),
+      sb.from("run_prompt_logs").delete().eq("run_id", runId),
+      sb.from("run_recommendations").delete().eq("run_id", runId),
+      sb.from("run_parse_results").delete().eq("run_id", runId),
+      sb.from("run_evaluations").delete().eq("run_id", runId),
+      sb.from("run_actions").delete().eq("run_id", runId),
+      sb.from("perturbation_tests").delete().eq("run_id", runId),
+      sb.from("batch_run_links").delete().eq("run_id", runId),
+    ]);
+
+    const { error } = await sb.from("runs").delete().eq("id", runId);
+    if (error) throw new Error(`Failed to delete run: ${error.message}`);
+    return { success: true };
+  });
+
+export const updateRun = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { run_id: string; title?: string; research_question?: string | null }) => input)
+  .handler(async ({ data, context }) => {
+    const { run_id, ...fields } = data;
+    const update: Record<string, unknown> = {};
+    if (typeof fields.title === "string") update.title = fields.title;
+    if (fields.research_question !== undefined) update.research_question = fields.research_question;
+    if (Object.keys(update).length === 0) return { success: true };
+    const { error } = await (context.supabase as any).from("runs").update(update).eq("id", run_id);
+    if (error) throw new Error(`Failed to update run: ${error.message}`);
+    return { success: true };
+  });
+
+export const deletePreset = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { preset_id: string }) => input)
+  .handler(async ({ data, context }) => {
+    const { error } = await (context.supabase as any)
+      .from("experiment_presets").delete().eq("id", data.preset_id);
+    if (error) throw new Error(`Failed to delete preset: ${error.message}`);
+    return { success: true };
+  });
+
+export const updatePreset = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: {
+    preset_id: string;
+    name?: string;
+    provider_name?: string | null;
+    model_name?: string | null;
+    system_prompt?: string | null;
+    temperature?: number | null;
+    max_tokens?: number | null;
+    top_p?: number | null;
+    notes?: string | null;
+  }) => input)
+  .handler(async ({ data, context }) => {
+    const { preset_id, ...fields } = data;
+    const update: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      if (v !== undefined) update[k] = v;
+    }
+    if (Object.keys(update).length === 0) return { success: true };
+    const { error } = await (context.supabase as any)
+      .from("experiment_presets").update(update).eq("id", preset_id);
+    if (error) throw new Error(`Failed to update preset: ${error.message}`);
+    return { success: true };
+  });
+
 export const rerunWithSameConfig = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { run_id: string }) => input)
