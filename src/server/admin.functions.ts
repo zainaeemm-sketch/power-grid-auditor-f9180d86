@@ -99,7 +99,7 @@ const approveSchema = z.object({
 });
 
 export const approveUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => approveSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
