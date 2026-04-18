@@ -130,7 +130,7 @@ function GroundTruthListPage() {
         </Card>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {scenarios.map((s) => (
+          {scenarios.filter((s) => !pendingIds.has(s.id)).map((s) => (
             <Card key={s.id} className="border-border/40 bg-card/60 transition hover:border-primary/40">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center justify-between text-sm font-bold">
@@ -182,13 +182,13 @@ function GroundTruthListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this scenario?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.scenario_id}" and its reference actions will be removed. This cannot be undone.
+              "{deleteTarget?.scenario_id}" will be removed. You'll have 5 seconds to undo before it and its reference actions are permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {busy ? "Deleting…" : "Delete"}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
