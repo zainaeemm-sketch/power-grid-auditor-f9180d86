@@ -78,6 +78,24 @@ export const listUserApprovals = createServerFn({ method: "POST" })
     return { approvals: rows ?? [] };
   });
 
+export const listRecentActivity = createServerFn({ method: "GET" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { data, error } = await supabase
+      .from("user_approvals")
+      .select("user_id, email, status, reviewed_at, reviewed_by, notes")
+      .in("status", ["approved", "rejected"])
+      .not("reviewed_at", "is", null)
+      .order("reviewed_at", { ascending: false })
+      .limit(10);
+
+    if (error) throw new Error(error.message);
+    return { activity: data ?? [] };
+  });
+
 async function enqueueWelcomeEmail(supabase: any, userId: string, email: string) {
   try {
     await supabase.from("job_queue").insert({
