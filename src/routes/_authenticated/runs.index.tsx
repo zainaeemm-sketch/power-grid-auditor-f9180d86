@@ -1,19 +1,25 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus, Target } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Search, Plus, Target, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { listRuns, type RunListItem } from "@/server/runs.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { listRuns, deleteRun, updateRun, type RunListItem } from "@/server/runs.functions";
 import type { RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/runs/")({
@@ -249,41 +255,82 @@ function RunsPage() {
         {filtered.map((run) => {
           const hasGt = Boolean(run.ground_truth_scenario_id) || run.evaluation_against_ground_truth === true;
           return (
-            <Link key={run.id} to="/runs/$runId" params={{ runId: run.id }} className="block">
-              <Card className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
-                <CardContent className="flex items-center justify-between gap-4 p-4">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <p className="truncate font-semibold">{run.title}</p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {run.task} · {run.agent} · {run.case_name}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    {hasGt && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <Target className="h-3.5 w-3.5 text-muted-foreground" />
-                        <Badge variant={actionMatchVariant(run.action_match)} className="capitalize">
-                          {run.action_match ?? "no match"}
-                        </Badge>
-                        <span className="tabular-nums text-muted-foreground">
-                          gap {formatGap(run.optimality_gap)}
-                        </span>
-                      </div>
-                    )}
-                    <StatusBadge status={run.status as RunStatus} />
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(run.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <Card key={run.id} className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow hover:border-primary/30">
+              <CardContent className="flex items-center justify-between gap-4 p-4">
+                <Link to="/runs/$runId" params={{ runId: run.id }} className="flex min-w-0 flex-1 flex-col gap-1">
+                  <p className="truncate font-semibold">{run.title}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {run.task} · {run.agent} · {run.case_name}
+                  </p>
+                </Link>
+                <div className="flex shrink-0 items-center gap-3">
+                  {hasGt && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Badge variant={actionMatchVariant(run.action_match)} className="capitalize">
+                        {run.action_match ?? "no match"}
+                      </Badge>
+                      <span className="tabular-nums text-muted-foreground">
+                        gap {formatGap(run.optimality_gap)}
+                      </span>
+                    </div>
+                  )}
+                  <StatusBadge status={run.status as RunStatus} />
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(run.created_at).toLocaleDateString()}
+                  </span>
+                  <Button
+                    variant="ghost" size="icon" title="Edit title"
+                    onClick={() => { setEditTarget(run); setEditTitle(run.title); }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost" size="icon" title="Delete run"
+                    onClick={() => setDeleteTarget(run)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
         {filtered.length === 0 && (
           <p className="py-12 text-center text-muted-foreground">No runs found.</p>
         )}
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this run?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{deleteTarget?.title}" and all its decision traces, metadata, evaluations, and recommendations will be permanently removed. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {busy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit run title</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label>Title</Label>
+            <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={busy}>Cancel</Button>
+            <Button onClick={handleEditSave} disabled={busy || !editTitle.trim()}>{busy ? "Saving…" : "Save"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
