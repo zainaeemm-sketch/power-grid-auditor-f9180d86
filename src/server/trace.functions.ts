@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 import type { DecisionTrace, BatchTraceAnalytics, StageType, StageAggregate } from "@/types/trace";
+import { summarizeTrace } from "@/lib/trace-explainer";
 
 export const getRunTraces = createServerFn({ method: "GET" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
