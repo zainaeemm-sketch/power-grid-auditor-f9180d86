@@ -41,16 +41,19 @@ export function DecisionTracePanel({
   const [loading, setLoading] = useState(true);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [explanationSource, setExplanationSource] = useState<"llm" | "fallback" | null>(null);
+  const [explanationModel, setExplanationModel] = useState<string | null>(null);
   const [explaining, setExplaining] = useState(false);
 
   const loadExplanation = (currentTraces: DecisionTrace[]) => {
     setExplaining(true);
     setExplanation(summarizeTrace(currentTraces, evaluation));
     setExplanationSource("fallback");
+    setExplanationModel(null);
     explainFn({ data: { runId } })
       .then((res) => {
         setExplanation(res.explanation);
         setExplanationSource(res.source);
+        setExplanationModel(res.model ?? null);
       })
       .catch(() => {})
       .finally(() => setExplaining(false));
