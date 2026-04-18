@@ -68,6 +68,9 @@ function formatGap(gap: number | null | undefined) {
 
 function RunsPage() {
   const { runs, error } = Route.useLoaderData() as { runs: RunListItem[]; error: string | null };
+  const router = useRouter();
+  const deleteRunFn = useServerFn(deleteRun);
+  const updateRunFn = useServerFn(updateRun);
   const [search, setSearch] = useState("");
   const [taskFilter, setTaskFilter] = useState(ALL);
   const [agentFilter, setAgentFilter] = useState(ALL);
@@ -75,6 +78,36 @@ function RunsPage() {
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [gtFilter, setGtFilter] = useState(GT_ALL);
   const [sortBy, setSortBy] = useState("recent");
+  const [deleteTarget, setDeleteTarget] = useState<RunListItem | null>(null);
+  const [editTarget, setEditTarget] = useState<RunListItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      await deleteRunFn({ data: { run_id: deleteTarget.id } });
+      toast.success("Run deleted");
+      setDeleteTarget(null);
+      await router.invalidate();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to delete run");
+    } finally { setBusy(false); }
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    setBusy(true);
+    try {
+      await updateRunFn({ data: { run_id: editTarget.id, title: editTitle } });
+      toast.success("Run updated");
+      setEditTarget(null);
+      await router.invalidate();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update run");
+    } finally { setBusy(false); }
+  };
 
   const options = useMemo(() => {
     const tasks = new Set<string>();
