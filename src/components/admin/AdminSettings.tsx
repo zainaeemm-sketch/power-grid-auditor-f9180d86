@@ -1,12 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listAdmins, grantAdminByEmail, revokeAdmin } from "@/server/admin.functions";
+import {
+  getMyPreferences,
+  updateMyPreferences,
+  OPENAI_MODEL_OPTIONS,
+} from "@/server/preferences.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -15,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ShieldCheck, Trash2, Plus, Info } from "lucide-react";
+import { ShieldCheck, Trash2, Plus, Info, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export function AdminSettings() {
@@ -24,13 +36,88 @@ export function AdminSettings() {
       <div>
         <h1 className="text-xl font-bold">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Authentication preferences and admin role management.
+          Authentication preferences, AI model, and admin role management.
         </p>
       </div>
 
       <AuthSettingsCard />
+      <AiModelCard />
       <AdminRolesCard />
     </div>
+  );
+}
+
+function AiModelCard() {
+  const getPrefs = useServerFn(getMyPreferences);
+  const updatePrefs = useServerFn(updateMyPreferences);
+  const qc = useQueryClient();
+  const [model, setModel] = useState<string>("__default__");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["my-preferences"],
+    queryFn: () => getPrefs(),
+  });
+
+  useEffect(() => {
+    if (data) setModel(data.openai_model ?? "__default__");
+  }, [data]);
+
+  const saveMut = useMutation({
+    mutationFn: (vars: { openai_model: string | null }) => updatePrefs({ data: vars }),
+    onSuccess: () => {
+      toast.success("AI model preference saved");
+      qc.invalidateQueries({ queryKey: ["my-preferences"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to save preference"),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Sparkles className="h-4 w-4 text-primary" />
+          AI explanation model
+        </CardTitle>
+        <CardDescription>
+          Choose the OpenAI model used to generate decision-trace explanations. Stored per-user.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-1">
+            <Label className="text-sm font-medium">Model</Label>
+            <Select value={model} onValueChange={setModel} disabled={isLoading}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">Use server default</SelectItem>
+                {OPENAI_MODEL_OPTIONS.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            size="sm"
+            disabled={saveMut.isPending}
+            onClick={() =>
+              saveMut.mutate({
+                openai_model: model === "__default__" ? null : model,
+              })
+            }
+          >
+            Save
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          When set to <strong className="text-foreground/80">Use server default</strong>, the
+          system falls back to the server's configured default model.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
