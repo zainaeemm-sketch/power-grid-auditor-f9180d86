@@ -59,7 +59,7 @@ const listSchema = z.object({
 });
 
 export const listUserApprovals = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => listSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
