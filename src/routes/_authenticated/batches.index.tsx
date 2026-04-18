@@ -57,12 +57,36 @@ function BatchesPage() {
   const router = useRouter();
   const deleteFn = useServerFn(deleteBatch);
   const updateFn = useServerFn(updateBatch);
-  const { pendingIds, softDelete } = useSoftDelete();
+  const { pendingIds, softDelete, softDeleteMany } = useSoftDelete();
   const [deleteTarget, setDeleteTarget] = useState<BatchRow | null>(null);
   const [editTarget, setEditTarget] = useState<BatchRow | null>(null);
   const [editName, setEditName] = useState("");
   const [editRq, setEditRq] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+
+  const visibleBatches = batches.filter((b) => !pendingIds.has(b.id));
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const clearSelection = () => setSelected(new Set());
+
+  const handleBulkDelete = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkConfirmOpen(false);
+    clearSelection();
+    softDeleteMany(
+      ids,
+      `${ids.length} ${ids.length === 1 ? "batch" : "batches"}`,
+      (id) => deleteFn({ data: { batch_id: id } }),
+      () => router.invalidate(),
+    );
+  };
 
   const openEdit = (b: BatchRow) => {
     setEditTarget(b);
