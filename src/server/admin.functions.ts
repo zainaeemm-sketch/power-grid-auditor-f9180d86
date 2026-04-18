@@ -164,6 +164,84 @@ export const revokeUser = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export const listAdmins = createServerFn({ method: "GET" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { data: roles, error } = await supabase
+      .from("user_roles")
+      .select("user_id, created_at")
+      .eq("role", "admin")
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+
+    const ids = (roles ?? []).map((r: any) => r.user_id);
+    if (ids.length === 0) return { admins: [] };
+
+    const { data: emails } = await supabase
+      .from("user_approvals")
+      .select("user_id, email")
+      .in("user_id", ids);
+    const emailMap = new Map((emails ?? []).map((e: any) => [e.user_id, e.email]));
+
+    return {
+      admins: (roles ?? []).map((r: any) => ({
+        user_id: r.user_id,
+        email: emailMap.get(r.user_id) ?? "(unknown)",
+        granted_at: r.created_at,
+      })),
+    };
+  });
+
+const grantSchema = z.object({ email: z.string().email() });
+
+export const grantAdminByEmail = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: unknown) => grantSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { data: row, error: lookupErr } = await supabase
+      .from("user_approvals")
+      .select("user_id")
+      .eq("email", data.email)
+      .maybeSingle();
+    if (lookupErr) throw new Error(lookupErr.message);
+    if (!row) throw new Error(`No user found with email ${data.email}`);
+
+    const { error } = await supabase
+      .from("user_roles")
+      .insert({ user_id: row.user_id, role: "admin" });
+    if (error && !/duplicate/i.test(error.message)) throw new Error(error.message);
+
+    return { success: true };
+  });
+
+const revokeAdminSchema = z.object({ user_id: z.string().uuid() });
+
+export const revokeAdmin = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: unknown) => revokeAdminSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    if (data.user_id === userId) {
+      throw new Error("You cannot revoke your own admin role");
+    }
+
+    const { error } = await supabase
+      .from("user_roles")
+      .delete()
+      .eq("user_id", data.user_id)
+      .eq("role", "admin");
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
 export const resendWelcomeEmail = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => revokeSchema.parse(input))
