@@ -409,6 +409,30 @@ function PresetsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} {selected.size === 1 ? "preset" : "presets"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll have 5 seconds to undo. After that, the selected presets will be permanently deleted. Existing runs that referenced them are unaffected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BulkActionBar
+        count={selected.size}
+        itemLabel="preset"
+        onDelete={() => setBulkConfirmOpen(true)}
+        onClear={clearSelection}
+      />
     </main>
   );
 }
