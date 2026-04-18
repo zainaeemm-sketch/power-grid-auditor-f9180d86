@@ -147,7 +147,7 @@ export const rejectUser = createServerFn({ method: "POST" })
 const revokeSchema = z.object({ user_id: z.string().uuid() });
 
 export const revokeUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => revokeSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
