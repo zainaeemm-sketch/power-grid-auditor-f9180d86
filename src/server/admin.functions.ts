@@ -124,7 +124,7 @@ export const approveUser = createServerFn({ method: "POST" })
   });
 
 export const rejectUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => approveSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
