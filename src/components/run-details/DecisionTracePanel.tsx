@@ -135,12 +135,14 @@ export function DecisionTracePanel({
                 <Badge variant="outline" className="text-[10px]">
                   {explanationSource === "llm" ? (
                     <><Sparkles className="mr-1 h-3 w-3" /> AI</>
+                  ) : explanationSource === "cache" ? (
+                    <><Sparkles className="mr-1 h-3 w-3" /> Cached</>
                   ) : (
                     "Template"
                   )}
                 </Badge>
               )}
-              {explanationModel && explanationSource === "llm" && (
+              {explanationModel && (explanationSource === "llm" || explanationSource === "cache") && (
                 <Badge variant="outline" className="font-mono text-[10px]">
                   {explanationModel}
                 </Badge>
@@ -150,7 +152,7 @@ export function DecisionTracePanel({
                 size="sm"
                 className="h-6 px-2 text-xs"
                 disabled={explaining}
-                onClick={() => loadExplanation(traces)}
+                onClick={() => loadExplanation(traces, true)}
               >
                 <RefreshCw className={`mr-1 h-3 w-3 ${explaining ? "animate-spin" : ""}`} />
                 Regenerate
