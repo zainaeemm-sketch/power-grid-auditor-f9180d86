@@ -133,6 +133,7 @@ function RunsPage() {
 
   const filtered = useMemo(() => {
     const base = runs.filter((r) => {
+      if (pendingIds.has(r.id)) return false;
       if (taskFilter !== ALL && r.task !== taskFilter) return false;
       if (agentFilter !== ALL && r.agent !== agentFilter) return false;
       if (caseFilter !== ALL && r.case_name !== caseFilter) return false;
