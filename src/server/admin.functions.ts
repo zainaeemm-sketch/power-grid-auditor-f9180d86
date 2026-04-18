@@ -43,7 +43,7 @@ export const getApprovalStatus = createServerFn({ method: "GET" })
   });
 
 export const isCurrentUserAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data, error } = await supabase.rpc("has_role", {
