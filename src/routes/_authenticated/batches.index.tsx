@@ -106,16 +106,17 @@ function BatchesPage() {
     );
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editTarget) return;
     setBusy(true);
-    try {
-      await updateFn({ data: { batch_id: editTarget.id, name: editName, research_question: editRq || null } });
-      toast.success("Batch updated");
-      setEditTarget(null);
-      await router.invalidate();
-    } catch (e: any) { toast.error(e?.message || "Failed"); }
-    finally { setBusy(false); }
+    updateFn({ data: { batch_id: editTarget.id, name: editName, research_question: editRq || null } })
+      .then(() => {
+        toast.success("Batch updated");
+        setEditTarget(null);
+        return router.invalidate();
+      })
+      .catch((e: any) => toast.error(e?.message || "Failed"))
+      .finally(() => setBusy(false));
   };
 
   return (
