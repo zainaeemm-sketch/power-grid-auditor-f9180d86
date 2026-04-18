@@ -109,7 +109,6 @@ export function DecisionTracePanel({
   const totalMs = Math.max(1, traces.reduce((a, t) => a + t.execution_time_ms, 0));
   const failure = traces.find((t) => t.status === "failure");
   const failureInfo = failure ? classifyFailure(failure.stage_type, failure.failure_reason) : null;
-  const explanation = summarizeTrace(traces, evaluation);
 
   return (
     <Card className="border-border/60 bg-card/60">
@@ -122,10 +121,35 @@ export function DecisionTracePanel({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border border-border/40 bg-muted/10 p-3">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Decision Explanation
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Decision Explanation
+            </p>
+            <div className="flex items-center gap-2">
+              {explanationSource && (
+                <Badge variant="outline" className="text-[10px]">
+                  {explanationSource === "llm" ? (
+                    <><Sparkles className="mr-1 h-3 w-3" /> AI</>
+                  ) : (
+                    "Template"
+                  )}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                disabled={explaining}
+                onClick={() => loadExplanation(traces)}
+              >
+                <RefreshCw className={`mr-1 h-3 w-3 ${explaining ? "animate-spin" : ""}`} />
+                Regenerate
+              </Button>
+            </div>
+          </div>
+          <p className="text-sm leading-relaxed">
+            {explanation ?? "Generating explanation…"}
           </p>
-          <p className="text-sm leading-relaxed">{explanation}</p>
         </div>
 
         {failure && failureInfo && (
