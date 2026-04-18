@@ -28,6 +28,23 @@ const STATUS_BADGE: Record<string, string> = {
   failure: "bg-destructive/15 text-destructive border-destructive/30",
 };
 
+function formatRelativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "";
+  const diff = Date.now() - then;
+  const sec = Math.max(0, Math.round(diff / 1000));
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  const mo = Math.round(day / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  return `${Math.round(mo / 12)}y ago`;
+}
+
 export function DecisionTracePanel({
   runId,
   evaluation,
@@ -42,6 +59,7 @@ export function DecisionTracePanel({
   const [explanation, setExplanation] = useState<string | null>(null);
   const [explanationSource, setExplanationSource] = useState<"llm" | "fallback" | "cache" | null>(null);
   const [explanationModel, setExplanationModel] = useState<string | null>(null);
+  const [explanationCachedAt, setExplanationCachedAt] = useState<string | null>(null);
   const [explaining, setExplaining] = useState(false);
 
   const loadExplanation = (currentTraces: DecisionTrace[], force = false) => {
@@ -50,12 +68,14 @@ export function DecisionTracePanel({
       setExplanation(summarizeTrace(currentTraces, evaluation));
       setExplanationSource("fallback");
       setExplanationModel(null);
+      setExplanationCachedAt(null);
     }
     explainFn({ data: { runId, force } })
       .then((res) => {
         setExplanation(res.explanation);
         setExplanationSource(res.source);
         setExplanationModel(res.model ?? null);
+        setExplanationCachedAt(res.cached_at ?? null);
       })
       .catch(() => {})
       .finally(() => setExplaining(false));
@@ -146,6 +166,14 @@ export function DecisionTracePanel({
                 <Badge variant="outline" className="font-mono text-[10px]">
                   {explanationModel}
                 </Badge>
+              )}
+              {explanationCachedAt && (explanationSource === "cache" || explanationSource === "llm") && (
+                <span
+                  className="text-[10px] text-muted-foreground"
+                  title={new Date(explanationCachedAt).toLocaleString()}
+                >
+                  {formatRelativeTime(explanationCachedAt)}
+                </span>
               )}
               <Button
                 variant="ghost"
