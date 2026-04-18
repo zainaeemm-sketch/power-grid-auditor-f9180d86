@@ -166,6 +166,7 @@ function ValidationPage() {
                     <TableHead className="w-24">Status</TableHead>
                     <TableHead className="w-24">Time</TableHead>
                     <TableHead className="w-44">When</TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -181,6 +182,14 @@ function ValidationPage() {
                           <TableCell><StatusBadge status={r.status} /></TableCell>
                           <TableCell className="text-muted-foreground">{r.execution_time_ms} ms</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {r.id && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete result"
+                                onClick={() => deleteMutation.mutate(r.id)} disabled={deleteMutation.isPending}>
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                         {isOpen && hasFail && (
                           <TableRow>
