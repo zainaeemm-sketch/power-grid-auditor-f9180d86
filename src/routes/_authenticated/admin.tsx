@@ -82,6 +82,8 @@ function AdminPage() {
       )}
 
       {section === "users" && <UsersSection />}
+
+      {section === "settings" && <AdminSettings />}
     </AdminShell>
   );
 }
