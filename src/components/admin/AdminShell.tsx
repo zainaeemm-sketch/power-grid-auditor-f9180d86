@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Bell,
   Search,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
