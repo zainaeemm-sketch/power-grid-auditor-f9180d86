@@ -107,28 +107,29 @@ function PresetsPage() {
     );
   };
 
-  const handleEditSave = async () => {
+  const handleEditSave = () => {
     if (!editTarget) return;
     setBusy(true);
-    try {
-      await updatePresetFn({
-        data: {
-          preset_id: editTarget.id,
-          name: editName,
-          provider_name: editProvider || null,
-          model_name: editModel || null,
-          system_prompt: editSystem || null,
-          temperature: editTemp ? parseFloat(editTemp) : null,
-          max_tokens: editMax ? parseInt(editMax, 10) : null,
-          top_p: editTopP ? parseFloat(editTopP) : null,
-          notes: editNotes || null,
-        },
-      });
-      toast.success("Preset updated");
-      setEditTarget(null);
-      router.invalidate();
-    } catch (e: any) { toast.error(e?.message || "Failed"); }
-    finally { setBusy(false); }
+    updatePresetFn({
+      data: {
+        preset_id: editTarget.id,
+        name: editName,
+        provider_name: editProvider || null,
+        model_name: editModel || null,
+        system_prompt: editSystem || null,
+        temperature: editTemp ? parseFloat(editTemp) : null,
+        max_tokens: editMax ? parseInt(editMax, 10) : null,
+        top_p: editTopP ? parseFloat(editTopP) : null,
+        notes: editNotes || null,
+      },
+    })
+      .then(() => {
+        toast.success("Preset updated");
+        setEditTarget(null);
+        return router.invalidate();
+      })
+      .catch((e: any) => toast.error(e?.message || "Failed"))
+      .finally(() => setBusy(false));
   };
 
   const [open, setOpen] = useState(false);
