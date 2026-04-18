@@ -36,15 +36,35 @@ export function DecisionTracePanel({
   evaluation: RunEvaluation | null;
 }) {
   const fetchFn = useServerFn(getRunTraces);
+  const explainFn = useServerFn(explainTrace);
   const [traces, setTraces] = useState<DecisionTrace[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explanationSource, setExplanationSource] = useState<"llm" | "fallback" | null>(null);
+  const [explaining, setExplaining] = useState(false);
+
+  const loadExplanation = (currentTraces: DecisionTrace[]) => {
+    setExplaining(true);
+    setExplanation(summarizeTrace(currentTraces, evaluation));
+    setExplanationSource("fallback");
+    explainFn({ data: { runId } })
+      .then((res) => {
+        setExplanation(res.explanation);
+        setExplanationSource(res.source);
+      })
+      .catch(() => {})
+      .finally(() => setExplaining(false));
+  };
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     fetchFn({ data: { runId } })
       .then((res: { traces: DecisionTrace[] }) => {
-        if (!cancelled) setTraces(res.traces);
+        if (!cancelled) {
+          setTraces(res.traces);
+          if (res.traces.length > 0) loadExplanation(res.traces);
+        }
       })
       .catch(() => {
         if (!cancelled) setTraces([]);
