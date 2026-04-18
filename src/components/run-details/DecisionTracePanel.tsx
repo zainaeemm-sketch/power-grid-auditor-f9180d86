@@ -4,9 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, AlertTriangle, ChevronDown } from "lucide-react";
+import { Download, AlertTriangle, ChevronDown, Sparkles, RefreshCw } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { getRunTraces } from "@/server/trace.functions";
+import { getRunTraces, explainTrace } from "@/server/trace.functions";
 import type { DecisionTrace, StageType } from "@/types/trace";
 import type { RunEvaluation } from "@/types/grid-arena";
 import { summarizeTrace, classifyFailure } from "@/lib/trace-explainer";
@@ -36,15 +36,35 @@ export function DecisionTracePanel({
   evaluation: RunEvaluation | null;
 }) {
   const fetchFn = useServerFn(getRunTraces);
+  const explainFn = useServerFn(explainTrace);
   const [traces, setTraces] = useState<DecisionTrace[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explanationSource, setExplanationSource] = useState<"llm" | "fallback" | null>(null);
+  const [explaining, setExplaining] = useState(false);
+
+  const loadExplanation = (currentTraces: DecisionTrace[]) => {
+    setExplaining(true);
+    setExplanation(summarizeTrace(currentTraces, evaluation));
+    setExplanationSource("fallback");
+    explainFn({ data: { runId } })
+      .then((res) => {
+        setExplanation(res.explanation);
+        setExplanationSource(res.source);
+      })
+      .catch(() => {})
+      .finally(() => setExplaining(false));
+  };
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     fetchFn({ data: { runId } })
       .then((res: { traces: DecisionTrace[] }) => {
-        if (!cancelled) setTraces(res.traces);
+        if (!cancelled) {
+          setTraces(res.traces);
+          if (res.traces.length > 0) loadExplanation(res.traces);
+        }
       })
       .catch(() => {
         if (!cancelled) setTraces([]);
@@ -89,7 +109,6 @@ export function DecisionTracePanel({
   const totalMs = Math.max(1, traces.reduce((a, t) => a + t.execution_time_ms, 0));
   const failure = traces.find((t) => t.status === "failure");
   const failureInfo = failure ? classifyFailure(failure.stage_type, failure.failure_reason) : null;
-  const explanation = summarizeTrace(traces, evaluation);
 
   return (
     <Card className="border-border/60 bg-card/60">
@@ -102,10 +121,35 @@ export function DecisionTracePanel({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border border-border/40 bg-muted/10 p-3">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Decision Explanation
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Decision Explanation
+            </p>
+            <div className="flex items-center gap-2">
+              {explanationSource && (
+                <Badge variant="outline" className="text-[10px]">
+                  {explanationSource === "llm" ? (
+                    <><Sparkles className="mr-1 h-3 w-3" /> AI</>
+                  ) : (
+                    "Template"
+                  )}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                disabled={explaining}
+                onClick={() => loadExplanation(traces)}
+              >
+                <RefreshCw className={`mr-1 h-3 w-3 ${explaining ? "animate-spin" : ""}`} />
+                Regenerate
+              </Button>
+            </div>
+          </div>
+          <p className="text-sm leading-relaxed">
+            {explanation ?? "Generating explanation…"}
           </p>
-          <p className="text-sm leading-relaxed">{explanation}</p>
         </div>
 
         {failure && failureInfo && (

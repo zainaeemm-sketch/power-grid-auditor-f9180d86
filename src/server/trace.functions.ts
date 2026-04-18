@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 import type { DecisionTrace, BatchTraceAnalytics, StageType, StageAggregate } from "@/types/trace";
+import { summarizeTrace } from "@/lib/trace-explainer";
 
 export const getRunTraces = createServerFn({ method: "GET" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
@@ -63,4 +64,91 @@ export const getBatchTraceAnalytics = createServerFn({ method: "GET" })
       most_common_failure_stage: most,
       per_stage,
     };
+  });
+
+export const explainTrace = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { runId: string }) => input)
+  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback"; error?: string }> => {
+    // Load traces + evaluation
+    const { data: traceRows, error: tErr } = await context.supabase
+      .from("decision_traces")
+      .select("*")
+      .eq("run_id", data.runId)
+      .order("sequence", { ascending: true });
+    if (tErr) {
+      return { explanation: "Unable to load trace data.", source: "fallback", error: tErr.message };
+    }
+    const traces = (traceRows ?? []) as DecisionTrace[];
+
+    const { data: evalRow } = await context.supabase
+      .from("run_evaluations")
+      .select("*")
+      .eq("run_id", data.runId)
+      .maybeSingle();
+    const evaluation = (evalRow as any) ?? null;
+
+    if (traces.length === 0) {
+      return { explanation: "No trace data available for this run.", source: "fallback" };
+    }
+
+    const fallback = () => summarizeTrace(traces, evaluation);
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return { explanation: fallback(), source: "fallback", error: "OPENAI_API_KEY not configured" };
+    }
+
+    const baseUrl = (process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1").replace(/\/+$/, "");
+    const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+
+    const trunc = (s: string | null | undefined, n = 200) => (s ?? "").slice(0, n);
+    const stageLines = traces.slice(0, 30).map((t, i) => {
+      const parts = [
+        `${i + 1}. [${t.stage_type}] ${t.stage_name}`,
+        `status=${t.status}`,
+        `time=${t.execution_time_ms}ms`,
+      ];
+      if (t.tool_name) parts.push(`tool=${t.tool_name}`);
+      if (t.input_summary) parts.push(`in="${trunc(t.input_summary)}"`);
+      if (t.output_summary) parts.push(`out="${trunc(t.output_summary)}"`);
+      if (t.failure_reason) parts.push(`failure="${trunc(t.failure_reason)}"`);
+      return parts.join(" | ");
+    }).join("\n");
+
+    const evalLine = evaluation
+      ? `Evaluation: feasibility=${evaluation.feasibility}, baseline_violations=${evaluation.baseline_violations}, post_action_violations=${evaluation.post_action_violations}, improvement=${evaluation.violation_improvement}.`
+      : "Evaluation: not available.";
+
+    const userPrompt = `You are reviewing a power-grid LLM agent's decision pipeline.\n\nOrdered stages:\n${stageLines}\n\n${evalLine}\n\nWrite a clear, plain-English explanation in 3 to 5 sentences describing what the agent did, what it recommended, how the action affected violations, and any failures. Be concrete and specific. Do not use bullet points or headings.`;
+
+    try {
+      const resp = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: "You explain AI agent decision traces clearly and concisely for power-system researchers." },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.3,
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        return { explanation: fallback(), source: "fallback", error: `OpenAI ${resp.status}: ${txt.slice(0, 200)}` };
+      }
+      const json = await resp.json();
+      const text = json?.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        return { explanation: fallback(), source: "fallback", error: "Empty LLM response" };
+      }
+      return { explanation: text, source: "llm" };
+    } catch (e: any) {
+      return { explanation: fallback(), source: "fallback", error: e?.message ?? "Network error" };
+    }
   });
