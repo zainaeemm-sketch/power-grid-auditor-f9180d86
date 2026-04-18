@@ -72,6 +72,7 @@ function RunsPage() {
   const router = useRouter();
   const deleteRunFn = useServerFn(deleteRun);
   const updateRunFn = useServerFn(updateRun);
+  const { pendingIds, softDelete } = useSoftDelete();
   const [search, setSearch] = useState("");
   const [taskFilter, setTaskFilter] = useState(ALL);
   const [agentFilter, setAgentFilter] = useState(ALL);
@@ -84,17 +85,16 @@ function RunsPage() {
   const [editTitle, setEditTitle] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deleteTarget) return;
-    setBusy(true);
-    try {
-      await deleteRunFn({ data: { run_id: deleteTarget.id } });
-      toast.success("Run deleted");
-      setDeleteTarget(null);
-      await router.invalidate();
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to delete run");
-    } finally { setBusy(false); }
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    softDelete(
+      target.id,
+      target.title,
+      () => deleteRunFn({ data: { run_id: target.id } }),
+      () => router.invalidate(),
+    );
   };
 
   const handleEditSave = async () => {
