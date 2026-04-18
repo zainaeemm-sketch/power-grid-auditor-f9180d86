@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 import { withRetry, isTransientHttpStatus } from "@/lib/server-utils";
+import { TraceRecorder } from "./trace/recorder";
 
 /**
  * Persist a human-readable failure message to run_metadata.notes (appended)
