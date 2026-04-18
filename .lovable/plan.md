@@ -1,55 +1,55 @@
 
+User wants edit + delete actions on dashboard list pages so they can curate/clean their data. Cascading deletes already work via existing RLS-scoped DELETE policies on child tables, but I should explicitly delete child rows in server fns to be safe (no FK cascade defined).
 
-The user wants to replace the deterministic `summarizeTrace` template in `src/lib/trace-explainer.ts` with an LLM-generated natural-language explanation, using an OpenAI API key they've provided before.
+## Plan: Edit & Delete actions across dashboards
 
-Let me check what secrets are configured.
-<lov-tool-use id="toolu_vrtx_013sfvU2d6SomXSMC9UteWJg" name="secrets--fetch_secrets" integration-id="secrets" data="">
-</lov-tool-use>
+### Scope
+Add row-level **Edit** and **Delete** actions to:
+1. **Runs** (`/runs`) — delete + inline-edit title
+2. **Presets** (`/presets`) — delete + edit (name, model, system_prompt, temperature, etc.)
+3. **Batches** (`/batches`) — delete + edit (name, research_question)
+4. **Ground Truth scenarios** (`/ground-truth`) — delete (edit page already exists)
+5. **Validation results** (`/validation`) — delete individual + "Clear all" button
 
-<lov-tool-use id="toolu_vrtx_01GVsbFV2e5LgB91JRMhtsJq" name="tool_search" data="{\"target\": \"secrets--fetch_secrets\"}">
-</lov-tool-use>
+All destructive actions go through `AlertDialog` confirmation.
 
-<lov-tool-use id="toolu_vrtx_01G4396L5bgCbkUtAbvbCBkb" name="secrets--fetch_secrets" integration-id="secrets" data="">
-</lov-tool-use>
+### Server functions (new / updated)
 
-<lov-tool-use id="toolu_vrtx_01BgzfQxeefAotcGutWsvDLZ" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/run-details/DecisionTracePanel.tsx\", \"lines\": \"1-50\"}">
-</lov-tool-use>
+**`src/server/runs.functions.ts`**
+- `deleteRun({ run_id })` — deletes child rows first (decision_traces, run_metadata, run_prompt_logs, run_recommendations, run_parse_results, run_evaluations, run_actions, perturbation_tests→results, batch_run_links), then `runs` row. RLS guarantees user-scoped.
+- `updateRun({ run_id, title?, research_question? })`
+- `deletePreset({ preset_id })`
+- `updatePreset({ preset_id, ...fields })`
 
-<lov-tool-use id="toolu_vrtx_01RaM6N8GZnjb6yLnCbTngKj" name="code--view" integration-id="code" data="{\"file_path\": \"src/server/trace.functions.ts\"}">
-</lov-tool-use>
-I have enough context. The OpenAI key is already configured as a secret. I'll plan a server-side function that calls OpenAI to generate the explanation, with fallback to the deterministic template.
+**`src/server/batch.functions.ts`**
+- `deleteBatch({ batch_id })` — delete batch_run_links then batch
+- `updateBatch({ batch_id, name?, research_question? })`
 
-<lov-plan>
-## Plan: AI-generated decision explanation
+**`src/server/ground-truth.functions.ts`**
+- `deleteScenario({ scenario_id })` — delete actions then scenario (likely already exists; verify and add if missing)
 
-Replace the static template in `summarizeTrace` with an OpenAI-powered explanation, called from a new server function. Keep the deterministic template as a fallback.
+**`src/server/validation.functions.ts`**
+- `deleteValidationResult({ id })`
+- `clearValidationResults()` — delete all for current user
 
-### Approach
-- The `OPENAI_API_KEY` (and optional `OPENAI_BASE_URL`, `OPENAI_MODEL`) are already configured as project secrets.
-- Add a new server function `explainTrace` in `src/server/trace.functions.ts` that:
-  - Takes `runId` (auth-gated; verifies the run belongs to the user via RLS).
-  - Loads the run's traces (ordered) + evaluation summary.
-  - Builds a compact, structured prompt: ordered list of stages (name, type, in/out, tool, status, ms) + evaluation deltas.
-  - Calls OpenAI Chat Completions (`process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1"`, model from `OPENAI_MODEL` else `gpt-5-mini`) with a system prompt asking for a 3–5 sentence plain-English explanation of the agent's decision flow.
-  - Returns `{ explanation, source: "llm" | "fallback" }`. On any error (missing key, network, rate-limit), returns the deterministic `summarizeTrace(...)` text with `source: "fallback"`.
-  - Wrapped in try/catch — never throws to the client.
+### UI changes
 
-### UI changes (`DecisionTracePanel.tsx`)
-- After traces load, call `explainTrace` via `useServerFn`.
-- Show a small skeleton/"Generating explanation…" while pending.
-- Render the returned explanation in the existing "Decision Explanation" box.
-- Add a small badge: "AI" when `source==="llm"`, "Template" when fallback.
-- Add a "Regenerate" button (refetches the server fn).
-- Keep `summarizeTrace` import as immediate fallback shown while the LLM call is in flight (so something always renders instantly).
+Pattern per list page: add an **Actions** column (or dropdown menu) with Edit (pencil) + Delete (trash) icons. Delete opens `AlertDialog`. Edit opens a `Dialog` with a small form, or navigates to existing edit route where one exists.
 
-### Files
-**New / edited:**
-- `src/server/trace.functions.ts` — add `explainTrace` server fn (uses `process.env.OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`).
-- `src/components/run-details/DecisionTracePanel.tsx` — fetch + render LLM explanation, regenerate button, source badge.
-- `src/lib/trace-explainer.ts` — keep `summarizeTrace` (used as instant + fallback). No removal, preserves backward compat.
+- **`src/routes/_authenticated/runs.index.tsx`** — Actions column, edit dialog (title only), delete confirm
+- **`src/routes/_authenticated/presets.tsx`** — Actions, edit dialog reusing preset fields, delete confirm
+- **`src/routes/_authenticated/batches.index.tsx`** — Actions, edit dialog, delete confirm
+- **`src/routes/_authenticated/ground-truth.index.tsx`** — Delete confirm (edit already routes to `/ground-truth/edit/$id`)
+- **`src/routes/_authenticated/validation.tsx`** — Per-row delete + "Clear all results" button in toolbar
 
-### Safety / behavior
-- Server-only key access (never exposed to client).
-- Token-cap the prompt (truncate long input/output summaries to ~200 chars each, max ~30 stages).
-- Deterministic fallback on any failure → existing UX never regresses.
-- No schema changes, no new dependencies.
+After mutations: invalidate router (`router.invalidate()`) and toast success/error.
+
+### Safety
+- All deletes wrapped in `AlertDialog` with explicit "This cannot be undone" copy.
+- Server fns use the authed Supabase client → RLS enforces ownership; even if user_id spoofed, RLS blocks.
+- Cached AI explanations live on `runs` row → removed automatically with run delete.
+
+### Non-goals
+- No bulk multi-select delete (can be a follow-up).
+- No soft-delete / undo.
+- No schema changes.
