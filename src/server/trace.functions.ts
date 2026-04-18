@@ -100,7 +100,20 @@ export const explainTrace = createServerFn({ method: "POST" })
     }
 
     const baseUrl = (process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1").replace(/\/+$/, "");
-    const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+
+    // Per-user model preference, fallback to env, then default
+    let userModel: string | null = null;
+    try {
+      const { data: prefRow } = await context.supabase
+        .from("user_preferences")
+        .select("openai_model")
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      userModel = (prefRow as any)?.openai_model ?? null;
+    } catch {
+      userModel = null;
+    }
+    const model = userModel ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
     const trunc = (s: string | null | undefined, n = 200) => (s ?? "").slice(0, n);
     const stageLines = traces.slice(0, 30).map((t, i) => {
