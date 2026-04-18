@@ -69,7 +69,7 @@ export const getBatchTraceAnalytics = createServerFn({ method: "GET" })
 export const explainTrace = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { runId: string }) => input)
-  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback"; error?: string }> => {
+  .handler(async ({ data, context }): Promise<{ explanation: string; source: "llm" | "fallback"; model?: string; error?: string }> => {
     // Load traces + evaluation
     const { data: traceRows, error: tErr } = await context.supabase
       .from("decision_traces")
