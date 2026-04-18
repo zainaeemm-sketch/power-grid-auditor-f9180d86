@@ -8,6 +8,7 @@ import {
   approveUser,
   rejectUser,
   revokeUser,
+  resendWelcomeEmail,
 } from "@/server/admin.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -15,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ShieldCheck, Check, X, RotateCcw, AlertCircle } from "lucide-react";
+import { ShieldCheck, Check, X, RotateCcw, AlertCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -94,6 +95,7 @@ function ApprovalsTable({ status }: { status: Status }) {
   const approve = useServerFn(approveUser);
   const reject = useServerFn(rejectUser);
   const revoke = useServerFn(revokeUser);
+  const resend = useServerFn(resendWelcomeEmail);
   const qc = useQueryClient();
   const [notes, setNotes] = useState<Record<string, string>>({});
 
@@ -133,6 +135,12 @@ function ApprovalsTable({ status }: { status: Status }) {
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to revoke"),
+  });
+
+  const resendMut = useMutation({
+    mutationFn: (vars: { user_id: string }) => resend({ data: vars }),
+    onSuccess: () => toast.success("Welcome email re-queued"),
+    onError: (e: any) => toast.error(e?.message ?? "Failed to resend email"),
   });
 
   const rows = data?.approvals ?? [];
@@ -210,14 +218,24 @@ function ApprovalsTable({ status }: { status: Status }) {
                         </Button>
                       )}
                       {r.status === "approved" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={revokeMut.isPending}
-                          onClick={() => revokeMut.mutate({ user_id: r.user_id })}
-                        >
-                          <RotateCcw className="mr-1 h-3 w-3" /> Revoke
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={resendMut.isPending}
+                            onClick={() => resendMut.mutate({ user_id: r.user_id })}
+                          >
+                            <Mail className="mr-1 h-3 w-3" /> Resend email
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={revokeMut.isPending}
+                            onClick={() => revokeMut.mutate({ user_id: r.user_id })}
+                          >
+                            <RotateCcw className="mr-1 h-3 w-3" /> Revoke
+                          </Button>
+                        </>
                       )}
                     </div>
                   </TableCell>
