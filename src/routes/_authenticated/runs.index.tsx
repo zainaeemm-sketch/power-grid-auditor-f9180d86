@@ -188,7 +188,7 @@ function RunsPage() {
         );
     }
     return sorted;
-  }, [runs, taskFilter, agentFilter, caseFilter, statusFilter, gtFilter, search, sortBy]);
+  }, [runs, pendingIds, taskFilter, agentFilter, caseFilter, statusFilter, gtFilter, search, sortBy]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
