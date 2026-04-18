@@ -15,12 +15,14 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Plus, Target, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { listRuns, deleteRun, updateRun, type RunListItem } from "@/server/runs.functions";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import type { RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/runs/")({
@@ -72,7 +74,7 @@ function RunsPage() {
   const router = useRouter();
   const deleteRunFn = useServerFn(deleteRun);
   const updateRunFn = useServerFn(updateRun);
-  const { pendingIds, softDelete } = useSoftDelete();
+  const { pendingIds, softDelete, softDeleteMany } = useSoftDelete();
   const [search, setSearch] = useState("");
   const [taskFilter, setTaskFilter] = useState(ALL);
   const [agentFilter, setAgentFilter] = useState(ALL);
@@ -84,6 +86,16 @@ function RunsPage() {
   const [editTarget, setEditTarget] = useState<RunListItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const clearSelection = () => setSelected(new Set());
 
   const handleDelete = () => {
     if (!deleteTarget) return;
