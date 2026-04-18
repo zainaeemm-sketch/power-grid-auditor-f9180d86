@@ -150,6 +150,14 @@ export function DecisionTracePanel({
                   {explanationModel}
                 </Badge>
               )}
+              {explanationCachedAt && (explanationSource === "cache" || explanationSource === "llm") && (
+                <span
+                  className="text-[10px] text-muted-foreground"
+                  title={new Date(explanationCachedAt).toLocaleString()}
+                >
+                  {formatRelativeTime(explanationCachedAt)}
+                </span>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
