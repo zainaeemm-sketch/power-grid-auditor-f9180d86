@@ -195,6 +195,7 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     if (typeof topP === "number") body.top_p = topP;
     if (typeof seed === "number") body.seed = seed;
 
+    const llmStart = Date.now();
     try {
       // Retry on transient (5xx / network) failures only — never on 4xx (config/auth).
       responseText = await withRetry(async () => {
@@ -229,6 +230,15 @@ export const executeRunLlm = createServerFn({ method: "POST" })
         },
       });
       clearTimeout(timeout);
+      tracer.record({
+        stage_name: "LLM invocation",
+        stage_type: "tool_use",
+        tool_name: modelName,
+        input: `temperature=${temperature}, prompt_chars=${promptText.length}`,
+        output: `response_chars=${responseText.length}`,
+        execution_time_ms: Date.now() - llmStart,
+        evidence: { model: modelName, temperature, max_tokens: maxTokens ?? null },
+      });
     } catch (err: any) {
       clearTimeout(timeout);
       const isTimeout = err?.name === "AbortError";
@@ -237,6 +247,14 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       const message = isTimeout
         ? "LLM execution timed out (60s)"
         : err?.message ?? "Unknown LLM failure";
+      tracer.failure({
+        stage_name: "LLM invocation",
+        stage_type: "tool_use",
+        tool_name: modelName,
+        reason: message,
+        execution_time_ms: Date.now() - llmStart,
+      });
+      await tracer.flush(supabase, runId);
       await recordRunFailure(supabase, runId, message);
       return { success: false, error: message, retryable };
     }
