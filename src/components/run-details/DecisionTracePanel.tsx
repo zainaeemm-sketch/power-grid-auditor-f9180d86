@@ -138,6 +138,11 @@ export function DecisionTracePanel({
                   )}
                 </Badge>
               )}
+              {explanationModel && explanationSource === "llm" && (
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  {explanationModel}
+                </Badge>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
