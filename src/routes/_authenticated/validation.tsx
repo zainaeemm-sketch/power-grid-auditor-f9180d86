@@ -11,7 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  runAllValidations, getValidationResults, clearValidationResults,
+  runAllValidations, getValidationResults, clearValidationResults, deleteValidationResult,
 } from "@/server/validation.functions";
 import { exportValidationCsv, exportValidationJson, type ValidationRow } from "@/lib/validation-export";
 
