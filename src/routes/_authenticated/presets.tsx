@@ -38,6 +38,69 @@ function PresetsPage() {
   const { presets } = Route.useLoaderData() as { presets: ExperimentPreset[] };
   const router = useRouter();
   const createPresetFn = useServerFn(createPreset);
+  const deletePresetFn = useServerFn(deletePreset);
+  const updatePresetFn = useServerFn(updatePreset);
+
+  const [deleteTarget, setDeleteTarget] = useState<ExperimentPreset | null>(null);
+  const [editTarget, setEditTarget] = useState<ExperimentPreset | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editProvider, setEditProvider] = useState("");
+  const [editModel, setEditModel] = useState("");
+  const [editSystem, setEditSystem] = useState("");
+  const [editTemp, setEditTemp] = useState("");
+  const [editMax, setEditMax] = useState("");
+  const [editTopP, setEditTopP] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const openEdit = (p: ExperimentPreset) => {
+    const a = p as any;
+    setEditTarget(p);
+    setEditName(p.name ?? "");
+    setEditProvider(a.provider_name ?? "");
+    setEditModel(a.model_name ?? "");
+    setEditSystem(a.system_prompt ?? "");
+    setEditTemp(a.temperature != null ? String(a.temperature) : "");
+    setEditMax(a.max_tokens != null ? String(a.max_tokens) : "");
+    setEditTopP(a.top_p != null ? String(a.top_p) : "");
+    setEditNotes(p.notes ?? "");
+  };
+
+  const handleDeletePreset = async () => {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      await deletePresetFn({ data: { preset_id: deleteTarget.id } });
+      toast.success("Preset deleted");
+      setDeleteTarget(null);
+      router.invalidate();
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setBusy(false); }
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    setBusy(true);
+    try {
+      await updatePresetFn({
+        data: {
+          preset_id: editTarget.id,
+          name: editName,
+          provider_name: editProvider || null,
+          model_name: editModel || null,
+          system_prompt: editSystem || null,
+          temperature: editTemp ? parseFloat(editTemp) : null,
+          max_tokens: editMax ? parseInt(editMax, 10) : null,
+          top_p: editTopP ? parseFloat(editTopP) : null,
+          notes: editNotes || null,
+        },
+      });
+      toast.success("Preset updated");
+      setEditTarget(null);
+      router.invalidate();
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setBusy(false); }
+  };
 
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
