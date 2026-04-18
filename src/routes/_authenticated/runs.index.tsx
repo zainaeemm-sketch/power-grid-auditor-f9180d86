@@ -121,6 +121,8 @@ function RunsPage() {
       () => router.invalidate(),
     );
   };
+
+  const handleEditSave = async () => {
     if (!editTarget) return;
     setBusy(true);
     try {
