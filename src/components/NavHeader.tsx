@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AccentSwitcher } from "@/components/AccentSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HealthBadge } from "@/components/HealthBadge";
+import { AdminPendingNotifier } from "@/components/AdminPendingNotifier";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,6 +82,7 @@ export function NavHeader() {
           <AccentSwitcher />
           {isAuthenticated ? (
             <>
+              {isAdmin && <AdminPendingNotifier />}
               <HealthBadge />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
