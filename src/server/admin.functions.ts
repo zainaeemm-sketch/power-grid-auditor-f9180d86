@@ -14,7 +14,7 @@ async function assertAdmin(supabase: any, userId: string) {
 }
 
 export const getApprovalStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
