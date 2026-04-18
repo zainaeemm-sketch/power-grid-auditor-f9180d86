@@ -20,6 +20,7 @@ import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { listRuns, deleteRun, updateRun, type RunListItem } from "@/server/runs.functions";
+import { useSoftDelete } from "@/hooks/useSoftDelete";
 import type { RunStatus } from "@/types/grid-arena";
 
 export const Route = createFileRoute("/_authenticated/runs/")({
