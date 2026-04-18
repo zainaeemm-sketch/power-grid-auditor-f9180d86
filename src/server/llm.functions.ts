@@ -325,6 +325,7 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     });
 
     let evaluationResult = null;
+    const evalStart = Date.now();
     try {
       const { applyParsedAction, computeEvaluation } = await import("./evaluation.functions");
       const fullParseResult = { ...parseResult, id: "", run_id: runId, created_at: "", updated_at: "" };
@@ -334,6 +335,7 @@ export const executeRunLlm = createServerFn({ method: "POST" })
       // Ground-truth comparison (optional — only when run has ground_truth_scenario_id)
       const gtScenarioId = (run as any).ground_truth_scenario_id as string | null | undefined;
       if (gtScenarioId) {
+        const gtStart = Date.now();
         try {
           const { compareToGroundTruth } = await import("./ground-truth/compare");
           const { data: refActions } = await (supabase as any)
@@ -351,8 +353,23 @@ export const executeRunLlm = createServerFn({ method: "POST" })
             evalFields.optimality_gap = cmp.optimality_gap;
             evalFields.deviation_from_reference = Number.isFinite(cmp.deviation_from_reference) ? cmp.deviation_from_reference : null;
             evalFields.evaluation_against_ground_truth = true;
+            tracer.record({
+              stage_name: "Ground truth comparison",
+              stage_type: "evaluation",
+              tool_name: "ground_truth_compare",
+              input: `${refActions.length} reference action(s)`,
+              output: `match=${cmp.action_match}, feas_match=${cmp.feasibility_match}, gap=${cmp.optimality_gap}`,
+              execution_time_ms: Date.now() - gtStart,
+              evidence: { reference_count: refActions.length, ...cmp },
+            });
           }
         } catch (gtErr: any) {
+          tracer.failure({
+            stage_name: "Ground truth comparison",
+            stage_type: "evaluation",
+            reason: gtErr?.message ?? "ground truth comparison failed",
+            execution_time_ms: Date.now() - gtStart,
+          });
           console.error("Ground-truth comparison failed:", gtErr?.message);
         }
       }
@@ -367,11 +384,27 @@ export const executeRunLlm = createServerFn({ method: "POST" })
         const { data } = await (supabase as any).from("run_evaluations").insert({ run_id: runId, ...evalFields }).select("*").single();
         evaluationResult = data;
       }
+      tracer.record({
+        stage_name: "Evaluation computation",
+        stage_type: "evaluation",
+        tool_name: evalFields.engine_used ?? "rule_based",
+        input: `action=${parseResult.action_type}`,
+        output: `feasibility=${evalFields.feasibility}, violations=${evalFields.violations_found}, improvement=${evalFields.violation_improvement}`,
+        execution_time_ms: Date.now() - evalStart,
+        evidence: evalFields.simulation_details ?? null,
+      });
     } catch (evalErr: any) {
+      tracer.failure({
+        stage_name: "Evaluation computation",
+        stage_type: "evaluation",
+        reason: evalErr?.message ?? "evaluation failed",
+        execution_time_ms: Date.now() - evalStart,
+      });
       console.error("Evaluation failed:", evalErr.message);
     }
 
     await supabase.from("runs").update({ status: "completed" as const }).eq("id", runId);
+    await tracer.flush(supabase, runId);
 
     return {
       success: true,
