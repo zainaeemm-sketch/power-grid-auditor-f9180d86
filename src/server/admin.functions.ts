@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 
 async function assertAdmin(supabase: any, userId: string) {
@@ -65,7 +64,7 @@ export const listUserApprovals = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    let query = supabaseAdmin
+    let query = supabase
       .from("user_approvals")
       .select("*")
       .order("requested_at", { ascending: false });
@@ -79,10 +78,9 @@ export const listUserApprovals = createServerFn({ method: "POST" })
     return { approvals: rows ?? [] };
   });
 
-async function enqueueWelcomeEmail(userId: string, email: string) {
+async function enqueueWelcomeEmail(supabase: any, userId: string, email: string) {
   try {
-    // Fire-and-forget welcome email job. Will be picked up if email queue exists.
-    await supabaseAdmin.from("job_queue").insert({
+    await supabase.from("job_queue").insert({
       user_id: userId,
       job_type: "send_welcome_email",
       payload: { email, user_id: userId },
@@ -105,7 +103,7 @@ export const approveUser = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await supabase
       .from("user_approvals")
       .update({
         status: "approved",
@@ -118,7 +116,7 @@ export const approveUser = createServerFn({ method: "POST" })
       .single();
 
     if (error) throw new Error(error.message);
-    if (row) await enqueueWelcomeEmail(row.user_id, row.email);
+    if (row) await enqueueWelcomeEmail(supabase, row.user_id, row.email);
 
     return { success: true };
   });
@@ -130,7 +128,7 @@ export const rejectUser = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from("user_approvals")
       .update({
         status: "rejected",
@@ -153,7 +151,7 @@ export const revokeUser = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from("user_approvals")
       .update({
         status: "pending",
@@ -173,7 +171,7 @@ export const resendWelcomeEmail = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await supabase
       .from("user_approvals")
       .select("user_id, email, status")
       .eq("user_id", data.user_id)
@@ -185,6 +183,6 @@ export const resendWelcomeEmail = createServerFn({ method: "POST" })
       throw new Error("Only approved users can receive a welcome email");
     }
 
-    await enqueueWelcomeEmail(row.user_id, row.email);
+    await enqueueWelcomeEmail(supabase, row.user_id, row.email);
     return { success: true };
   });
