@@ -231,6 +231,30 @@ function BatchesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} {selected.size === 1 ? "batch" : "batches"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll have 5 seconds to undo. After that, the selected batches and their run links will be permanently deleted. The underlying runs will remain.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BulkActionBar
+        count={selected.size}
+        itemLabel="batch"
+        onDelete={() => setBulkConfirmOpen(true)}
+        onClear={clearSelection}
+      />
     </main>
   );
 }
