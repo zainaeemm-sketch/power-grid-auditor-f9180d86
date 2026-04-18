@@ -419,6 +419,30 @@ function RunsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} {selected.size === 1 ? "run" : "runs"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll have 5 seconds to undo. After that, the selected runs and all their traces, metadata, evaluations, and recommendations will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BulkActionBar
+        count={selected.size}
+        itemLabel="run"
+        onDelete={() => setBulkConfirmOpen(true)}
+        onClear={clearSelection}
+      />
     </main>
   );
 }
