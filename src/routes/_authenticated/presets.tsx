@@ -312,17 +312,25 @@ function PresetsPage() {
       <div className="grid gap-4 pb-24 sm:grid-cols-2">
         {visiblePresets.map((preset: ExperimentPreset, i: number) => {
           const p = preset as any;
+          const isSelected = selected.has(preset.id);
           return (
             <Card
               key={preset.id}
-              className="gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up"
+              className={`gradient-border-left border-border/40 bg-card/60 hover-lift card-glow animate-fade-up ${isSelected ? "ring-1 ring-primary/60" : ""}`}
               style={{ animationDelay: `${i * 80}ms` }}
             >
               <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
-                <CardTitle className="flex items-center gap-2 text-base font-bold">
-                  <FlaskConical className="h-4 w-4 gradient-text" />
-                  {preset.name}
-                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleOne(preset.id)}
+                    aria-label={`Select ${preset.name}`}
+                  />
+                  <CardTitle className="flex items-center gap-2 text-base font-bold">
+                    <FlaskConical className="h-4 w-4 gradient-text" />
+                    {preset.name}
+                  </CardTitle>
+                </div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" title="Edit preset" onClick={() => openEdit(preset)}>
                     <Pencil className="h-4 w-4" />
