@@ -1,15 +1,12 @@
 
-The user wants the `/docs` and `/about` content refreshed to reflect recent additions: edit/delete actions, soft-delete with undo, and bulk multi-select.
+Update `src/lib/citation.ts` with the user's real info. All citation displays (`/about`, README, anywhere `CITATION` is imported) read from this single source, so one edit propagates everywhere.
 
-Plan:
+Changes to `src/lib/citation.ts`:
+- `authors`: `["Zain Naeem"]`
+- `affiliation`: `"University of Palermo"`
+- `url`: `"https://gridarena.eu"`
+- Keep title, shortTitle, year (2026), version (1.0) as-is.
 
-**1. Update `src/routes/docs.usage.tsx`** — add a new "7. Manage and clean up" section after "Compare and export" describing:
-- Per-row Edit and Delete on Runs, Presets, Batches, Ground Truth, Validation
-- 5-second soft-delete with Undo toast
-- Bulk multi-select with checkboxes + sticky action bar on Runs/Presets/Batches
+Also remove the helper note on `/about` ("Edit `src/lib/citation.ts` to personalize.") since personalization is done.
 
-**2. Update `src/routes/docs.workflow.tsx`** — add a brief "Curating your dashboards" callout near the end mentioning edit/delete/bulk so the workflow doc references it.
-
-**3. Update `src/routes/about.tsx`** — extend the "Purpose" or add a short "What's new" / capabilities bullet list mentioning dashboard management (edit, soft-delete with undo, bulk delete) so the About page reflects current feature set.
-
-No new routes, no schema changes, no new components — pure copy updates to three existing route files.
+That's it — no other files reference these placeholder strings (verified the placeholders only live in `citation.ts`).
