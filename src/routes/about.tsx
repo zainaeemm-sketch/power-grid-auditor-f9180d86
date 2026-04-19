@@ -92,9 +92,6 @@ function AboutPage() {
           <br />
           {CITATION.affiliation}
         </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          (Edit <code className="rounded bg-muted px-1 py-0.5 font-mono">src/lib/citation.ts</code> to personalize.)
-        </p>
       </section>
 
       <section className="mb-10">
