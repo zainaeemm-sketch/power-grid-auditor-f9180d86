@@ -1,15 +1,34 @@
 
-Add a global footer rendered on every page with the text:
-**"GridArena 2026 · v1.0 · Docs. Designed by Zain Naeem in collaboration with University of Palermo"**
+The user wants a methodology diagram for GridArena — the experimental flow showing how an LLM agent is evaluated end-to-end (input case → agent reasoning → action → simulation → evaluation → metrics/provenance).
 
-Where "v1.0" pulls from `CITATION.version`, year from `CITATION.year`, "Docs" links to `/docs`, and author/affiliation from `CITATION.authors` / `CITATION.affiliation`.
+I'll add it as a static SVG component (matching the existing `ArchitectureDiagram` pattern, theme-aware via CSS tokens), and embed it in the docs.
 
-**Steps:**
+**Plan:**
 
-1. **Create `src/components/SiteFooter.tsx`** — small footer component reading from `@/lib/citation`, rendering a centered muted line: `GridArena {year} · v{version} · <Link to="/docs">Docs</Link>. Designed by {authors} in collaboration with {affiliation}`.
+1. **Create `src/components/docs/MethodologyDiagram.tsx`** — static SVG (viewBox ~900×520) with these stages flowing left→right, top→bottom:
 
-2. **Mount globally in `src/routes/__root.tsx`** — wrap the existing `<Outlet />` in a flex column (`min-h-screen flex flex-col`) with `<main className="flex-1">` containing the Outlet, and `<SiteFooter />` after it. This ensures the footer appears on every route (including login, docs, authenticated pages) and sticks to the bottom on short pages.
+   ```text
+   [Benchmark Case]    [Perturbation]    [Prompt Builder]
+   case5/14/30           optional            system + context
+          \                  |                   /
+           └──────► [LLM Agent (seeded)] ◄──────┘
+                            │
+                  [Structured Action]
+                            │
+              ┌─────────────┼─────────────┐
+              ▼             ▼             ▼
+        [Validator]  [Simulation]  [Rule Eval]
+                     pandapower / DC
+                            │
+                   [Metrics & Scores]
+                            │
+        [Provenance Log] ── [Run Record + Report]
+   ```
 
-3. **Remove the duplicate footer from `src/routes/about.tsx`** — delete the existing `<footer>` block at the bottom of `AboutPage` so the global one isn't doubled.
+   Colors: primary tint for the LLM Agent and Simulation boxes (the core), card/border for inputs, muted dashed border for fallback paths. Same `var(--token)` pattern as `ArchitectureDiagram`.
 
-No schema, route, or dependency changes.
+2. **Embed in `src/routes/docs.workflow.tsx`** — add a "Methodology" section near the top with a short intro paragraph and the diagram in a bordered card (matching the architecture-diagram presentation in `docs.architecture.tsx`).
+
+3. **Optional cross-link** — add one sentence + link in `docs.architecture.tsx` pointing to the methodology diagram so the two diagrams reference each other.
+
+No new routes, no deps, no schema. Pure additive UI.
