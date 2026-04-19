@@ -61,6 +61,21 @@ function AboutPage() {
       </section>
 
       <section className="mb-10">
+        <h2 className="mb-3 text-xl font-semibold text-foreground">What's included</h2>
+        <ul className="list-disc space-y-1 pl-6 text-muted-foreground">
+          <li>Deterministic benchmark cases (case5 / case14 / case30) with full provenance logging.</li>
+          <li>Single-run and batch experiment execution with a durable Postgres-backed job queue.</li>
+          <li>Rule-based and simulation-based evaluation (external pandapower service + DC fallback).</li>
+          <li>Side-by-side comparison and one-click CSV / LaTeX / SVG export of any report.</li>
+          <li>
+            <strong className="text-foreground">Dashboard management:</strong> inline edit and
+            delete on every list, soft-delete with a 5-second <em>Undo</em> toast, and bulk
+            multi-select with a sticky action bar on Runs, Presets, and Batches.
+          </li>
+        </ul>
+      </section>
+
+      <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-foreground">System at a glance</h2>
         <div className="rounded-lg border border-border bg-card p-4">
           <ArchitectureDiagram />
