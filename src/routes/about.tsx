@@ -129,12 +129,6 @@ function AboutPage() {
         </div>
       </section>
 
-      <footer className="mt-16 border-t border-border pt-6 text-xs text-muted-foreground">
-        <p>
-          GridArena {CITATION.year} · v{CITATION.version} ·{" "}
-          <Link to="/docs" className="text-primary underline-offset-4 hover:underline">Docs</Link>
-        </p>
-      </footer>
     </main>
   );
 }
