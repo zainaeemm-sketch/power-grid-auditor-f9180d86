@@ -92,6 +92,30 @@ function UsagePage() {
         Use <Link to="/compare">/compare</Link> to view multiple runs side-by-side, and any run
         or batch detail page to export results, prompts, and provenance to CSV / LaTeX / SVG.
       </p>
+
+      <h2>7. Manage and clean up</h2>
+      <p>
+        Every dashboard row (Runs, Presets, Batches, Ground Truth, Validation) has inline{" "}
+        <strong>Edit</strong> and <strong>Delete</strong> actions so you can keep your workspace tidy
+        without leaving the list view.
+      </p>
+      <ul>
+        <li>
+          <strong>Soft-delete with undo:</strong> deleting a row shows a 5-second toast with an
+          <em> Undo</em> button. The row is hidden immediately and only permanently removed once
+          the toast expires — accidental deletes are easy to recover.
+        </li>
+        <li>
+          <strong>Bulk multi-select:</strong> on <Link to="/runs">/runs</Link>,{" "}
+          <Link to="/presets">/presets</Link>, and <Link to="/batches">/batches</Link>, tick the
+          row checkboxes (or the header checkbox to select all) and a sticky action bar appears at
+          the bottom for one-click bulk delete.
+        </li>
+        <li>
+          <strong>Editing:</strong> use Edit to rename, retitle, or adjust notes in place — useful
+          when reorganizing experiments before generating a report.
+        </li>
+      </ul>
     </>
   );
 }
