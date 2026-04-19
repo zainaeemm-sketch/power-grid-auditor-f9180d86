@@ -8,10 +8,10 @@
 export const CITATION = {
   title: "GridArena: An LLM Agent Research Platform for Power System Operations",
   shortTitle: "GridArena",
-  authors: ["<Your Name>"],
-  affiliation: "<Your Institution>",
+  authors: ["Zain Naeem"],
+  affiliation: "University of Palermo",
   year: 2026,
-  url: "https://power-grid-auditor.lovable.app",
+  url: "https://gridarena.eu",
   version: "1.0",
 } as const;
 
