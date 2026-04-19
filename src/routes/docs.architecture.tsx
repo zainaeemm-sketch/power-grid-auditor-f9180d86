@@ -26,6 +26,11 @@ function ArchitecturePage() {
         <ArchitectureDiagram />
       </div>
 
+      <p className="text-sm text-muted-foreground">
+        For the experimental flow these components implement, see the{" "}
+        <a href="/docs/workflow">methodology diagram</a>.
+      </p>
+
       <h2>Components</h2>
 
       <h3>Browser (TanStack Start)</h3>

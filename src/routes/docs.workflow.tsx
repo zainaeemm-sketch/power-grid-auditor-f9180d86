@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { MethodologyDiagram } from "@/components/docs/MethodologyDiagram";
 
 export const Route = createFileRoute("/docs/workflow")({
   head: () => ({
@@ -20,6 +21,17 @@ function WorkflowPage() {
         Every GridArena run follows the same deterministic pipeline. Each stage is logged
         and inspectable from the run detail page so experiments are fully reproducible.
       </p>
+
+      <h2>Methodology at a glance</h2>
+      <p>
+        The diagram below summarises the end-to-end methodology: a benchmark case (optionally
+        perturbed) and a templated prompt feed a seeded LLM agent, whose structured action is
+        validated, simulated, and rule-evaluated in parallel before metrics and full provenance
+        are persisted.
+      </p>
+      <div className="my-6 rounded-lg border border-border bg-card p-6">
+        <MethodologyDiagram />
+      </div>
 
       <h2>1. Configuration</h2>
       <p>
