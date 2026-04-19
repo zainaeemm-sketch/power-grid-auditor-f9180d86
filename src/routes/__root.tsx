@@ -6,6 +6,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { PwaSplashScreen } from "@/components/PwaSplashScreen";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { OfflineFallback } from "@/components/OfflineFallback";
+import { SiteFooter } from "@/components/SiteFooter";
 
 import appCss from "../styles.css?url";
 
@@ -88,11 +89,14 @@ function RootComponent() {
         <PwaSplashScreen />
         <PwaInstallBanner />
         <OfflineFallback />
-        <div className="min-h-screen bg-background text-foreground">
+        <div className="flex min-h-screen flex-col bg-background text-foreground">
           <NavHeader />
-          <PageTransition>
-            <Outlet />
-          </PageTransition>
+          <main className="flex-1">
+            <PageTransition>
+              <Outlet />
+            </PageTransition>
+          </main>
+          <SiteFooter />
         </div>
       </AuthProvider>
     </QueryClientProvider>
