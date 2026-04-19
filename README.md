@@ -6,7 +6,7 @@ GridArena lets researchers evaluate and audit LLM agents on power-system correct
 
 🔗 **Live deployment:** https://power-grid-auditor.lovable.app
 📖 **In-app docs:** [/docs](https://gridarena.eu/)
-ℹ️ **About & citation:** [/about](https://power-grid-auditor.lovable.app/about)
+ℹ️ **About & citation:** [/about](https://gridarena.eu/about)
 
 ---
 
@@ -51,10 +51,10 @@ Edit `src/lib/citation.ts` to personalize author and affiliation. The citation b
 ```bibtex
 @software{gridarena2026,
   title   = {GridArena: An LLM Agent Research Platform for Power System Operations},
-  author  = {<Your Name>},
+  author  = {<Zain Naeem>},
   year    = {2026},
   version = {1.0},
-  url     = {https://power-grid-auditor.lovable.app}
+  url     = {https://gridarena.eu}
 }
 ```
 
