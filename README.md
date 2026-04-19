@@ -42,7 +42,7 @@ Then set `SIMULATION_SERVICE_URL` and `SIMULATION_SERVICE_TOKEN` in Cloud secret
 
 ## Reproducing experiments
 
-Sign in, then click **Load Demo Dataset** on `/docs/usage` or `/about`. Three reproducible experiments are documented at [/docs/reproducibility](https://power-grid-auditor.lovable.app/docs/reproducibility).
+Sign in, then click **Load Demo Dataset** on `/docs/usage` or `/about`. Three reproducible experiments are documented at [/docs/reproducibility](https://gridarena.eu//docs/reproducibility).
 
 ## Citation
 
