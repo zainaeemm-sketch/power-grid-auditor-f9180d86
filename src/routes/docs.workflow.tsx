@@ -70,6 +70,16 @@ function WorkflowPage() {
         Run and batch reports render the full provenance tree, evaluation summary, and structured
         action. Exports (CSV / LaTeX / SVG) are one click away from any report view.
       </p>
+
+      <h2>8. Curating your dashboards</h2>
+      <p>
+        Once experiments accumulate, the Runs, Presets, Batches, Ground Truth, and Validation
+        pages all support inline <strong>Edit</strong> and <strong>Delete</strong> actions.
+        Deletes are <strong>soft</strong>: a 5-second toast with <em>Undo</em> lets you recover
+        accidental removals before the row is permanently dropped. Runs, Presets, and Batches also
+        offer <strong>bulk multi-select</strong> via row checkboxes and a sticky action bar — handy
+        for cleaning up exploratory sweeps before publishing a report.
+      </p>
     </>
   );
 }
