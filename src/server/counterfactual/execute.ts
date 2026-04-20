@@ -22,6 +22,7 @@ export interface ExecutedCounterfactualOutcome {
   feasibility_change: FeasibilityChange;
   status: CounterfactualStatus;
   failure_reason: string | null;
+  simulation_engine: string | null;
   execution_time_ms: number;
 }
 
@@ -94,6 +95,7 @@ export async function executeCounterfactual(
       feasibility_change: feasibilityChange(baselineSim.feasibility, cfSim.feasibility),
       status: "success",
       failure_reason: null,
+      simulation_engine: cfSim.engine ?? baselineSim.engine ?? null,
       execution_time_ms: Date.now() - start,
     };
   } catch (e: any) {
@@ -113,6 +115,7 @@ export async function executeCounterfactual(
       feasibility_change: "unchanged",
       status: "failure",
       failure_reason: e?.message ?? "Unknown counterfactual failure",
+      simulation_engine: null,
       execution_time_ms: Date.now() - start,
     };
   }

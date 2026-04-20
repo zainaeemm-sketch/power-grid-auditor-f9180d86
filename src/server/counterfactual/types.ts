@@ -39,6 +39,7 @@ export interface CounterfactualResultRow {
   feasibility_change: string;
   status: string;
   failure_reason: string | null;
+  simulation_engine: string | null;
   execution_time_ms: number;
   created_at: string;
 }
