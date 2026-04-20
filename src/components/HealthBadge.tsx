@@ -8,9 +8,14 @@ import { useAuth } from "@/hooks/useAuth";
  * Green = all OK, amber = LLM not fully configured, red = database error.
  */
 export function HealthBadge() {
+  const { user } = useAuth();
   const [state, setState] = useState<"ok" | "warn" | "error" | "unknown">("unknown");
 
   useEffect(() => {
+    if (!user) {
+      setState("unknown");
+      return;
+    }
     let cancelled = false;
     const check = async () => {
       try {
@@ -29,7 +34,7 @@ export function HealthBadge() {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+  }, [user]);
 
   const color =
     state === "ok"
