@@ -52,6 +52,14 @@ export function AuthErrorGuard() {
       if (isUnauthorizedResponse(ev.reason)) {
         ev.preventDefault();
         void tryRefresh();
+        return;
+      }
+      const msg =
+        ev.reason && typeof (ev.reason as { message?: unknown }).message === "string"
+          ? ((ev.reason as { message: string }).message)
+          : "";
+      if (msg.includes("reading 'method'") || msg.includes('reading "method"')) {
+        ev.preventDefault();
       }
     };
 
