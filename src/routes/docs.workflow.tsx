@@ -83,7 +83,96 @@ function WorkflowPage() {
         action. Exports (CSV / LaTeX / SVG) are one click away from any report view.
       </p>
 
-      <h2>8. Curating your dashboards</h2>
+      <h2>8. Counterfactual analysis (Layer E)</h2>
+      <p>
+        After a run completes, GridArena can replay the same benchmark case against a set of
+        <em> alternative actions</em> — either contextual <strong>defaults</strong> (derived from
+        the agent's chosen action type) or user-supplied <strong>custom</strong> actions. Each
+        counterfactual is executed through the bundled deterministic DC power flow so results are
+        reproducible and independent of the LLM call. Per-action outcomes are stored in{" "}
+        <code>counterfactual_actions</code> and <code>counterfactual_results</code>, and surfaced
+        in the run detail <strong>Counterfactual</strong> panel and the batch{" "}
+        <strong>Counterfactual</strong> aggregation card.
+      </p>
+
+      <h3>What gets computed</h3>
+      <p>
+        For each counterfactual action <code>c</code> evaluated against the same case as the
+        baseline agent action <code>a</code>, GridArena computes baseline and counterfactual
+        feasibility, post-action violations, and violation improvement, then derives two headline
+        metrics:
+      </p>
+
+      <h3>Optimality gap</h3>
+      <p>
+        The optimality gap measures how much <em>better</em> a counterfactual action would have
+        been than the agent's chosen action, in terms of violations resolved:
+      </p>
+      <p>
+        <code>optimality_gap(c) = max(0, improvement(c) − improvement(a))</code>
+      </p>
+      <p>
+        where <code>improvement(x) = baseline_violations − post_action_violations(x)</code>. A
+        value of <code>0</code> means the agent's action was at least as good as the
+        counterfactual; a positive value quantifies the missed improvement (in violation count).
+        The gap is clamped at zero so worse counterfactuals do not produce negative scores —
+        they simply contribute <code>0</code>, since the agent already dominated them.
+      </p>
+
+      <h3>Decision regret</h3>
+      <p>
+        For a single counterfactual, decision regret mirrors the optimality gap:
+      </p>
+      <p>
+        <code>decision_regret(c) = optimality_gap(c)</code>
+      </p>
+      <p>
+        At the <strong>batch</strong> level it is aggregated as the mean regret across every
+        successful counterfactual across every run:
+      </p>
+      <p>
+        <code>
+          avg_decision_regret = mean&#123; optimality_gap(c) : c ∈ successful counterfactuals &#125;
+        </code>
+      </p>
+      <p>
+        Intuitively, average decision regret answers: <em>"On average, how many additional
+        violations could the agent have resolved if it had picked the best alternative we
+        considered?"</em> Lower is better; <code>0</code> means the agent matched or beat every
+        counterfactual we tested.
+      </p>
+
+      <h3>Feasibility change</h3>
+      <p>
+        Alongside the numeric metrics, each counterfactual is labelled with a categorical
+        <code> feasibility_change</code>:
+      </p>
+      <ul>
+        <li><strong>improved</strong> — counterfactual is feasible while baseline was not.</li>
+        <li><strong>worsened</strong> — baseline was feasible but the counterfactual is not.</li>
+        <li><strong>unchanged</strong> — both are feasible, both infeasible, or both partial.</li>
+      </ul>
+
+      <h3>Caveats</h3>
+      <ul>
+        <li>
+          Counterfactuals run on the in-Worker DC power flow, which currently supports{" "}
+          <code>case5</code>, <code>case14</code>, and <code>case30</code>. Larger cases (e.g.{" "}
+          <code>ieee39</code>) report a <code>failure</code> status with a clear reason and are
+          excluded from aggregates.
+        </li>
+        <li>
+          Optimality gap and regret only consider the counterfactuals you executed — they are a
+          lower bound on the true optimal-policy gap, not a global optimum.
+        </li>
+        <li>
+          Failed counterfactuals (non-converged, unsupported case) are persisted with{" "}
+          <code>status = "failure"</code> and <code>failure_reason</code> for full auditability,
+          but do not contribute to averages.
+        </li>
+      </ul>
+
+      <h2>9. Curating your dashboards</h2>
       <p>
         Once experiments accumulate, the Runs, Presets, Batches, Ground Truth, and Validation
         pages all support inline <strong>Edit</strong> and <strong>Delete</strong> actions.
