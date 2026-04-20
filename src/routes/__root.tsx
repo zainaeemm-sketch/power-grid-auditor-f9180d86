@@ -7,6 +7,7 @@ import { PwaSplashScreen } from "@/components/PwaSplashScreen";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { OfflineFallback } from "@/components/OfflineFallback";
 import { SiteFooter } from "@/components/SiteFooter";
+import { AskAiButton } from "@/components/assistant/AskAiButton";
 
 import appCss from "../styles.css?url";
 
@@ -98,6 +99,7 @@ function RootComponent() {
           </main>
           <SiteFooter />
         </div>
+        <AskAiButton />
       </AuthProvider>
     </QueryClientProvider>
   );
