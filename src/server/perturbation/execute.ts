@@ -1,5 +1,6 @@
 import { resolveCase } from "../simulation/cases";
 import { runDcEvaluation } from "../simulation/dc-powerflow";
+import { callExternalPerturbation } from "../simulation/external-client";
 import type { StructuredAction } from "../simulation/types";
 import { applyPerturbation } from "./apply";
 import {
@@ -23,24 +24,71 @@ export interface ExecutedPerturbationOutcome {
   failure_reason: string | null;
 }
 
+function buildOutcome(
+  baselineFeasibility: string,
+  perturbedFeasibility: string,
+  baselineViolations: number,
+  perturbedViolations: number,
+  notes: string | null,
+  start: number,
+): ExecutedPerturbationOutcome {
+  const violation_change = perturbedViolations - baselineViolations;
+  const stability = computeFeasibilityStability(baselineFeasibility, perturbedFeasibility);
+  const robustness_result = computeRobustnessResult(violation_change, stability);
+  const robustness_score = computeRobustnessScore(violation_change, baselineViolations, stability);
+  return {
+    baseline_feasibility: baselineFeasibility,
+    perturbed_feasibility: perturbedFeasibility,
+    baseline_violations: baselineViolations,
+    perturbed_violations: perturbedViolations,
+    violation_change,
+    feasibility_stability: stability,
+    robustness_result,
+    robustness_score,
+    notes,
+    execution_time_ms: Date.now() - start,
+    failure_reason: null,
+  };
+}
+
 /**
  * Execute one perturbation: re-evaluate with the agent's action against the
  * perturbed case and compare to the baseline (un-perturbed, action applied).
+ *
+ * Tier 1: external pandapower service (/simulate_perturbed) — supports any case
+ *         (ieee39, ieee57, ieee118, …) the service knows about.
+ * Tier 2: in-Worker DC power flow on built-in cases (ieee9/14/30).
+ * Tier 3: skipped — no simulator available.
  */
-export function executePerturbation(
+export async function executePerturbation(
   caseName: string,
   action: StructuredAction,
   spec: PerturbationSpec,
-): ExecutedPerturbationOutcome {
+): Promise<ExecutedPerturbationOutcome> {
   const start = Date.now();
   try {
+    // Tier 1: external pandapower service
+    const ext = await callExternalPerturbation(caseName, action, {
+      perturbation_type: spec.perturbation_type,
+      parameter_name: spec.parameter_name,
+      parameter_value: spec.parameter_value,
+      description: spec.description,
+    });
+    if (ext) {
+      return buildOutcome(
+        ext.baseline.feasibility,
+        ext.perturbed.feasibility,
+        ext.baseline.post_action_violations,
+        ext.perturbed.post_action_violations,
+        ext.perturbed.notes ?? null,
+        start,
+      );
+    }
+
+    // Tier 2: in-Worker DC power flow on built-in cases
     const baseCase = resolveCase(caseName);
     if (!baseCase) {
-      // Perturbations require structural mutation of the case (line outages,
-      // load scaling, etc.) which we can only do on built-in cases. The
-      // external pandapower service does not yet expose a perturbation API,
-      // so for cases like ieee39 we mark the test as skipped (not failed).
-      const reason = `No simulator available for case '${caseName}'. Perturbation tests require a built-in case (ieee9/ieee14/ieee30) or an external pandapower service with perturbation support.`;
+      const reason = `No simulator available for case '${caseName}'. Configure an external pandapower service (SIMULATION_SERVICE_URL) to enable perturbation tests for this case, or use a built-in case (ieee9/ieee14/ieee30).`;
       return {
         baseline_feasibility: "unknown",
         perturbed_feasibility: "unknown",
@@ -64,33 +112,14 @@ export function executePerturbation(
       throw new Error("DC power flow failed to converge for baseline or perturbed case.");
     }
 
-    const baseline_violations = baselineSim.post_action_violations;
-    const perturbed_violations = perturbedSim.post_action_violations;
-    const violation_change = perturbed_violations - baseline_violations;
-    const stability = computeFeasibilityStability(
+    return buildOutcome(
       baselineSim.feasibility,
       perturbedSim.feasibility,
+      baselineSim.post_action_violations,
+      perturbedSim.post_action_violations,
+      perturbedSim.notes,
+      start,
     );
-    const robustness_result = computeRobustnessResult(violation_change, stability);
-    const robustness_score = computeRobustnessScore(
-      violation_change,
-      baseline_violations,
-      stability,
-    );
-
-    return {
-      baseline_feasibility: baselineSim.feasibility,
-      perturbed_feasibility: perturbedSim.feasibility,
-      baseline_violations,
-      perturbed_violations,
-      violation_change,
-      feasibility_stability: stability,
-      robustness_result,
-      robustness_score,
-      notes: perturbedSim.notes,
-      execution_time_ms: Date.now() - start,
-      failure_reason: null,
-    };
   } catch (e: any) {
     return {
       baseline_feasibility: "unknown",

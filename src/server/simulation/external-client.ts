@@ -69,6 +69,73 @@ export async function callExternalSimulator(
   }
 }
 
+export interface ExternalPerturbationResult {
+  baseline: SimulationResult;
+  perturbed: SimulationResult;
+}
+
+/**
+ * Calls the external pandapower service's /simulate_perturbed endpoint.
+ * Returns null on any failure (network, 5xx, timeout, missing config, 404 if
+ * the deployed service is older and lacks the perturbation endpoint).
+ */
+export async function callExternalPerturbation(
+  caseName: string,
+  action: StructuredAction,
+  perturbation: {
+    perturbation_type: string;
+    parameter_name: string;
+    parameter_value: number | null;
+    description: string;
+  },
+): Promise<ExternalPerturbationResult | null> {
+  const url = process.env.SIMULATION_SERVICE_URL;
+  if (!url) return null;
+  const token = process.env.SIMULATION_SERVICE_TOKEN;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  const attempt = async (): Promise<Response> =>
+    fetch(`${url.replace(/\/+$/, "")}/simulate_perturbed`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ case_name: caseName, action, perturbation }),
+      signal: controller.signal,
+    });
+
+  const toResult = (r: ExternalSimResponse): SimulationResult => ({
+    engine: "pandapower",
+    feasibility: r.feasibility,
+    baseline_violations: r.baseline_violations,
+    post_action_violations: r.post_action_violations,
+    violations_found: r.violations_found,
+    violation_improvement: r.violation_improvement,
+    line_loadings: r.line_loadings ?? [],
+    voltage_violations: r.voltage_violations ?? [],
+    generator_violations: r.generator_violations ?? [],
+    notes: r.notes ?? "Computed by external pandapower service.",
+  });
+
+  try {
+    let res = await attempt();
+    if (res.status >= 500 && res.status < 600) {
+      res = await attempt();
+    }
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const json = (await res.json()) as { baseline: ExternalSimResponse; perturbed: ExternalSimResponse };
+    if (!json.baseline || !json.perturbed) return null;
+    return { baseline: toResult(json.baseline), perturbed: toResult(json.perturbed) };
+  } catch {
+    clearTimeout(timeout);
+    return null;
+  }
+}
+
 export async function pingExternalSimulator(): Promise<{
   available: boolean;
   url: string | null;
