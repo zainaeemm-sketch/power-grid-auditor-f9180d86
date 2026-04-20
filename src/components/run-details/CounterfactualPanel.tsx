@@ -16,7 +16,8 @@ import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { GitCompareArrows, Plus, Download, AlertTriangle } from "lucide-react";
+import { GitCompareArrows, Plus, Download, AlertTriangle, MinusCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   listCounterfactuals,
   runDefaultCounterfactuals,
@@ -24,6 +25,7 @@ import {
 } from "@/server/counterfactual.functions";
 import type { CounterfactualWithResult } from "@/server/counterfactual/types";
 import { exportCounterfactualCsv } from "@/lib/csv-export";
+import { classifyOutcome } from "@/lib/counterfactual-status";
 
 function changeBadge(c: string) {
   if (c === "improved")
