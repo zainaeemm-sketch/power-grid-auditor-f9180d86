@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { getHealthStatus } from "@/server/health.functions";
+import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Small status dot in the header. Polls health every 60s when authenticated.
  * Green = all OK, amber = LLM not fully configured, red = database error.
  */
 export function HealthBadge() {
+  const { user } = useAuth();
   const [state, setState] = useState<"ok" | "warn" | "error" | "unknown">("unknown");
 
   useEffect(() => {
+    if (!user) {
+      setState("unknown");
+      return;
+    }
     let cancelled = false;
     const check = async () => {
       try {
@@ -28,7 +34,7 @@ export function HealthBadge() {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+  }, [user]);
 
   const color =
     state === "ok"
