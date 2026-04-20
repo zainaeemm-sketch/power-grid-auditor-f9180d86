@@ -84,9 +84,13 @@ function HealthPage() {
             label="Simulation Engine"
             detail={
               status?.simulator.state === "active"
-                ? `Active — pandapower service responding (${status.simulator.latency_ms} ms)`
+                ? `Active — pandapower service responding (${status.simulator.latency_ms} ms · /health ${status.simulator.health_status} · /simulate ${status.simulator.simulate_status})`
                 : status?.simulator.state === "fallback"
-                  ? `Fallback — using in-Worker DC power-flow solver${status.simulator.error ? ` (${status.simulator.error})` : ""}`
+                  ? `Fallback → DC PF` +
+                    ` · /health ${status?.simulator.health_status ?? "—"}` +
+                    ` · /simulate ${status?.simulator.simulate_status ?? "—"}` +
+                    (status?.simulator.simulate_error ? ` · simulate error: ${status.simulator.simulate_error}` : "") +
+                    (status?.simulator.error && !status?.simulator.simulate_error ? ` (${status.simulator.error})` : "")
                   : "Unavailable"
             }
           />
