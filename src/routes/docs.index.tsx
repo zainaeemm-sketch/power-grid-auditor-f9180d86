@@ -40,6 +40,18 @@ function DocsOverview() {
         <li><Link to="/docs/troubleshooting">Troubleshooting</Link> — common errors and fixes.</li>
       </ul>
 
+      <div className="my-6 rounded-lg border border-primary/30 bg-primary/5 p-4">
+        <h3 className="!mt-0 text-base font-semibold text-foreground">New: Counterfactual Analysis (Layer E)</h3>
+        <p className="!mb-2">
+          GridArena now replays each agent decision against alternative actions to compute
+          <strong> optimality gap</strong> and <strong>decision regret</strong>.
+        </p>
+        <ul className="!my-0">
+          <li><Link to="/docs/workflow" hash="counterfactual-analysis-layer-e">Workflow → Counterfactual analysis</Link> — formulas and methodology.</li>
+          <li><Link to="/docs/architecture" hash="counterfactual-engine-layer-e">Architecture → Counterfactual Engine</Link> — where it sits in the pipeline.</li>
+        </ul>
+      </div>
+
       <h2>Citation</h2>
       <p>
         If you use GridArena in your research, please cite it. See the <Link to="/about">About</Link> page for
