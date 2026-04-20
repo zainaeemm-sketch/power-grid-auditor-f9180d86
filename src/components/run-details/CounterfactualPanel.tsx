@@ -25,13 +25,34 @@ import {
 } from "@/server/counterfactual.functions";
 import type { CounterfactualWithResult } from "@/server/counterfactual/types";
 import { exportCounterfactualCsv } from "@/lib/csv-export";
-import { classifyCounterfactual } from "@/lib/simulation-skip";
+import { classifyCounterfactual, detectPerturbationEngine, type PerturbationEngine } from "@/lib/simulation-skip";
 
 function changeBadge(c: string) {
   if (c === "improved")
     return <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-300">improved</Badge>;
   if (c === "worsened") return <Badge variant="destructive">worsened</Badge>;
   return <Badge variant="outline">unchanged</Badge>;
+}
+
+function engineBadge(engine: PerturbationEngine) {
+  const map: Record<PerturbationEngine, { label: string; className: string }> = {
+    "pandapower-external": {
+      label: "pandapower",
+      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+    },
+    "dc-powerflow": {
+      label: "DC PF",
+      className: "border-sky-500/40 bg-sky-500/10 text-sky-300",
+    },
+    skipped: { label: "skipped", className: "text-muted-foreground" },
+    unknown: { label: "unknown", className: "text-muted-foreground" },
+  };
+  const { label, className } = map[engine];
+  return (
+    <Badge variant="outline" className={`text-[10px] ${className}`}>
+      {label}
+    </Badge>
+  );
 }
 
 export function CounterfactualPanel({ runId }: { runId: string }) {

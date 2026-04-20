@@ -204,7 +204,7 @@ export function SensitivityPanel({ runId }: { runId: string }) {
                   </TableCell>
                   <TableCell>
                     {result
-                      ? engineBadge(detectPerturbationEngine(result.failure_reason, result.notes))
+                      ? engineBadge(detectPerturbationEngine(result.failure_reason, result.notes, (result as any).simulation_engine))
                       : "—"}
                   </TableCell>
                   <TableCell className="text-xs">{result?.baseline_feasibility ?? "—"}</TableCell>
