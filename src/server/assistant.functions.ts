@@ -15,6 +15,7 @@ const pageContextSchema = z
     runId: z.string().max(100).optional(),
     batchId: z.string().max(100).optional(),
     hint: z.string().max(500).optional(),
+    runSummary: z.string().max(4000).optional(),
   })
   .optional();
 
@@ -31,9 +32,13 @@ function buildSystemPrompt(pageContext?: z.infer<typeof pageContextSchema>) {
   if (pageContext?.batchId) ctxLines.push(`- Selected batch id: ${pageContext.batchId}`);
   if (pageContext?.hint) ctxLines.push(`- UI hint: ${pageContext.hint}`);
 
-  const ctxBlock = ctxLines.length
-    ? `\n\nCURRENT PAGE CONTEXT (use to ground answers when relevant)\n${ctxLines.join("\n")}`
+  const summaryBlock = pageContext?.runSummary
+    ? `\n\nCURRENT RUN SNAPSHOT (authoritative — prefer over guesses):\n${pageContext.runSummary}`
     : "";
+
+  const ctxBlock = ctxLines.length
+    ? `\n\nCURRENT PAGE CONTEXT (use to ground answers when relevant)\n${ctxLines.join("\n")}${summaryBlock}`
+    : summaryBlock;
 
   return `You are "Ask AI", the in-app support and research assistant for GridArena.
 
