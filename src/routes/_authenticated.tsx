@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const router = useRouter();
   const fetchStatus = useServerFn(getApprovalStatus);
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
