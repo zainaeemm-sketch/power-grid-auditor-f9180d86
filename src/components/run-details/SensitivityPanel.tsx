@@ -24,7 +24,34 @@ import {
 } from "@/server/perturbation.functions";
 import type { PerturbationTestWithResult, PerturbationType } from "@/types/grid-arena";
 import { exportSensitivityCsv } from "@/lib/csv-export";
-import { classifyPerturbation } from "@/lib/simulation-skip";
+import { classifyPerturbation, detectPerturbationEngine, type PerturbationEngine } from "@/lib/simulation-skip";
+
+function engineBadge(engine: PerturbationEngine) {
+  const map: Record<PerturbationEngine, { label: string; className: string }> = {
+    "pandapower-external": {
+      label: "pandapower",
+      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+    },
+    "dc-powerflow": {
+      label: "DC PF",
+      className: "border-sky-500/40 bg-sky-500/10 text-sky-300",
+    },
+    skipped: {
+      label: "skipped",
+      className: "text-muted-foreground",
+    },
+    unknown: {
+      label: "unknown",
+      className: "text-muted-foreground",
+    },
+  };
+  const { label, className } = map[engine];
+  return (
+    <Badge variant="outline" className={`text-[10px] ${className}`}>
+      {label}
+    </Badge>
+  );
+}
 
 const TYPES: PerturbationType[] = [
   "increase_load_percent",
@@ -161,6 +188,7 @@ export function SensitivityPanel({ runId }: { runId: string }) {
               <TableRow>
                 <TableHead>Type</TableHead>
                 <TableHead>Parameter</TableHead>
+                <TableHead>Engine</TableHead>
                 <TableHead>Baseline</TableHead>
                 <TableHead>Perturbed</TableHead>
                 <TableHead className="text-right">Δ violations</TableHead>
@@ -173,6 +201,11 @@ export function SensitivityPanel({ runId }: { runId: string }) {
                   <TableCell className="font-mono text-xs">{test.perturbation_type}</TableCell>
                   <TableCell className="text-xs">
                     {test.parameter_name}={test.parameter_value ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    {result
+                      ? engineBadge(detectPerturbationEngine(result.failure_reason, result.notes))
+                      : "—"}
                   </TableCell>
                   <TableCell className="text-xs">{result?.baseline_feasibility ?? "—"}</TableCell>
                   <TableCell className="text-xs">{result?.perturbed_feasibility ?? "—"}</TableCell>
