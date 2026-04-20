@@ -44,3 +44,22 @@ export function classifyPerturbation(
   if (isSkippedFailure(notes)) return "skipped";
   return "success";
 }
+
+/**
+ * Identify which simulation tier produced a perturbation result, based on the
+ * notes/failure_reason text written by each engine. Used purely for UI badges.
+ */
+export type PerturbationEngine = "pandapower-external" | "dc-powerflow" | "skipped" | "unknown";
+
+export function detectPerturbationEngine(
+  failureReason: string | null | undefined,
+  notes: string | null | undefined,
+): PerturbationEngine {
+  if (classifyPerturbation(failureReason, notes) === "skipped") return "skipped";
+  const text = `${notes ?? ""} ${failureReason ?? ""}`;
+  if (/pandapower ac power flow/i.test(text) || /external pandapower/i.test(text)) {
+    return "pandapower-external";
+  }
+  if (/dc power flow/i.test(text)) return "dc-powerflow";
+  return "unknown";
+}
