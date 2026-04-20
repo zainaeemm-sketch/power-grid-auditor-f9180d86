@@ -36,6 +36,7 @@ import {
   ScatterChart, Scatter,
 } from "recharts";
 import { BatchSensitivitySection } from "@/components/batch/BatchSensitivitySection";
+import { BatchCounterfactualSection } from "@/components/batch/BatchCounterfactualSection";
 
 export const Route = createFileRoute("/_authenticated/batches/$batchId")({
   head: () => ({
@@ -754,6 +755,7 @@ function BatchDetailPage() {
       )}
 
       <BatchSensitivitySection batchId={batch.id} />
+      <BatchCounterfactualSection batchId={batch.id} />
     </main>
   );
 }
