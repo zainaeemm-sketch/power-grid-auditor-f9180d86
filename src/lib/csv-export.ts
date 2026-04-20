@@ -1,5 +1,7 @@
 import type { RunDetails, Run, RunEvaluation, RunMetadata, PerturbationTestWithResult } from "@/types/grid-arena";
 import type { BatchRobustnessSummary } from "@/server/perturbation.functions";
+import type { CounterfactualWithResult } from "@/server/counterfactual/types";
+import type { BatchCounterfactualSummary } from "@/server/counterfactual.functions";
 
 function escCsv(val: unknown): string {
   if (val == null) return "";
