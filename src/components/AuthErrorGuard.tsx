@@ -52,16 +52,31 @@ export function AuthErrorGuard() {
       if (isUnauthorizedResponse(ev.reason)) {
         ev.preventDefault();
         void tryRefresh();
+        return;
+      }
+      const msg =
+        ev.reason && typeof (ev.reason as { message?: unknown }).message === "string"
+          ? ((ev.reason as { message: string }).message)
+          : "";
+      if (msg.includes("reading 'method'") || msg.includes('reading "method"')) {
+        ev.preventDefault();
       }
     };
 
     const onError = (ev: ErrorEvent) => {
-      // Fallback: some runtimes surface the rejection as a plain Error
-      // with message "[object Response]" (which is what Lovable's
-      // runtime reporter shows). Suppress to avoid blank screen.
-      if (typeof ev.message === "string" && ev.message.includes("[object Response]")) {
+      const msg = typeof ev.message === "string" ? ev.message : "";
+      // Auth Response surfaced as plain error
+      if (msg.includes("[object Response]")) {
         ev.preventDefault();
         void tryRefresh();
+        return;
+      }
+      // Known TanStack server-fn handler crash when request context is
+      // missing (Cannot read properties of undefined (reading 'method')).
+      // Swallow so the UI doesn't go blank — the failed request will be
+      // retried by the next poll/navigation.
+      if (msg.includes("reading 'method'") || msg.includes('reading "method"')) {
+        ev.preventDefault();
       }
     };
 
