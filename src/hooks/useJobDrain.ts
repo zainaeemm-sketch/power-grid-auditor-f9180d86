@@ -27,11 +27,18 @@ export function useJobDrain({ enabled, intervalMs = 5000, onTick }: Options) {
     const tick = async () => {
       if (!aliveRef.current) return;
       try {
-        const r = await processJobBatch({ data: { limit: 3 } });
-        onTickRef.current?.(r);
-        currentInterval = r.processed === 0
-          ? Math.min(currentInterval * 1.5, 30_000)
-          : intervalMs;
+        // Skip if the session is missing/expired — avoids unhandled 401 Response
+        // from server-fn machinery that can blank the screen.
+        const { data } = await supabase.auth.getSession();
+        if (!data.session?.access_token) {
+          currentInterval = Math.min(currentInterval * 2, 30_000);
+        } else {
+          const r = await processJobBatch({ data: { limit: 3 } });
+          onTickRef.current?.(r);
+          currentInterval = r.processed === 0
+            ? Math.min(currentInterval * 1.5, 30_000)
+            : intervalMs;
+        }
       } catch (err) {
         console.warn("drain tick failed", err);
         currentInterval = Math.min(currentInterval * 2, 30_000);
