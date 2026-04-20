@@ -12,6 +12,13 @@ interface ExternalSimResponse {
   notes?: string;
 }
 
+function normalizeServiceUrl(rawUrl: string | undefined): string | null {
+  if (!rawUrl) return null;
+  const trimmed = rawUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) return null;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 /**
  * Calls an external pandapower microservice. Returns null on any failure
  * (network, 5xx, timeout, missing config) — caller falls back to DC PF.
@@ -24,7 +31,7 @@ export async function callExternalSimulator(
   caseName: string,
   action: StructuredAction,
 ): Promise<SimulationResult | null> {
-  const url = process.env.SIMULATION_SERVICE_URL;
+  const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
   if (!url) return null;
   const token = process.env.SIMULATION_SERVICE_TOKEN;
 
@@ -32,7 +39,7 @@ export async function callExternalSimulator(
   const timeout = setTimeout(() => controller.abort(), 10_000);
 
   const attempt = async (): Promise<Response> =>
-    fetch(`${url.replace(/\/+$/, "")}/simulate`, {
+    fetch(`${url}/simulate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -45,7 +52,6 @@ export async function callExternalSimulator(
   try {
     let res = await attempt();
     if (res.status >= 500 && res.status < 600) {
-      // one retry for transient 5xx
       res = await attempt();
     }
     clearTimeout(timeout);
@@ -89,7 +95,7 @@ export async function callExternalPerturbation(
     description: string;
   },
 ): Promise<ExternalPerturbationResult | null> {
-  const url = process.env.SIMULATION_SERVICE_URL;
+  const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
   if (!url) return null;
   const token = process.env.SIMULATION_SERVICE_TOKEN;
 
@@ -97,7 +103,7 @@ export async function callExternalPerturbation(
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
   const attempt = async (): Promise<Response> =>
-    fetch(`${url.replace(/\/+$/, "")}/simulate_perturbed`, {
+    fetch(`${url}/simulate_perturbed`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -142,14 +148,14 @@ export async function pingExternalSimulator(): Promise<{
   latency_ms: number | null;
   error: string | null;
 }> {
-  const url = process.env.SIMULATION_SERVICE_URL;
+  const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
   if (!url) return { available: false, url: null, latency_ms: null, error: "Not configured" };
   const token = process.env.SIMULATION_SERVICE_TOKEN;
   const start = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5_000);
   try {
-    const res = await fetch(`${url.replace(/\/+$/, "")}/health`, {
+    const res = await fetch(`${url}/health`, {
       method: "GET",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       signal: controller.signal,
