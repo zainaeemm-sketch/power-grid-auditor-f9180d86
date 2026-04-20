@@ -16,7 +16,8 @@ import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { GitCompareArrows, Plus, Download, AlertTriangle } from "lucide-react";
+import { GitCompareArrows, Plus, Download, AlertTriangle, MinusCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   listCounterfactuals,
   runDefaultCounterfactuals,
@@ -24,6 +25,7 @@ import {
 } from "@/server/counterfactual.functions";
 import type { CounterfactualWithResult } from "@/server/counterfactual/types";
 import { exportCounterfactualCsv } from "@/lib/csv-export";
+import { classifyOutcome } from "@/lib/counterfactual-status";
 
 function changeBadge(c: string) {
   if (c === "improved")
@@ -196,12 +198,50 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
                     <TableCell className="text-xs">{action.target_index ?? "—"}</TableCell>
                     <TableCell className="text-xs">{action.value ?? "—"}</TableCell>
                     <TableCell>
-                      {result?.failure_reason ? (
-                        <span className="flex items-center gap-1 text-xs text-amber-400">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                          failed
-                        </span>
-                      ) : result ? changeBadge(result.feasibility_change) : "—"}
+                      {(() => {
+                        if (!result) return "—";
+                        const kind = classifyOutcome(result.status, result.failure_reason);
+                        if (kind === "success") return changeBadge(result.feasibility_change);
+                        if (kind === "skipped") {
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <MinusCircle className="h-3.5 w-3.5" />
+                                    skipped
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">
+                                    No simulator available for this case. Configure an external pandapower service to enable counterfactuals here.
+                                  </p>
+                                  {result.failure_reason && (
+                                    <p className="mt-1 text-xs text-muted-foreground">{result.failure_reason}</p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex items-center gap-1 text-xs text-amber-400">
+                                  <AlertTriangle className="h-3.5 w-3.5" />
+                                  failed
+                                </span>
+                              </TooltipTrigger>
+                              {result.failure_reason && (
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">{result.failure_reason}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-right text-xs">{result?.violation_difference ?? "—"}</TableCell>
                     <TableCell className="text-right text-xs">{result?.optimality_gap?.toFixed(3) ?? "—"}</TableCell>
