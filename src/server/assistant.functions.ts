@@ -45,7 +45,7 @@ batch page (see context), assume "this run" / "this batch" refers to it.`;
 }
 
 export const askGridArenaAi = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env.OPENAI_API_KEY;
