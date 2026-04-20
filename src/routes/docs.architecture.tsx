@@ -65,6 +65,17 @@ function ArchitecturePage() {
         is unavailable, so evaluations never block.
       </p>
 
+      <h3>Counterfactual Engine (Layer E)</h3>
+      <p>
+        A deterministic replay layer that re-executes the same benchmark case against alternative
+        actions — either contextual <strong>defaults</strong> derived from the agent's action type
+        or user-supplied <strong>custom</strong> actions. Runs entirely on the in-Worker DC power
+        flow (no LLM calls), persists per-action outcomes to <code>counterfactual_actions</code> and{" "}
+        <code>counterfactual_results</code>, and surfaces optimality gap and decision regret in the
+        run and batch reports. See the{" "}
+        <a href="/docs/workflow">workflow docs</a> for the formulas.
+      </p>
+
       <h3>Rule-based Fallback</h3>
       <p>
         A deterministic, dependency-free evaluator that always works. Used when both simulation
