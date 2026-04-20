@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withAuthHeaders } from "@/middleware/auth-headers";
 import { GRIDARENA_KNOWLEDGE } from "@/lib/assistant-knowledge";
 
 const messageSchema = z.object({
@@ -44,7 +45,7 @@ batch page (see context), assume "this run" / "this batch" refers to it.`;
 }
 
 export const askGridArenaAi = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env.OPENAI_API_KEY;

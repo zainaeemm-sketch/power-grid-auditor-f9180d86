@@ -53,9 +53,22 @@ export function AskAiPanel({ open, onOpenChange }: AskAiPanelProps) {
         toast.error(res.reply);
       }
     } catch (e) {
-      console.error(e);
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      setMessages([...next, { role: "assistant", content: `Sorry — something went wrong: ${msg}` }]);
+      // Server fns throw a raw Response on handler/validator failure
+      let msg = "Unknown error";
+      if (e instanceof Response) {
+        try {
+          msg = (await e.text()) || `HTTP ${e.status}`;
+        } catch {
+          msg = `HTTP ${e.status}`;
+        }
+      } else if (e instanceof Error) {
+        msg = e.message;
+      }
+      console.error("[AskAi] failed", e, msg);
+      setMessages([
+        ...next,
+        { role: "assistant", content: `Sorry — something went wrong:\n\n\`\`\`\n${msg}\n\`\`\`` },
+      ]);
       toast.error("Failed to reach Ask AI");
     } finally {
       setLoading(false);
