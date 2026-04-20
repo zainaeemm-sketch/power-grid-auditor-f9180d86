@@ -46,16 +46,24 @@ export function classifyPerturbation(
 }
 
 /**
- * Identify which simulation tier produced a perturbation result, based on the
- * notes/failure_reason text written by each engine. Used purely for UI badges.
+ * Identify which simulation tier produced a result. Prefer the stored
+ * `simulation_engine` column when available (set by the executor); fall back
+ * to parsing notes/failure_reason for older rows written before that column
+ * existed.
  */
 export type PerturbationEngine = "pandapower-external" | "dc-powerflow" | "skipped" | "unknown";
 
 export function detectPerturbationEngine(
   failureReason: string | null | undefined,
   notes: string | null | undefined,
+  storedEngine?: string | null,
 ): PerturbationEngine {
   if (classifyPerturbation(failureReason, notes) === "skipped") return "skipped";
+  if (storedEngine) {
+    const e = storedEngine.toLowerCase();
+    if (e.includes("pandapower")) return "pandapower-external";
+    if (e.includes("dc")) return "dc-powerflow";
+  }
   const text = `${notes ?? ""} ${failureReason ?? ""}`;
   if (/pandapower ac power flow/i.test(text) || /external pandapower/i.test(text)) {
     return "pandapower-external";
