@@ -14,7 +14,7 @@ import {
   type BatchCounterfactualSummary,
 } from "@/server/counterfactual.functions";
 import { exportBatchCounterfactualCsv } from "@/lib/csv-export";
-import { classifyOutcome } from "@/lib/counterfactual-status";
+import { classifyCounterfactual } from "@/lib/simulation-skip";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, MinusCircle, CheckCircle2 } from "lucide-react";
 
@@ -88,12 +88,12 @@ export function BatchCounterfactualSection({ batchId }: { batchId: string }) {
             {(() => {
               const counts = { success: 0, skipped: 0, failed: 0 };
               for (const a of summary.per_action) {
-                counts[classifyOutcome(a.status, a.failure_reason)] += 1;
+                counts[classifyCounterfactual(a.status, a.failure_reason)] += 1;
               }
               const skippedReasons = Array.from(
                 new Set(
                   summary.per_action
-                    .filter((a) => classifyOutcome(a.status, a.failure_reason) === "skipped")
+                    .filter((a) => classifyCounterfactual(a.status, a.failure_reason) === "skipped")
                     .map((a) => a.failure_reason)
                     .filter(Boolean) as string[],
                 ),

@@ -25,7 +25,7 @@ import {
 } from "@/server/counterfactual.functions";
 import type { CounterfactualWithResult } from "@/server/counterfactual/types";
 import { exportCounterfactualCsv } from "@/lib/csv-export";
-import { classifyOutcome } from "@/lib/counterfactual-status";
+import { classifyCounterfactual } from "@/lib/simulation-skip";
 
 function changeBadge(c: string) {
   if (c === "improved")
@@ -200,7 +200,7 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
                     <TableCell>
                       {(() => {
                         if (!result) return "—";
-                        const kind = classifyOutcome(result.status, result.failure_reason);
+                        const kind = classifyCounterfactual(result.status, result.failure_reason);
                         if (kind === "success") return changeBadge(result.feasibility_change);
                         if (kind === "skipped") {
                           return (
