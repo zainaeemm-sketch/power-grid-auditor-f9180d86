@@ -4,7 +4,9 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Activity, Download, FileText } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Download, FileText, MinusCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { classifyPerturbation } from "@/lib/simulation-skip";
 import { BatchPerturbationJobsDialog } from "./BatchPerturbationJobsDialog";
 import {
   runBatchPerturbations,
@@ -172,6 +174,30 @@ export function BatchSensitivitySection({ batchId }: { batchId: string }) {
           <p className="text-sm text-muted-foreground">No sensitivity tests executed.</p>
         ) : (
           <>
+            {(() => {
+              const counts = { success: 0, skipped: 0, failed: 0 };
+              for (const r of summary.per_test) {
+                counts[classifyPerturbation(r.failure_reason, null)] += 1;
+              }
+              return (
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> {counts.success} success
+                  </Badge>
+                  {counts.skipped > 0 && (
+                    <Badge variant="outline" className="gap-1 text-muted-foreground">
+                      <MinusCircle className="h-3 w-3" /> {counts.skipped} skipped (no simulator)
+                    </Badge>
+                  )}
+                  {counts.failed > 0 && (
+                    <Badge variant="destructive" className="gap-1">
+                      <AlertTriangle className="h-3 w-3" /> {counts.failed} failed
+                    </Badge>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               <Stat label="Avg robustness" value={summary.avg_robustness_score?.toFixed(3) ?? "—"} />
               <Stat label="Failure rate" value={summary.failure_rate != null ? `${(summary.failure_rate * 100).toFixed(1)}%` : "—"} />

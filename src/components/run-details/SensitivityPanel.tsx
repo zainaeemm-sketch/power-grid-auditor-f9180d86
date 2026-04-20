@@ -15,7 +15,8 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Activity, AlertTriangle, Download, Plus } from "lucide-react";
+import { Activity, AlertTriangle, Download, MinusCircle, Plus } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   listPerturbationTests,
   runDefaultPerturbations,
@@ -23,6 +24,7 @@ import {
 } from "@/server/perturbation.functions";
 import type { PerturbationTestWithResult, PerturbationType } from "@/types/grid-arena";
 import { exportSensitivityCsv } from "@/lib/csv-export";
+import { classifyPerturbation } from "@/lib/simulation-skip";
 
 const TYPES: PerturbationType[] = [
   "increase_load_percent",
@@ -176,16 +178,52 @@ export function SensitivityPanel({ runId }: { runId: string }) {
                   <TableCell className="text-xs">{result?.perturbed_feasibility ?? "—"}</TableCell>
                   <TableCell className="text-right text-xs">{result?.violation_change ?? "—"}</TableCell>
                   <TableCell>
-                    {result?.failure_reason ? (
-                      <span className="flex items-center gap-1 text-xs text-amber-400">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        {result.failure_reason}
-                      </span>
-                    ) : result ? (
-                      robustnessBadge(result.robustness_result)
-                    ) : (
-                      "—"
-                    )}
+                    {(() => {
+                      if (!result) return "—";
+                      const kind = classifyPerturbation(result.failure_reason, result.notes);
+                      if (kind === "skipped") {
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <MinusCircle className="h-3.5 w-3.5" />
+                                  skipped
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-xs">
+                                  No simulator available for this case. Perturbation tests need a built-in case (ieee9/14/30) or an external pandapower service with perturbation support.
+                                </p>
+                                {result.failure_reason && (
+                                  <p className="mt-1 text-xs text-muted-foreground">{result.failure_reason}</p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      }
+                      if (kind === "failed") {
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex items-center gap-1 text-xs text-amber-400">
+                                  <AlertTriangle className="h-3.5 w-3.5" />
+                                  failed
+                                </span>
+                              </TooltipTrigger>
+                              {result.failure_reason && (
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">{result.failure_reason}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      }
+                      return robustnessBadge(result.robustness_result);
+                    })()}
                   </TableCell>
                 </TableRow>
               ))}
