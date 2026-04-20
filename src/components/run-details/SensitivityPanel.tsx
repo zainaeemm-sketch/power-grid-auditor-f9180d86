@@ -188,6 +188,7 @@ export function SensitivityPanel({ runId }: { runId: string }) {
               <TableRow>
                 <TableHead>Type</TableHead>
                 <TableHead>Parameter</TableHead>
+                <TableHead>Engine</TableHead>
                 <TableHead>Baseline</TableHead>
                 <TableHead>Perturbed</TableHead>
                 <TableHead className="text-right">Δ violations</TableHead>
@@ -200,6 +201,11 @@ export function SensitivityPanel({ runId }: { runId: string }) {
                   <TableCell className="font-mono text-xs">{test.perturbation_type}</TableCell>
                   <TableCell className="text-xs">
                     {test.parameter_name}={test.parameter_value ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    {result
+                      ? engineBadge(detectPerturbationEngine(result.failure_reason, result.notes))
+                      : "—"}
                   </TableCell>
                   <TableCell className="text-xs">{result?.baseline_feasibility ?? "—"}</TableCell>
                   <TableCell className="text-xs">{result?.perturbed_feasibility ?? "—"}</TableCell>
