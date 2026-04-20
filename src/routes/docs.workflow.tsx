@@ -83,7 +83,7 @@ function WorkflowPage() {
         action. Exports (CSV / LaTeX / SVG) are one click away from any report view.
       </p>
 
-      <h2>8. Counterfactual analysis (Layer E)</h2>
+      <h2 id="counterfactual-analysis-layer-e">8. Counterfactual analysis (Layer E)</h2>
       <p>
         After a run completes, GridArena can replay the same benchmark case against a set of
         <em> alternative actions</em> — either contextual <strong>defaults</strong> (derived from
