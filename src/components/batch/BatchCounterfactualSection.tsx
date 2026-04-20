@@ -85,6 +85,43 @@ export function BatchCounterfactualSection({ batchId }: { batchId: string }) {
           <p className="text-sm text-muted-foreground">No counterfactual analysis executed.</p>
         ) : (
           <>
+            {(() => {
+              const counts = { success: 0, skipped: 0, failed: 0 };
+              for (const a of summary.per_action) {
+                counts[classifyOutcome(a.status, a.failure_reason)] += 1;
+              }
+              const skippedReasons = Array.from(
+                new Set(
+                  summary.per_action
+                    .filter((a) => classifyOutcome(a.status, a.failure_reason) === "skipped")
+                    .map((a) => a.failure_reason)
+                    .filter(Boolean) as string[],
+                ),
+              );
+              return (
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> {counts.success} success
+                  </Badge>
+                  {counts.skipped > 0 && (
+                    <Badge variant="outline" className="gap-1 text-muted-foreground">
+                      <MinusCircle className="h-3 w-3" /> {counts.skipped} skipped (no simulator)
+                    </Badge>
+                  )}
+                  {counts.failed > 0 && (
+                    <Badge variant="destructive" className="gap-1">
+                      <AlertTriangle className="h-3 w-3" /> {counts.failed} failed
+                    </Badge>
+                  )}
+                  {skippedReasons.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      — {skippedReasons[0]}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               <Stat label="Avg optimality gap" value={summary.avg_optimality_gap?.toFixed(3) ?? "—"} />
               <Stat label="Avg decision regret" value={summary.avg_decision_regret?.toFixed(3) ?? "—"} />
