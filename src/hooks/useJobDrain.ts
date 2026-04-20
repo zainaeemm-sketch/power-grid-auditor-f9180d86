@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { processJobBatch } from "@/server/queue/worker.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Options {
   enabled: boolean;
