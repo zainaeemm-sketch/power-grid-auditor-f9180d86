@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { getHealthStatus } from "@/server/health.functions";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Small status dot in the header. Polls health every 60s when authenticated.
