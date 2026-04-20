@@ -48,7 +48,7 @@ function AuthenticatedLayout() {
     return () => {
       active = false;
     };
-  }, [isLoading, isAuthenticated, fetchStatus, navigate]);
+  }, [isLoading, isAuthenticated, fetchStatus, navigate, router]);
 
   if (isLoading || checking) {
     return (
