@@ -8,6 +8,7 @@ import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { OfflineFallback } from "@/components/OfflineFallback";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AskAiButton } from "@/components/assistant/AskAiButton";
+import { AuthErrorGuard } from "@/components/AuthErrorGuard";
 
 import appCss from "../styles.css?url";
 
@@ -87,6 +88,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <AuthErrorGuard />
         <PwaSplashScreen />
         <PwaInstallBanner />
         <OfflineFallback />
