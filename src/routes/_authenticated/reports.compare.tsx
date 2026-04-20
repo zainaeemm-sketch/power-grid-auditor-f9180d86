@@ -50,8 +50,10 @@ function CompareReportPage() {
     let active = true;
     setLoading(true);
     Promise.all(
-      ids.map((id: string) => getRunDetails({ data: { runId: id } }).catch(() => null)),
-    ).then((res) => {
+      ids.map((id: string) =>
+        getRunDetails({ data: { runId: id } }).catch(() => null) as Promise<RunDetails | null>,
+      ),
+    ).then((res: (RunDetails | null)[]) => {
       if (!active) return;
       setDetails(res.filter((r): r is RunDetails => !!r?.run));
       setLoading(false);
