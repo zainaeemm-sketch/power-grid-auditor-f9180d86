@@ -22,6 +22,7 @@ export interface ExecutedPerturbationOutcome {
   notes: string | null;
   execution_time_ms: number;
   failure_reason: string | null;
+  simulation_engine: string | null;
 }
 
 function buildOutcome(
@@ -31,6 +32,7 @@ function buildOutcome(
   perturbedViolations: number,
   notes: string | null,
   start: number,
+  engine: string | null,
 ): ExecutedPerturbationOutcome {
   const violation_change = perturbedViolations - baselineViolations;
   const stability = computeFeasibilityStability(baselineFeasibility, perturbedFeasibility);
@@ -48,6 +50,7 @@ function buildOutcome(
     notes,
     execution_time_ms: Date.now() - start,
     failure_reason: null,
+    simulation_engine: engine,
   };
 }
 
@@ -82,6 +85,7 @@ export async function executePerturbation(
         ext.perturbed.post_action_violations,
         ext.perturbed.notes ?? null,
         start,
+        ext.perturbed.engine ?? "pandapower",
       );
     }
 
@@ -101,6 +105,7 @@ export async function executePerturbation(
         notes: reason,
         execution_time_ms: Date.now() - start,
         failure_reason: reason,
+        simulation_engine: null,
       };
     }
 
@@ -119,6 +124,7 @@ export async function executePerturbation(
       perturbedSim.post_action_violations,
       perturbedSim.notes,
       start,
+      perturbedSim.engine ?? "dc_powerflow",
     );
   } catch (e: any) {
     return {
@@ -133,6 +139,7 @@ export async function executePerturbation(
       notes: null,
       execution_time_ms: Date.now() - start,
       failure_reason: e?.message ?? "Unknown perturbation failure",
+      simulation_engine: null,
     };
   }
 }

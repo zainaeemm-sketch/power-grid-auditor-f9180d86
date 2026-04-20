@@ -203,6 +203,7 @@ export type Database = {
           id: string
           improvement_difference: number
           optimality_gap: number
+          simulation_engine: string | null
           status: string
           violation_difference: number
         }
@@ -224,6 +225,7 @@ export type Database = {
           id?: string
           improvement_difference?: number
           optimality_gap?: number
+          simulation_engine?: string | null
           status?: string
           violation_difference?: number
         }
@@ -245,6 +247,7 @@ export type Database = {
           id?: string
           improvement_difference?: number
           optimality_gap?: number
+          simulation_engine?: string | null
           status?: string
           violation_difference?: number
         }
@@ -566,6 +569,7 @@ export type Database = {
           perturbed_violations: number
           robustness_result: string
           robustness_score: number
+          simulation_engine: string | null
           violation_change: number
         }
         Insert: {
@@ -582,6 +586,7 @@ export type Database = {
           perturbed_violations?: number
           robustness_result?: string
           robustness_score?: number
+          simulation_engine?: string | null
           violation_change?: number
         }
         Update: {
@@ -598,6 +603,7 @@ export type Database = {
           perturbed_violations?: number
           robustness_result?: string
           robustness_score?: number
+          simulation_engine?: string | null
           violation_change?: number
         }
         Relationships: [

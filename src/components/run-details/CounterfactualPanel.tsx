@@ -25,13 +25,34 @@ import {
 } from "@/server/counterfactual.functions";
 import type { CounterfactualWithResult } from "@/server/counterfactual/types";
 import { exportCounterfactualCsv } from "@/lib/csv-export";
-import { classifyCounterfactual } from "@/lib/simulation-skip";
+import { classifyCounterfactual, detectPerturbationEngine, type PerturbationEngine } from "@/lib/simulation-skip";
 
 function changeBadge(c: string) {
   if (c === "improved")
     return <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-300">improved</Badge>;
   if (c === "worsened") return <Badge variant="destructive">worsened</Badge>;
   return <Badge variant="outline">unchanged</Badge>;
+}
+
+function engineBadge(engine: PerturbationEngine) {
+  const map: Record<PerturbationEngine, { label: string; className: string }> = {
+    "pandapower-external": {
+      label: "pandapower",
+      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+    },
+    "dc-powerflow": {
+      label: "DC PF",
+      className: "border-sky-500/40 bg-sky-500/10 text-sky-300",
+    },
+    skipped: { label: "skipped", className: "text-muted-foreground" },
+    unknown: { label: "unknown", className: "text-muted-foreground" },
+  };
+  const { label, className } = map[engine];
+  return (
+    <Badge variant="outline" className={`text-[10px] ${className}`}>
+      {label}
+    </Badge>
+  );
 }
 
 export function CounterfactualPanel({ runId }: { runId: string }) {
@@ -185,6 +206,7 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
                   <TableHead>Action</TableHead>
                   <TableHead>Target</TableHead>
                   <TableHead>Value</TableHead>
+                  <TableHead>Engine</TableHead>
                   <TableHead>Feasibility Δ</TableHead>
                   <TableHead className="text-right">Δ violations</TableHead>
                   <TableHead className="text-right">Optimality gap</TableHead>
@@ -197,6 +219,17 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
                     <TableCell className="font-mono text-xs">{action.action_type}</TableCell>
                     <TableCell className="text-xs">{action.target_index ?? "—"}</TableCell>
                     <TableCell className="text-xs">{action.value ?? "—"}</TableCell>
+                    <TableCell>
+                      {result
+                        ? engineBadge(
+                            detectPerturbationEngine(
+                              result.failure_reason,
+                              null,
+                              (result as any).simulation_engine,
+                            ),
+                          )
+                        : "—"}
+                    </TableCell>
                     <TableCell>
                       {(() => {
                         if (!result) return "—";
