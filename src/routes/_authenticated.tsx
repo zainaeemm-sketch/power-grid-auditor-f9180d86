@@ -31,6 +31,10 @@ function AuthenticatedLayout() {
         if (!active) return;
         if (res.isAdmin || res.status === "approved") {
           setAllowed(true);
+          // Invalidate child route loaders so they re-run with auth headers.
+          // SSR loaders return null because no auth header is attached;
+          // this triggers the client refetch once the user is verified.
+          router.invalidate();
         } else {
           navigate({ to: "/pending-approval" });
         }
