@@ -22,6 +22,7 @@ export interface ExecutedPerturbationOutcome {
   notes: string | null;
   execution_time_ms: number;
   failure_reason: string | null;
+  simulation_engine: string | null;
 }
 
 function buildOutcome(
