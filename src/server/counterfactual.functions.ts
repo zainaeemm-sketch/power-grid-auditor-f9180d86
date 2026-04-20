@@ -57,7 +57,7 @@ async function executeAndPersist(
       .single();
     if (aErr || !action) continue;
 
-    const outcome = executeCounterfactual(caseName, baseline, spec);
+    const outcome = await executeCounterfactual(caseName, baseline, spec);
     const { data: result } = await supabase
       .from("counterfactual_results")
       .insert({ counterfactual_action_id: action.id, ...outcome })

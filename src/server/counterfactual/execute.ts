@@ -1,6 +1,5 @@
-import { resolveCase } from "../simulation/cases";
-import { runDcEvaluation } from "../simulation/dc-powerflow";
-import type { StructuredAction } from "../simulation/types";
+import { runSimulation } from "../simulation/engine";
+import type { EvaluationMode, SimulationResult, StructuredAction } from "../simulation/types";
 import type {
   CounterfactualSpec,
   FeasibilityChange,
@@ -30,58 +29,43 @@ function feasibilityChange(b: string, c: string): FeasibilityChange {
   if (b === c) return "unchanged";
   if (c === "feasible" && b !== "feasible") return "improved";
   if (b === "feasible" && c !== "feasible") return "worsened";
-  // both non-feasible but different — treat as unchanged
   return "unchanged";
 }
 
 /**
  * Execute one counterfactual action against the same case as the baseline run.
- * Computes baseline (agent action) and counterfactual evaluation, then derives
- * comparison metrics. Pure / deterministic.
+ * Uses the tiered simulator (external pandapower → in-Worker DC PF) so cases
+ * not bundled in the Worker (e.g. ieee39) still produce real results when an
+ * external simulation service is configured.
  */
-export function executeCounterfactual(
+export async function executeCounterfactual(
   caseName: string,
   baseline: StructuredAction,
   spec: CounterfactualSpec,
-): ExecutedCounterfactualOutcome {
+  mode: EvaluationMode = "auto",
+): Promise<ExecutedCounterfactualOutcome> {
   const start = Date.now();
   const baseline_action_type = baseline.action_type ?? null;
   const counterfactual_action_type = spec.action_type;
 
   try {
-    const baseCase = resolveCase(caseName);
-    if (!baseCase) {
-      return {
-        baseline_action_type,
-        counterfactual_action_type,
-        baseline_feasibility: "unknown",
-        counterfactual_feasibility: "unknown",
-        baseline_violations: 0,
-        counterfactual_violations: 0,
-        baseline_improvement: 0,
-        counterfactual_improvement: 0,
-        violation_difference: 0,
-        improvement_difference: 0,
-        optimality_gap: 0,
-        decision_regret: 0,
-        feasibility_change: "unchanged",
-        status: "failure",
-        failure_reason: `Case '${caseName}' not available for in-Worker simulation.`,
-        execution_time_ms: Date.now() - start,
-      };
-    }
-
-    const baselineSim = runDcEvaluation(baseCase, baseline);
     const cfAction: StructuredAction = {
       action_type: spec.action_type,
       target_index: spec.target_index,
       value: spec.value,
       enabled: true,
     };
-    const cfSim = runDcEvaluation(baseCase, cfAction);
+
+    const [baselineSim, cfSim]: [SimulationResult | null, SimulationResult | null] =
+      await Promise.all([
+        runSimulation(caseName, baseline, mode),
+        runSimulation(caseName, cfAction, mode),
+      ]);
 
     if (!baselineSim || !cfSim) {
-      throw new Error("DC power flow failed to converge for baseline or counterfactual.");
+      throw new Error(
+        `No simulator available for case '${caseName}'. Configure an external pandapower service or use a built-in case.`,
+      );
     }
 
     const baseline_violations = baselineSim.post_action_violations;
@@ -91,9 +75,7 @@ export function executeCounterfactual(
 
     const violation_difference = counterfactual_violations - baseline_violations;
     const improvement_difference = counterfactual_improvement - baseline_improvement;
-    // Optimality gap = how much better the CF is vs baseline (clamped at 0)
     const optimality_gap = Math.max(0, counterfactual_improvement - baseline_improvement);
-    // Decision regret mirrors optimality_gap for a single CF; aggregated at higher level.
     const decision_regret = optimality_gap;
 
     return {
