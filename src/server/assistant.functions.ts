@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withAuthHeaders } from "@/middleware/auth-headers";
 import { GRIDARENA_KNOWLEDGE } from "@/lib/assistant-knowledge";
 
 const messageSchema = z.object({
