@@ -65,7 +65,7 @@ function ArchitecturePage() {
         is unavailable, so evaluations never block.
       </p>
 
-      <h3>Counterfactual Engine (Layer E)</h3>
+      <h3 id="counterfactual-engine-layer-e">Counterfactual Engine (Layer E)</h3>
       <p>
         A deterministic replay layer that re-executes the same benchmark case against alternative
         actions — either contextual <strong>defaults</strong> derived from the agent's action type
