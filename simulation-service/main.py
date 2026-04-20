@@ -4,8 +4,10 @@ GridArena power-system simulation microservice.
 Runs pandapower DC/AC power flow on standard IEEE cases and returns
 violation counts compatible with GridArena's evaluation schema.
 
-Deploy anywhere that supports Python 3.11+ (Fly.io, Render, HF Space, local Docker).
-The Worker calls POST /simulate with a bearer token.
+Endpoints:
+  POST /simulate            — apply a structured action and report violations
+  POST /simulate_perturbed  — apply perturbation spec + action, return both
+                              baseline (action only) and perturbed results
 """
 
 from __future__ import annotations
@@ -15,11 +17,11 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 
-from pandapower_runner import simulate_action
+from pandapower_runner import simulate_action, simulate_perturbed
 
 API_TOKEN = os.environ.get("SIMULATION_API_TOKEN", "")
 
-app = FastAPI(title="GridArena Simulation Service", version="1.0.0")
+app = FastAPI(title="GridArena Simulation Service", version="1.1.0")
 
 
 class Action(BaseModel):
@@ -29,9 +31,22 @@ class Action(BaseModel):
     enabled: bool = True
 
 
+class PerturbationSpec(BaseModel):
+    perturbation_type: str
+    parameter_name: Optional[str] = None
+    parameter_value: Optional[float] = None
+    description: Optional[str] = None
+
+
 class SimulateRequest(BaseModel):
     case_name: str
     action: Action
+
+
+class PerturbRequest(BaseModel):
+    case_name: str
+    action: Action
+    perturbation: PerturbationSpec
 
 
 def _check_auth(authorization: Optional[str]) -> None:
@@ -46,7 +61,7 @@ def _check_auth(authorization: Optional[str]) -> None:
 @app.get("/health")
 def health(authorization: Optional[str] = Header(default=None)) -> dict[str, Any]:
     _check_auth(authorization)
-    return {"status": "ok", "engine": "pandapower"}
+    return {"status": "ok", "engine": "pandapower", "features": ["simulate", "simulate_perturbed"]}
 
 
 @app.post("/simulate")
@@ -58,3 +73,17 @@ def simulate(req: SimulateRequest, authorization: Optional[str] = Header(default
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Simulation failed: {e}")
+
+
+@app.post("/simulate_perturbed")
+def simulate_perturbed_endpoint(
+    req: PerturbRequest,
+    authorization: Optional[str] = Header(default=None),
+) -> dict[str, Any]:
+    _check_auth(authorization)
+    try:
+        return simulate_perturbed(req.case_name, req.action.dict(), req.perturbation.dict())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Perturbation simulation failed: {e}")

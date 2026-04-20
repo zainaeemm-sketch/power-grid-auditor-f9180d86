@@ -1,6 +1,7 @@
-"""pandapower runner — loads a standard case, applies a structured action, runs PF."""
+"""pandapower runner — loads a standard case, applies structured actions and
+optional perturbation specs, runs PF, and reports violations."""
 from __future__ import annotations
-from typing import Any
+from typing import Any, Optional
 import pandapower as pp
 import pandapower.networks as pn
 
@@ -13,6 +14,12 @@ def _load_case(name: str):
         return pn.case14()
     if n in ("case30", "ieee30"):
         return pn.case30()
+    if n in ("case39", "ieee39", "case39ieee"):
+        return pn.case39()
+    if n in ("case57", "ieee57"):
+        return pn.case57()
+    if n in ("case118", "ieee118"):
+        return pn.case118()
     raise ValueError(f"Unknown case: {name}")
 
 
@@ -71,21 +78,43 @@ def _apply(net, action: dict[str, Any]) -> None:
             net.line.at[idx, "in_service"] = False
 
 
-def simulate_action(case_name: str, action: dict[str, Any]) -> dict[str, Any]:
-    base = _load_case(case_name)
-    try:
-        pp.runpp(base, numba=False)
-    except Exception as e:
-        raise RuntimeError(f"Baseline PF failed: {e}")
-    baseline_violations, _, _, _ = _violations(base)
+def _apply_perturbation(net, spec: dict[str, Any]) -> None:
+    """Mutate net in-place per the perturbation spec (line outage, load scaling, etc)."""
+    ptype = (spec.get("perturbation_type") or "").lower()
+    val = spec.get("parameter_value")
+    v = float(val) if val is not None else 0.0
 
-    post = _load_case(case_name)
-    _apply(post, action)
+    if ptype in ("increase_load_percent", "decrease_load_percent"):
+        factor = 1.0 + v / 100.0
+        net.load["p_mw"] = net.load["p_mw"] * factor
+        net.load["q_mvar"] = net.load["q_mvar"] * factor
+    elif ptype in ("line_outage", "n1_contingency"):
+        idx = int(round(v))
+        if idx in net.line.index:
+            net.line.at[idx, "in_service"] = False
+    elif ptype == "line_restoration":
+        idx = int(round(v))
+        if idx in net.line.index:
+            net.line.at[idx, "in_service"] = True
+    elif ptype == "generator_limit_change":
+        factor = 1.0 + v / 100.0
+        if "max_p_mw" in net.gen.columns:
+            net.gen["max_p_mw"] = net.gen["max_p_mw"] * factor
+            net.gen["p_mw"] = net.gen[["p_mw", "max_p_mw"]].min(axis=1)
+    elif ptype == "generator_dispatch_change":
+        factor = 1.0 + v / 100.0
+        net.gen["p_mw"] = net.gen["p_mw"] * factor
+    elif ptype == "voltage_setpoint_shift":
+        if "vm_pu" in net.gen.columns:
+            net.gen["vm_pu"] = net.gen["vm_pu"] + v
+    # unknown types: no-op
+
+
+def _evaluate(net, baseline_violations: int, action_enabled: bool, action_type: Optional[str], case_name: str) -> dict[str, Any]:
     feasibility = "feasible"
     try:
-        pp.runpp(post, numba=False)
+        pp.runpp(net, numba=False)
     except Exception:
-        feasibility = "infeasible"
         return {
             "feasibility": "infeasible",
             "baseline_violations": baseline_violations,
@@ -95,11 +124,11 @@ def simulate_action(case_name: str, action: dict[str, Any]) -> dict[str, Any]:
             "line_loadings": [],
             "voltage_violations": [],
             "generator_violations": [],
-            "notes": "pandapower Newton-Raphson did not converge after action.",
+            "notes": "pandapower Newton-Raphson did not converge.",
         }
 
-    post_violations, line_loadings, voltage_violations, gen_violations = _violations(post)
-    if not action.get("enabled") or action.get("action_type") in (None, "none"):
+    post_violations, line_loadings, voltage_violations, gen_violations = _violations(net)
+    if not action_enabled or action_type in (None, "none"):
         feasibility = "not_applicable"
     elif post_violations > baseline_violations + 2:
         feasibility = "infeasible"
@@ -115,3 +144,38 @@ def simulate_action(case_name: str, action: dict[str, Any]) -> dict[str, Any]:
         "generator_violations": gen_violations,
         "notes": f"pandapower AC power flow on {case_name}: {len(line_loadings)} lines analyzed.",
     }
+
+
+def simulate_action(case_name: str, action: dict[str, Any]) -> dict[str, Any]:
+    base = _load_case(case_name)
+    try:
+        pp.runpp(base, numba=False)
+    except Exception as e:
+        raise RuntimeError(f"Baseline PF failed: {e}")
+    baseline_violations, _, _, _ = _violations(base)
+
+    post = _load_case(case_name)
+    _apply(post, action)
+    return _evaluate(post, baseline_violations, bool(action.get("enabled")), action.get("action_type"), case_name)
+
+
+def simulate_perturbed(case_name: str, action: dict[str, Any], perturbation: dict[str, Any]) -> dict[str, Any]:
+    """Apply perturbation + action together, then evaluate vs un-perturbed baseline (with same action)."""
+    # Baseline: action only, no perturbation
+    base_with_action = _load_case(case_name)
+    _apply(base_with_action, action)
+    baseline_pre = _load_case(case_name)
+    try:
+        pp.runpp(baseline_pre, numba=False)
+    except Exception as e:
+        raise RuntimeError(f"Baseline PF failed: {e}")
+    pre_violations, _, _, _ = _violations(baseline_pre)
+    baseline = _evaluate(base_with_action, pre_violations, bool(action.get("enabled")), action.get("action_type"), case_name)
+
+    # Perturbed: perturbation + action
+    perturbed_net = _load_case(case_name)
+    _apply_perturbation(perturbed_net, perturbation)
+    _apply(perturbed_net, action)
+    perturbed = _evaluate(perturbed_net, pre_violations, bool(action.get("enabled")), action.get("action_type"), case_name)
+
+    return {"baseline": baseline, "perturbed": perturbed}

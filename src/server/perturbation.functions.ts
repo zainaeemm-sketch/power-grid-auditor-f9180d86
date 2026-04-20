@@ -68,7 +68,7 @@ async function executeAndPersist(
       .single();
     if (tErr || !test) continue;
 
-    const outcome = executePerturbation(caseName, action, spec);
+    const outcome = await executePerturbation(caseName, action, spec);
     const { data: result } = await supabase
       .from("perturbation_results")
       .insert({ perturbation_test_id: test.id, ...outcome })

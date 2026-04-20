@@ -47,7 +47,7 @@ export async function runDefaultPerturbationsForRun(
       .select()
       .single();
     if (tErr || !test) continue;
-    const outcome = executePerturbation(run.case_name, action, spec);
+    const outcome = await executePerturbation(run.case_name, action, spec);
     await supabase
       .from("perturbation_results")
       .insert({ perturbation_test_id: test.id, ...outcome });
