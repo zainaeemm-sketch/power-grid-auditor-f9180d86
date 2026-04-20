@@ -36,6 +36,11 @@ export function executePerturbation(
   try {
     const baseCase = resolveCase(caseName);
     if (!baseCase) {
+      // Perturbations require structural mutation of the case (line outages,
+      // load scaling, etc.) which we can only do on built-in cases. The
+      // external pandapower service does not yet expose a perturbation API,
+      // so for cases like ieee39 we mark the test as skipped (not failed).
+      const reason = `No simulator available for case '${caseName}'. Perturbation tests require a built-in case (ieee9/ieee14/ieee30) or an external pandapower service with perturbation support.`;
       return {
         baseline_feasibility: "unknown",
         perturbed_feasibility: "unknown",
@@ -43,11 +48,11 @@ export function executePerturbation(
         perturbed_violations: 0,
         violation_change: 0,
         feasibility_stability: "unchanged",
-        robustness_result: "stable",
-        robustness_score: 1,
-        notes: `Case '${caseName}' not available for in-Worker simulation; skipped.`,
+        robustness_result: "skipped",
+        robustness_score: 0,
+        notes: reason,
         execution_time_ms: Date.now() - start,
-        failure_reason: null,
+        failure_reason: reason,
       };
     }
 
