@@ -20,6 +20,26 @@ function normalizeServiceUrl(rawUrl: string | undefined): string | null {
 }
 
 /**
+ * Categorise a fetch failure into a short, human-readable reason code so
+ * callers (and the /health UI) can show why we silently fell back to DC PF.
+ */
+function describeFailure(res: Response | null, err: unknown): string {
+  if (err) {
+    const e = err as { name?: string; message?: string };
+    if (e?.name === "AbortError") return "timeout";
+    return `fetch_error:${e?.message ?? "unknown"}`;
+  }
+  if (!res) return "no_response";
+  if (res.status === 0) return "network_error";
+  if (res.status === 401 || res.status === 403) return `auth_${res.status}`;
+  if (res.status === 404) return "endpoint_404";
+  if (res.status === 405) return "method_not_allowed_405";
+  if (res.status >= 300 && res.status < 400) return `redirect_${res.status}`;
+  if (res.status >= 500) return `server_${res.status}`;
+  return `http_${res.status}`;
+}
+
+/**
  * Calls an external pandapower microservice. Returns null on any failure
  * (network, 5xx, timeout, missing config) — caller falls back to DC PF.
  *
@@ -32,7 +52,10 @@ export async function callExternalSimulator(
   action: StructuredAction,
 ): Promise<SimulationResult | null> {
   const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
-  if (!url) return null;
+  if (!url) {
+    console.warn("[simulator] external service not configured — falling back to DC PF");
+    return null;
+  }
   const token = process.env.SIMULATION_SERVICE_TOKEN;
 
   const controller = new AbortController();
@@ -41,6 +64,7 @@ export async function callExternalSimulator(
   const attempt = async (): Promise<Response> =>
     fetch(`${url}/simulate`, {
       method: "POST",
+      redirect: "follow",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -49,13 +73,27 @@ export async function callExternalSimulator(
       signal: controller.signal,
     });
 
+  let lastRes: Response | null = null;
   try {
     let res = await attempt();
     if (res.status >= 500 && res.status < 600) {
       res = await attempt();
     }
     clearTimeout(timeout);
-    if (!res.ok) return null;
+    lastRes = res;
+    if (!res.ok) {
+      const reason = describeFailure(res, null);
+      let body = "";
+      try {
+        body = (await res.text()).slice(0, 200);
+      } catch {
+        /* ignore */
+      }
+      console.warn(
+        `[simulator] /simulate fallback → DC PF (case=${caseName} reason=${reason} url=${url}/simulate body=${body})`,
+      );
+      return null;
+    }
     const json = (await res.json()) as ExternalSimResponse;
     return {
       engine: "pandapower",
@@ -69,8 +107,12 @@ export async function callExternalSimulator(
       generator_violations: json.generator_violations ?? [],
       notes: json.notes ?? "Computed by external pandapower service.",
     };
-  } catch {
+  } catch (err) {
     clearTimeout(timeout);
+    const reason = describeFailure(lastRes, err);
+    console.warn(
+      `[simulator] /simulate fallback → DC PF (case=${caseName} reason=${reason} url=${url}/simulate)`,
+    );
     return null;
   }
 }
@@ -96,7 +138,10 @@ export async function callExternalPerturbation(
   },
 ): Promise<ExternalPerturbationResult | null> {
   const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
-  if (!url) return null;
+  if (!url) {
+    console.warn("[simulator] external service not configured — perturbation falls back to DC PF");
+    return null;
+  }
   const token = process.env.SIMULATION_SERVICE_TOKEN;
 
   const controller = new AbortController();
@@ -105,6 +150,7 @@ export async function callExternalPerturbation(
   const attempt = async (): Promise<Response> =>
     fetch(`${url}/simulate_perturbed`, {
       method: "POST",
+      redirect: "follow",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -126,46 +172,132 @@ export async function callExternalPerturbation(
     notes: r.notes ?? "Computed by external pandapower service.",
   });
 
+  let lastRes: Response | null = null;
   try {
     let res = await attempt();
     if (res.status >= 500 && res.status < 600) {
       res = await attempt();
     }
     clearTimeout(timeout);
-    if (!res.ok) return null;
+    lastRes = res;
+    if (!res.ok) {
+      const reason = describeFailure(res, null);
+      let body = "";
+      try {
+        body = (await res.text()).slice(0, 200);
+      } catch {
+        /* ignore */
+      }
+      console.warn(
+        `[simulator] /simulate_perturbed fallback → DC PF (case=${caseName} reason=${reason} url=${url}/simulate_perturbed body=${body})`,
+      );
+      return null;
+    }
     const json = (await res.json()) as { baseline: ExternalSimResponse; perturbed: ExternalSimResponse };
-    if (!json.baseline || !json.perturbed) return null;
+    if (!json.baseline || !json.perturbed) {
+      console.warn(
+        `[simulator] /simulate_perturbed fallback → DC PF (case=${caseName} reason=malformed_response)`,
+      );
+      return null;
+    }
     return { baseline: toResult(json.baseline), perturbed: toResult(json.perturbed) };
-  } catch {
+  } catch (err) {
     clearTimeout(timeout);
+    const reason = describeFailure(lastRes, err);
+    console.warn(
+      `[simulator] /simulate_perturbed fallback → DC PF (case=${caseName} reason=${reason} url=${url}/simulate_perturbed)`,
+    );
     return null;
   }
 }
 
+/**
+ * Probe the external pandapower service. We check BOTH /health and a tiny
+ * POST /simulate so silent 3xx/4xx/5xx responses from the real endpoint are
+ * caught — not just /health which might respond fine while /simulate doesn't.
+ */
 export async function pingExternalSimulator(): Promise<{
   available: boolean;
   url: string | null;
   latency_ms: number | null;
   error: string | null;
+  health_status: number | null;
+  simulate_status: number | null;
+  simulate_error: string | null;
 }> {
   const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
-  if (!url) return { available: false, url: null, latency_ms: null, error: "Not configured" };
+  if (!url) {
+    return {
+      available: false,
+      url: null,
+      latency_ms: null,
+      error: "Not configured",
+      health_status: null,
+      simulate_status: null,
+      simulate_error: null,
+    };
+  }
   const token = process.env.SIMULATION_SERVICE_TOKEN;
   const start = Date.now();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5_000);
+
+  // /health probe
+  const healthCtl = new AbortController();
+  const healthTimer = setTimeout(() => healthCtl.abort(), 5_000);
+  let health_status: number | null = null;
+  let healthError: string | null = null;
   try {
     const res = await fetch(`${url}/health`, {
       method: "GET",
+      redirect: "follow",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-      signal: controller.signal,
+      signal: healthCtl.signal,
     });
-    clearTimeout(timeout);
-    const latency_ms = Date.now() - start;
-    if (!res.ok) return { available: false, url, latency_ms, error: `HTTP ${res.status}` };
-    return { available: true, url, latency_ms, error: null };
+    health_status = res.status;
+    if (!res.ok) healthError = describeFailure(res, null);
   } catch (e: any) {
-    clearTimeout(timeout);
-    return { available: false, url, latency_ms: null, error: e?.message ?? "fetch failed" };
+    healthError = describeFailure(null, e);
+  } finally {
+    clearTimeout(healthTimer);
   }
+
+  // /simulate probe (tiny no-op so a stale build that lacks /simulate is detected)
+  const simCtl = new AbortController();
+  const simTimer = setTimeout(() => simCtl.abort(), 5_000);
+  let simulate_status: number | null = null;
+  let simulate_error: string | null = null;
+  try {
+    const res = await fetch(`${url}/simulate`, {
+      method: "POST",
+      redirect: "follow",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        case_name: "case_ieee9",
+        action: { action_type: "none", enabled: true },
+      }),
+      signal: simCtl.signal,
+    });
+    simulate_status = res.status;
+    if (!res.ok) simulate_error = describeFailure(res, null);
+  } catch (e: any) {
+    simulate_error = describeFailure(null, e);
+  } finally {
+    clearTimeout(simTimer);
+  }
+
+  const latency_ms = Date.now() - start;
+  const available = healthError === null && simulate_error === null;
+  const error = available ? null : (simulate_error ?? healthError ?? "unknown");
+
+  return {
+    available,
+    url,
+    latency_ms,
+    error,
+    health_status,
+    simulate_status,
+    simulate_error,
+  };
 }

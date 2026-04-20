@@ -19,6 +19,9 @@ export interface HealthStatus {
     url: string | null;
     latency_ms: number | null;
     error: string | null;
+    health_status: number | null;
+    simulate_status: number | null;
+    simulate_error: string | null;
   };
   timestamp: string;
 }
@@ -64,6 +67,9 @@ export const getHealthStatus = createServerFn({ method: "GET" })
         url: sim.url,
         latency_ms: sim.latency_ms,
         error: sim.error,
+        health_status: sim.health_status,
+        simulate_status: sim.simulate_status,
+        simulate_error: sim.simulate_error,
       },
       timestamp: new Date().toISOString(),
     };
