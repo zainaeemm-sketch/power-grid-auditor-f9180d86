@@ -206,6 +206,7 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
                   <TableHead>Action</TableHead>
                   <TableHead>Target</TableHead>
                   <TableHead>Value</TableHead>
+                  <TableHead>Engine</TableHead>
                   <TableHead>Feasibility Δ</TableHead>
                   <TableHead className="text-right">Δ violations</TableHead>
                   <TableHead className="text-right">Optimality gap</TableHead>
@@ -218,6 +219,17 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
                     <TableCell className="font-mono text-xs">{action.action_type}</TableCell>
                     <TableCell className="text-xs">{action.target_index ?? "—"}</TableCell>
                     <TableCell className="text-xs">{action.value ?? "—"}</TableCell>
+                    <TableCell>
+                      {result
+                        ? engineBadge(
+                            detectPerturbationEngine(
+                              result.failure_reason,
+                              null,
+                              (result as any).simulation_engine,
+                            ),
+                          )
+                        : "—"}
+                    </TableCell>
                     <TableCell>
                       {(() => {
                         if (!result) return "—";
