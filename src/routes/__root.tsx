@@ -88,6 +88,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <AuthErrorGuard />
         <PwaSplashScreen />
         <PwaInstallBanner />
         <OfflineFallback />
