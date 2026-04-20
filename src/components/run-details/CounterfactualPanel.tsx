@@ -25,7 +25,8 @@ import {
 } from "@/server/counterfactual.functions";
 import type { CounterfactualWithResult } from "@/server/counterfactual/types";
 import { exportCounterfactualCsv } from "@/lib/csv-export";
-import { classifyCounterfactual, detectPerturbationEngine, type PerturbationEngine } from "@/lib/simulation-skip";
+import { classifyCounterfactual, detectPerturbationEngine } from "@/lib/simulation-skip";
+import { EngineBadge } from "./EngineBadge";
 
 function changeBadge(c: string) {
   if (c === "improved")
@@ -34,26 +35,7 @@ function changeBadge(c: string) {
   return <Badge variant="outline">unchanged</Badge>;
 }
 
-function engineBadge(engine: PerturbationEngine) {
-  const map: Record<PerturbationEngine, { label: string; className: string }> = {
-    "pandapower-external": {
-      label: "pandapower",
-      className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
-    },
-    "dc-powerflow": {
-      label: "DC PF",
-      className: "border-sky-500/40 bg-sky-500/10 text-sky-300",
-    },
-    skipped: { label: "skipped", className: "text-muted-foreground" },
-    unknown: { label: "unknown", className: "text-muted-foreground" },
-  };
-  const { label, className } = map[engine];
-  return (
-    <Badge variant="outline" className={`text-[10px] ${className}`}>
-      {label}
-    </Badge>
-  );
-}
+const engineBadge = (engine: Parameters<typeof EngineBadge>[0]["engine"]) => <EngineBadge engine={engine} />;
 
 export function CounterfactualPanel({ runId }: { runId: string }) {
   const listFn = useServerFn(listCounterfactuals);
