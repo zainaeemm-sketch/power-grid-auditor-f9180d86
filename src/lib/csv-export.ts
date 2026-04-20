@@ -1,5 +1,7 @@
 import type { RunDetails, Run, RunEvaluation, RunMetadata, PerturbationTestWithResult } from "@/types/grid-arena";
 import type { BatchRobustnessSummary } from "@/server/perturbation.functions";
+import type { CounterfactualWithResult } from "@/server/counterfactual/types";
+import type { BatchCounterfactualSummary } from "@/server/counterfactual.functions";
 
 function escCsv(val: unknown): string {
   if (val == null) return "";
@@ -182,4 +184,56 @@ export function exportBatchSensitivityCsv(batchId: string, summary: BatchRobustn
     r.failure_reason ?? "",
   ]);
   downloadCsv(toCsvString(headers, rows), `batch_sensitivity_${batchId.slice(0, 8)}.csv`);
+}
+
+export function exportCounterfactualCsv(runId: string, items: CounterfactualWithResult[]) {
+  const headers = [
+    "counterfactual_action_type", "target_index", "counterfactual_value", "description",
+    "baseline_action_type", "baseline_feasibility", "counterfactual_feasibility",
+    "baseline_violations", "counterfactual_violations",
+    "baseline_improvement", "counterfactual_improvement",
+    "violation_difference", "improvement_difference",
+    "optimality_gap", "decision_regret",
+    "feasibility_change", "status", "failure_reason", "execution_time_ms",
+  ];
+  const rows = items.map(({ action, result }) => [
+    action.action_type,
+    action.target_index != null ? String(action.target_index) : "",
+    action.value != null ? String(action.value) : "",
+    action.description ?? "",
+    result?.baseline_action_type ?? "",
+    result?.baseline_feasibility ?? "",
+    result?.counterfactual_feasibility ?? "",
+    result ? String(result.baseline_violations) : "",
+    result ? String(result.counterfactual_violations) : "",
+    result ? String(result.baseline_improvement) : "",
+    result ? String(result.counterfactual_improvement) : "",
+    result ? String(result.violation_difference) : "",
+    result ? String(result.improvement_difference) : "",
+    result ? String(result.optimality_gap) : "",
+    result ? String(result.decision_regret) : "",
+    result?.feasibility_change ?? "",
+    result?.status ?? "",
+    result?.failure_reason ?? "",
+    result ? String(result.execution_time_ms) : "",
+  ]);
+  downloadCsv(toCsvString(headers, rows), `counterfactual_run_${runId.slice(0, 8)}.csv`);
+}
+
+export function exportBatchCounterfactualCsv(batchId: string, summary: BatchCounterfactualSummary) {
+  const headers = [
+    "run_id", "case_name", "agent",
+    "counterfactual_action_type", "description",
+    "baseline_improvement", "counterfactual_improvement",
+    "optimality_gap", "decision_regret",
+    "feasibility_change", "status", "failure_reason",
+  ];
+  const rows = summary.per_action.map((r) => [
+    r.run_id, r.case_name, r.agent,
+    r.counterfactual_action_type, r.description ?? "",
+    String(r.baseline_improvement), String(r.counterfactual_improvement),
+    String(r.optimality_gap), String(r.decision_regret),
+    r.feasibility_change, r.status, r.failure_reason ?? "",
+  ]);
+  downloadCsv(toCsvString(headers, rows), `batch_counterfactual_${batchId.slice(0, 8)}.csv`);
 }

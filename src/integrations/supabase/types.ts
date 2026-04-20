@@ -95,6 +95,105 @@ export type Database = {
         }
         Relationships: []
       }
+      counterfactual_actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          description: string | null
+          id: string
+          run_id: string
+          source: string
+          target_index: number | null
+          value: number | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          run_id: string
+          source?: string
+          target_index?: number | null
+          value?: number | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          run_id?: string
+          source?: string
+          target_index?: number | null
+          value?: number | null
+        }
+        Relationships: []
+      }
+      counterfactual_results: {
+        Row: {
+          baseline_action_type: string | null
+          baseline_feasibility: string
+          baseline_improvement: number
+          baseline_violations: number
+          counterfactual_action_id: string
+          counterfactual_action_type: string
+          counterfactual_feasibility: string
+          counterfactual_improvement: number
+          counterfactual_violations: number
+          created_at: string
+          decision_regret: number
+          execution_time_ms: number
+          failure_reason: string | null
+          feasibility_change: string
+          id: string
+          improvement_difference: number
+          optimality_gap: number
+          status: string
+          violation_difference: number
+        }
+        Insert: {
+          baseline_action_type?: string | null
+          baseline_feasibility?: string
+          baseline_improvement?: number
+          baseline_violations?: number
+          counterfactual_action_id: string
+          counterfactual_action_type: string
+          counterfactual_feasibility?: string
+          counterfactual_improvement?: number
+          counterfactual_violations?: number
+          created_at?: string
+          decision_regret?: number
+          execution_time_ms?: number
+          failure_reason?: string | null
+          feasibility_change?: string
+          id?: string
+          improvement_difference?: number
+          optimality_gap?: number
+          status?: string
+          violation_difference?: number
+        }
+        Update: {
+          baseline_action_type?: string | null
+          baseline_feasibility?: string
+          baseline_improvement?: number
+          baseline_violations?: number
+          counterfactual_action_id?: string
+          counterfactual_action_type?: string
+          counterfactual_feasibility?: string
+          counterfactual_improvement?: number
+          counterfactual_violations?: number
+          created_at?: string
+          decision_regret?: number
+          execution_time_ms?: number
+          failure_reason?: string | null
+          feasibility_change?: string
+          id?: string
+          improvement_difference?: number
+          optimality_gap?: number
+          status?: string
+          violation_difference?: number
+        }
+        Relationships: []
+      }
       decision_traces: {
         Row: {
           created_at: string
