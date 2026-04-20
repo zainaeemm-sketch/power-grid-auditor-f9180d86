@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { getHealthStatus } from "@/server/health.functions";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Small status dot in the header. Polls health every 60s when authenticated.
@@ -19,13 +20,20 @@ export function HealthBadge() {
     let cancelled = false;
     const check = async () => {
       try {
+        // Skip if the session is missing/expired — avoids unhandled 401 Response
+        // from server-fn machinery that can blank the screen.
+        const { data } = await supabase.auth.getSession();
+        if (!data.session?.access_token) {
+          if (!cancelled) setState("unknown");
+          return;
+        }
         const status = await getHealthStatus();
         if (cancelled) return;
         if (status.database === "error") setState("error");
         else if (!status.llmConfigured || status.simulator.state !== "active") setState("warn");
         else setState("ok");
       } catch {
-        if (!cancelled) setState("error");
+        if (!cancelled) setState("unknown");
       }
     };
     check();
