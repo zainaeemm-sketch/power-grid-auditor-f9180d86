@@ -14,6 +14,9 @@ import {
   type BatchCounterfactualSummary,
 } from "@/server/counterfactual.functions";
 import { exportBatchCounterfactualCsv } from "@/lib/csv-export";
+import { classifyOutcome } from "@/lib/counterfactual-status";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, MinusCircle, CheckCircle2 } from "lucide-react";
 
 export function BatchCounterfactualSection({ batchId }: { batchId: string }) {
   const runFn = useServerFn(runBatchCounterfactuals);
