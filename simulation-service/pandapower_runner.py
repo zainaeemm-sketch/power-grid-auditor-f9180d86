@@ -8,40 +8,51 @@ import pandapower as pp
 import pandapower.networks as pn
 
 
-def _make_writable(net) -> None:
-    """Some pandapower/numpy combinations return DataFrames backed by read-only
-    numpy arrays (cached network defs). Power-flow then crashes with
-    'assignment destination is read-only'. Force a deep, writable copy of
-    every DataFrame attribute on the net object."""
-    for attr in dir(net):
-        if attr.startswith("_"):
-            continue
+_NET_DF_ATTRS = (
+    "bus", "load", "sgen", "gen", "ext_grid", "line", "trafo", "trafo3w",
+    "shunt", "impedance", "ward", "xward", "dcline", "switch", "measurement",
+    "storage", "poly_cost", "pwl_cost",
+)
+
+
+def _force_writable_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a DataFrame whose every column is backed by a fresh, writable
+    numpy array. Works even when pd.DataFrame.copy(deep=True) returns views
+    over a cached/frozen backing store (the actual bug in pandapower.networks)."""
+    if df is None or df.empty:
+        return df
+    new_data = {}
+    for col in df.columns:
+        s = df[col]
         try:
-            df = getattr(net, attr)
+            arr = np.array(s.values, copy=True)
+        except Exception:
+            arr = list(s.values)
+        new_data[col] = arr
+    new_df = pd.DataFrame(new_data, index=df.index.copy())
+    return new_df
+
+
+def _make_writable(net) -> None:
+    """Force every known pandapower DataFrame attribute on `net` to use
+    fresh, writable numpy-backed columns. Previous implementation used
+    df.copy(deep=True), which can still return views on read-only caches
+    (the root cause of 'assignment destination is read-only')."""
+    for attr in _NET_DF_ATTRS:
+        try:
+            df = getattr(net, attr, None)
         except Exception:
             continue
         if isinstance(df, pd.DataFrame) and not df.empty:
             try:
-                # Full deep copy guarantees writable backing arrays
-                new_df = df.copy(deep=True)
-                for col in new_df.columns:
-                    try:
-                        arr = new_df[col].values
-                        if isinstance(arr, np.ndarray) and not arr.flags.writeable:
-                            new_df[col] = arr.copy()
-                    except Exception:
-                        pass
-                try:
-                    setattr(net, attr, new_df)
-                except Exception:
-                    # Some attrs are read-only properties; in-place fallback
-                    for col in df.columns:
-                        try:
-                            df[col] = df[col].values.copy()
-                        except Exception:
-                            pass
+                setattr(net, attr, _force_writable_df(df))
             except Exception:
-                pass
+                # Some pandapower versions expose these as properties; mutate in place
+                try:
+                    for col in df.columns:
+                        df[col] = np.array(df[col].values, copy=True)
+                except Exception:
+                    pass
 
 
 def _load_case(name: str):
