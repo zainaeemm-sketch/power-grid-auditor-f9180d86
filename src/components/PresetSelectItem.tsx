@@ -1,4 +1,4 @@
-import { SelectItem } from "@/components/ui/select";
+import { SelectItem, SelectGroup, SelectLabel, SelectSeparator } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Zap } from "lucide-react";
 
@@ -38,3 +38,35 @@ export function PresetSelectItem({ id, name }: Props) {
     </SelectItem>
   );
 }
+
+interface PresetLike {
+  id: string;
+  name: string;
+}
+
+export function PresetGroupedList({ presets }: { presets: PresetLike[] }) {
+  const builtIn = presets.filter((p) => p.name.startsWith("[Stressed] "));
+  const custom = presets.filter((p) => !p.name.startsWith("[Stressed] "));
+  return (
+    <>
+      {builtIn.length > 0 && (
+        <SelectGroup>
+          <SelectLabel>Built-in</SelectLabel>
+          {builtIn.map((p) => (
+            <PresetSelectItem key={p.id} id={p.id} name={p.name} />
+          ))}
+        </SelectGroup>
+      )}
+      {builtIn.length > 0 && custom.length > 0 && <SelectSeparator />}
+      {custom.length > 0 && (
+        <SelectGroup>
+          <SelectLabel>Your presets</SelectLabel>
+          {custom.map((p) => (
+            <PresetSelectItem key={p.id} id={p.id} name={p.name} />
+          ))}
+        </SelectGroup>
+      )}
+    </>
+  );
+}
+

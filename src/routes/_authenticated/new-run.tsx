@@ -12,7 +12,7 @@ import { useServerFn } from "@tanstack/react-start";
 import type { ExperimentPreset, GroundTruthScenarioListItem } from "@/types/grid-arena";
 import { Play } from "lucide-react";
 import { Zap } from "lucide-react";
-import { PresetSelectItem } from "@/components/PresetSelectItem";
+import { PresetSelectItem, PresetGroupedList } from "@/components/PresetSelectItem";
 
 type StressedQuickPick = {
   id: string;
@@ -225,31 +225,7 @@ function NewRunPage() {
                 <SelectTrigger><SelectValue placeholder="Select a preset..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No preset</SelectItem>
-                  {(() => {
-                    const builtIn = presets.filter((p) => p.name.startsWith("[Stressed] "));
-                    const custom = presets.filter((p) => !p.name.startsWith("[Stressed] "));
-                    return (
-                      <>
-                        {builtIn.length > 0 && (
-                          <SelectGroup>
-                            <SelectLabel>Built-in</SelectLabel>
-                            {builtIn.map((p) => (
-                              <PresetSelectItem key={p.id} id={p.id} name={p.name} />
-                            ))}
-                          </SelectGroup>
-                        )}
-                        {builtIn.length > 0 && custom.length > 0 && <SelectSeparator />}
-                        {custom.length > 0 && (
-                          <SelectGroup>
-                            <SelectLabel>Your presets</SelectLabel>
-                            {custom.map((p) => (
-                              <PresetSelectItem key={p.id} id={p.id} name={p.name} />
-                            ))}
-                          </SelectGroup>
-                        )}
-                      </>
-                    );
-                  })()}
+                  <PresetGroupedList presets={presets} />
                 </SelectContent>
               </Select>
             </div>

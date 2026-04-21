@@ -11,7 +11,7 @@ import { listPresets } from "@/server/runs.functions";
 import type { ExperimentPreset } from "@/types/grid-arena";
 import { toast } from "sonner";
 import { Zap } from "lucide-react";
-import { PresetSelectItem } from "@/components/PresetSelectItem";
+import { PresetSelectItem, PresetGroupedList } from "@/components/PresetSelectItem";
 
 export const Route = createFileRoute("/_authenticated/batches/new")({
   head: () => ({
@@ -148,31 +148,7 @@ function NewBatchPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No preset</SelectItem>
-                {(() => {
-                  const builtIn = presets.filter((p) => p.name.startsWith("[Stressed] "));
-                  const custom = presets.filter((p) => !p.name.startsWith("[Stressed] "));
-                  return (
-                    <>
-                      {builtIn.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>Built-in</SelectLabel>
-                          {builtIn.map((p) => (
-                            <PresetSelectItem key={p.id} id={p.id} name={p.name} />
-                          ))}
-                        </SelectGroup>
-                      )}
-                      {builtIn.length > 0 && custom.length > 0 && <SelectSeparator />}
-                      {custom.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>Your presets</SelectLabel>
-                          {custom.map((p) => (
-                            <PresetSelectItem key={p.id} id={p.id} name={p.name} />
-                          ))}
-                        </SelectGroup>
-                      )}
-                    </>
-                  );
-                })()}
+                <PresetGroupedList presets={presets} />
               </SelectContent>
             </Select>
           </div>
