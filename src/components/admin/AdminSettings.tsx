@@ -52,6 +52,7 @@ function AiModelCard() {
   const updatePrefs = useServerFn(updateMyPreferences);
   const qc = useQueryClient();
   const [model, setModel] = useState<string>("__default__");
+  const [autoJudge, setAutoJudge] = useState<boolean>(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["my-preferences"],
@@ -59,13 +60,17 @@ function AiModelCard() {
   });
 
   useEffect(() => {
-    if (data) setModel(data.openai_model ?? "__default__");
+    if (data) {
+      setModel(data.openai_model ?? "__default__");
+      setAutoJudge(Boolean(data.auto_judge_enabled));
+    }
   }, [data]);
 
   const saveMut = useMutation({
-    mutationFn: (vars: { openai_model: string | null }) => updatePrefs({ data: vars }),
+    mutationFn: (vars: { openai_model?: string | null; auto_judge_enabled?: boolean }) =>
+      updatePrefs({ data: vars }),
     onSuccess: () => {
-      toast.success("AI model preference saved");
+      toast.success("Preferences saved");
       qc.invalidateQueries({ queryKey: ["my-preferences"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to save preference"),
@@ -79,7 +84,7 @@ function AiModelCard() {
           AI explanation model
         </CardTitle>
         <CardDescription>
-          Choose the OpenAI model used to generate decision-trace explanations. Stored per-user.
+          Choose the OpenAI model used to generate decision-trace explanations and judge runs. Stored per-user.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -116,6 +121,27 @@ function AiModelCard() {
           When set to <strong className="text-foreground/80">Use server default</strong>, the
           system falls back to the server's configured default model.
         </p>
+
+        <div className="flex items-start justify-between gap-4 rounded-md border border-border/60 bg-muted/30 p-4">
+          <div className="space-y-1">
+            <Label htmlFor="auto-judge" className="text-sm font-medium">
+              Auto-judge new runs
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              When enabled, every newly evaluated run is automatically cross-checked by an
+              independent OpenAI judge. Costs additional tokens — opt in only.
+            </p>
+          </div>
+          <Switch
+            id="auto-judge"
+            checked={autoJudge}
+            disabled={isLoading || saveMut.isPending}
+            onCheckedChange={(v) => {
+              setAutoJudge(v);
+              saveMut.mutate({ auto_judge_enabled: v });
+            }}
+          />
+        </div>
       </CardContent>
     </Card>
   );
