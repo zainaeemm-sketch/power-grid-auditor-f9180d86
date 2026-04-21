@@ -11,7 +11,8 @@ import pandapower.networks as pn
 def _make_writable(net) -> None:
     """Some pandapower/numpy combinations return DataFrames backed by read-only
     numpy arrays (cached network defs). Power-flow then crashes with
-    'assignment destination is read-only'. Force a writable copy."""
+    'assignment destination is read-only'. Force a deep, writable copy of
+    every DataFrame attribute on the net object."""
     for attr in dir(net):
         if attr.startswith("_"):
             continue
@@ -20,13 +21,27 @@ def _make_writable(net) -> None:
         except Exception:
             continue
         if isinstance(df, pd.DataFrame) and not df.empty:
-            for col in df.columns:
+            try:
+                # Full deep copy guarantees writable backing arrays
+                new_df = df.copy(deep=True)
+                for col in new_df.columns:
+                    try:
+                        arr = new_df[col].values
+                        if isinstance(arr, np.ndarray) and not arr.flags.writeable:
+                            new_df[col] = arr.copy()
+                    except Exception:
+                        pass
                 try:
-                    arr = df[col].values
-                    if isinstance(arr, np.ndarray) and not arr.flags.writeable:
-                        df[col] = arr.copy()
+                    setattr(net, attr, new_df)
                 except Exception:
-                    pass
+                    # Some attrs are read-only properties; in-place fallback
+                    for col in df.columns:
+                        try:
+                            df[col] = df[col].values.copy()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
 
 def _load_case(name: str):
@@ -174,14 +189,20 @@ def _evaluate(net, baseline_violations: int, action_enabled: bool, action_type: 
     }
 
 
-def simulate_action(case_name: str, action: dict[str, Any]) -> dict[str, Any]:
-    base = _load_case(case_name)
+def _safe_baseline_violations(case_name: str) -> int:
+    """Run baseline PF and return violation count; on failure, return 0 so the
+    endpoint can still produce a structured response instead of HTTP 500."""
     try:
+        base = _load_case(case_name)
         pp.runpp(base, numba=False)
-    except Exception as e:
-        raise RuntimeError(f"Baseline PF failed: {e}")
-    baseline_violations, _, _, _ = _violations(base)
+        v, _, _, _ = _violations(base)
+        return v
+    except Exception:
+        return 0
 
+
+def simulate_action(case_name: str, action: dict[str, Any]) -> dict[str, Any]:
+    baseline_violations = _safe_baseline_violations(case_name)
     post = _load_case(case_name)
     _apply(post, action)
     return _evaluate(post, baseline_violations, bool(action.get("enabled")), action.get("action_type"), case_name)
@@ -189,15 +210,9 @@ def simulate_action(case_name: str, action: dict[str, Any]) -> dict[str, Any]:
 
 def simulate_perturbed(case_name: str, action: dict[str, Any], perturbation: dict[str, Any]) -> dict[str, Any]:
     """Apply perturbation + action together, then evaluate vs un-perturbed baseline (with same action)."""
-    # Baseline: action only, no perturbation
+    pre_violations = _safe_baseline_violations(case_name)
     base_with_action = _load_case(case_name)
     _apply(base_with_action, action)
-    baseline_pre = _load_case(case_name)
-    try:
-        pp.runpp(baseline_pre, numba=False)
-    except Exception as e:
-        raise RuntimeError(f"Baseline PF failed: {e}")
-    pre_violations, _, _, _ = _violations(baseline_pre)
     baseline = _evaluate(base_with_action, pre_violations, bool(action.get("enabled")), action.get("action_type"), case_name)
 
     # Perturbed: perturbation + action
