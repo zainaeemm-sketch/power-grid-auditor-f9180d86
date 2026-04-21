@@ -107,7 +107,13 @@ export function exportRunCsv(details: RunDetails) {
 }
 
 export function exportBatchCsv(
-  runs: Array<{ run: Run; evaluation: RunEvaluation | null; metadata?: RunMetadata | null; recommendation_text?: string }>,
+  runs: Array<{
+    run: Run;
+    evaluation: RunEvaluation | null;
+    metadata?: RunMetadata | null;
+    recommendation_text?: string;
+    judgment?: RunLlmJudgment | null;
+  }>,
   batchId: string,
 ) {
   const headers = [
@@ -120,9 +126,13 @@ export function exportBatchCsv(
     "evaluation_logic_version", "benchmark_case_version", "execution_timestamp",
     "parent_run_id",
     "ground_truth_scenario_id", "action_match", "feasibility_match", "optimality_gap",
+    "judge_verdict", "judge_confidence", "judge_reasoning_quality",
+    "judge_action_alignment", "judge_critique", "judge_disagreement_reason",
+    "judge_model", "judge_provider", "judge_error", "cross_check_status",
   ];
   const rows = runs.map((r) => {
     const m = (r.metadata ?? {}) as any;
+    const j = (r.judgment ?? null) as RunLlmJudgment | null;
     return [
       r.run.id,
       r.run.agent,
@@ -152,6 +162,16 @@ export function exportBatchCsv(
       (r.evaluation as any)?.action_match ?? "",
       (r.evaluation as any)?.feasibility_match ?? "",
       (r.evaluation as any)?.optimality_gap != null ? String((r.evaluation as any).optimality_gap) : "",
+      j?.verdict ?? "",
+      j?.confidence ?? "",
+      j?.reasoning_quality ?? "",
+      j?.action_alignment ?? "",
+      j?.critique ?? "",
+      j?.disagreement_reason ?? "",
+      j?.model ?? "",
+      j?.provider ?? "",
+      j?.error ?? "",
+      deriveCrossCheck(r.evaluation, j),
     ];
   });
   downloadCsv(toCsvString(headers, rows), `batch_${batchId.slice(0, 8)}_analytics.csv`);
