@@ -80,6 +80,7 @@ function BatchReportPage() {
     evaluation: r.evaluation,
     metadata: r.metadata ?? null,
     recommendation_text: undefined,
+    judgment: r.judgment ?? null,
   }));
 
   return (

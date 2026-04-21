@@ -357,6 +357,7 @@ function BatchDetailPage() {
       evaluation: r.evaluation,
       metadata: r.metadata ?? null,
       recommendation_text: "",
+      judgment: r.judgment ?? null,
     }));
     exportBatchCsv(exportRuns, batch.id);
   };
