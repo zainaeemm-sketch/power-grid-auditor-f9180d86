@@ -11,6 +11,61 @@ import { listScenarios } from "@/server/ground-truth.functions";
 import { useServerFn } from "@tanstack/react-start";
 import type { ExperimentPreset, GroundTruthScenarioListItem } from "@/types/grid-arena";
 import { Play } from "lucide-react";
+import { Zap } from "lucide-react";
+
+type StressedQuickPick = {
+  id: string;
+  label: string;
+  description: string;
+  title: string;
+  task: string;
+  case_name: string;
+  evaluation_mode: "rule_based" | "simulation" | "auto";
+};
+
+const STRESSED_QUICK_PICKS: StressedQuickPick[] = [
+  {
+    id: "case30-overload",
+    label: "case30 — branch overload",
+    description:
+      "case30 with elevated demand on branch 6→8 (rated 16 MW). Baseline overloads expected; agent must redispatch or shed load.",
+    title: "case30 branch overload — corrective dispatch",
+    task:
+      "case30 is operating with branch 6→8 (rated 16 MW) overloaded by ~25% under current dispatch. " +
+      "Propose a single corrective action — either redispatch a generator (set_generator_p_mw on gen index 1 or 2), " +
+      "scale all loads by 0.90–0.95, or open a parallel branch — to bring all line loadings ≤ 100% of rating.",
+    case_name: "case30",
+    evaluation_mode: "simulation",
+  },
+  {
+    id: "case14-line-outage",
+    label: "case14 — line outage N-1",
+    description:
+      "case14 with line 6 (bus 3→4) tripped. Forces rerouting through weaker parallel paths; expect overloads.",
+    title: "case14 line outage — N-1 contingency",
+    task:
+      "case14 has just lost line index 6 (bus 3→4) due to an N-1 contingency. The system is post-trip and " +
+      "several remaining branches are at or above their thermal rating. Propose a single recovery action — " +
+      "scale_all_loads (0.85–0.95), set_generator_p_mw on gens 0 or 1, or further selective line_outage — " +
+      "to restore feasibility (all branches ≤ 100% rated).",
+    case_name: "case14",
+    evaluation_mode: "simulation",
+  },
+  {
+    id: "case30-load-spike",
+    label: "case30 — peak demand spike",
+    description:
+      "case30 under a +15% peak load spike across all buses. Generator P_max limits become binding.",
+    title: "case30 peak load spike — generation scarcity",
+    task:
+      "case30 is experiencing a system-wide demand spike (+15% on all loads). Several generators are " +
+      "approaching or exceeding their P_max limits and one branch is overloaded. Propose a single action — " +
+      "scale_all_loads (0.85–0.92) to shed demand, or set_generator_p_mw to redispatch within limits — " +
+      "to eliminate all violations.",
+    case_name: "case30",
+    evaluation_mode: "simulation",
+  },
+];
 
 export const Route = createFileRoute("/_authenticated/new-run")({
   head: () => ({
@@ -45,6 +100,18 @@ function NewRunPage() {
   const [evaluationMode, setEvaluationMode] = useState<"rule_based" | "simulation" | "auto">("rule_based");
   const [groundTruthId, setGroundTruthId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+
+  const applyStressedQuickPick = (pick: StressedQuickPick) => {
+    setTitle(pick.title);
+    setTask(pick.task);
+    setCaseName(pick.case_name);
+    setEvaluationMode(pick.evaluation_mode);
+    if (!researchQuestion) {
+      setResearchQuestion(
+        "Does the agent select an action that resolves the seeded violations without introducing new ones?",
+      );
+    }
+  };
 
   const handlePresetChange = (value: string) => {
     setPresetId(value === "none" ? "" : value);
@@ -90,6 +157,34 @@ function NewRunPage() {
       </h1>
 
       <form onSubmit={handleSubmit}>
+        <Card className="mb-4 border-amber-500/30 bg-amber-500/5 animate-fade-up" style={{ animationDelay: "50ms" }}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <Zap className="h-4 w-4 text-amber-400" />
+              Stressed scenarios — quick-pick
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Pre-fill the form with a case + contingency known to produce non-zero baseline violations,
+              so counterfactual graphs and optimality-gap metrics show real signal.
+            </p>
+            <div className="grid gap-2 md:grid-cols-3">
+              {STRESSED_QUICK_PICKS.map((pick) => (
+                <button
+                  key={pick.id}
+                  type="button"
+                  onClick={() => applyStressedQuickPick(pick)}
+                  className="rounded-md border border-border/60 bg-background/50 p-3 text-left text-xs transition hover:border-amber-400/60 hover:bg-amber-500/10"
+                >
+                  <div className="mb-1 font-semibold text-foreground">{pick.label}</div>
+                  <div className="text-muted-foreground">{pick.description}</div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-border/40 bg-card/60 card-glow animate-fade-up" style={{ animationDelay: "100ms" }}>
           <CardHeader>
             <CardTitle className="text-base font-bold">Run Configuration</CardTitle>
