@@ -68,10 +68,11 @@ export const getRunDetails = createServerFn({ method: "GET" })
       supabase.from("run_prompt_logs").select("*").eq("run_id", runId).maybeSingle(),
     ]);
 
-    const [recRes, parseRes, evalRes] = await Promise.all([
+    const [recRes, parseRes, evalRes, judgeRes] = await Promise.all([
       (supabase as any).from("run_recommendations").select("*").eq("run_id", runId).maybeSingle(),
       (supabase as any).from("run_parse_results").select("*").eq("run_id", runId).maybeSingle(),
       (supabase as any).from("run_evaluations").select("*").eq("run_id", runId).maybeSingle(),
+      (supabase as any).from("run_llm_judgments").select("*").eq("run_id", runId).maybeSingle(),
     ]);
 
     // Ground truth (optional)
@@ -93,6 +94,7 @@ export const getRunDetails = createServerFn({ method: "GET" })
       parseResult: (parseRes.data as RunParseResult) ?? null,
       evaluation: (evalRes.data as import("@/types/grid-arena").RunEvaluation) ?? null,
       groundTruth: groundTruth as any,
+      judgment: (judgeRes.data as any) ?? null,
     } as RunDetails;
   });
 

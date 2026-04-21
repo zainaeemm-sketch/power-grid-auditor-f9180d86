@@ -110,6 +110,7 @@ export interface RunDetails {
   parseResult: RunParseResult | null;
   evaluation: RunEvaluation | null;
   groundTruth?: GroundTruthScenarioWithActions | null;
+  judgment?: import("@/server/judge.functions").RunLlmJudgment | null;
 }
 
 export interface RunAction {
@@ -147,6 +148,7 @@ export interface BatchRunWithEvaluation {
   run: Run;
   evaluation: RunEvaluation | null;
   metadata?: RunMetadata | null;
+  judgment?: import("@/server/judge.functions").RunLlmJudgment | null;
 }
 
 export interface BatchDetails {

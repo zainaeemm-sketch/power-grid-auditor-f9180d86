@@ -2,6 +2,24 @@ import type { RunDetails, Run, RunEvaluation, RunMetadata, PerturbationTestWithR
 import type { BatchRobustnessSummary } from "@/server/perturbation.functions";
 import type { CounterfactualWithResult } from "@/server/counterfactual/types";
 import type { BatchCounterfactualSummary } from "@/server/counterfactual.functions";
+import type { RunLlmJudgment } from "@/server/judge.functions";
+
+/**
+ * Derive simulator vs LLM-judge cross-check status.
+ * Returns "" if either side is missing.
+ */
+function deriveCrossCheck(
+  evaluation: RunEvaluation | null | undefined,
+  judgment: RunLlmJudgment | null | undefined,
+): string {
+  if (!evaluation || !judgment || !judgment.verdict) return "";
+  const feasible = evaluation.feasibility === "feasible";
+  const agree = judgment.verdict === "agree";
+  if (feasible && agree) return "confirmed";
+  if (feasible && !agree) return "simulator_only";
+  if (!feasible && agree) return "judge_only";
+  return "both_reject";
+}
 
 function escCsv(val: unknown): string {
   if (val == null) return "";
@@ -26,8 +44,9 @@ export function downloadCsv(content: string, filename: string) {
 }
 
 export function exportRunCsv(details: RunDetails) {
-  const { run, metadata, recommendation, parseResult, evaluation } = details;
+  const { run, metadata, recommendation, parseResult, evaluation, judgment } = details;
   const m = (metadata ?? {}) as any;
+  const j = (judgment ?? null) as RunLlmJudgment | null;
   const headers = ["field", "value"];
   const rows: string[][] = [
     ["run_id", run.id],
@@ -72,13 +91,29 @@ export function exportRunCsv(details: RunDetails) {
     ["action_match", (evaluation as any)?.action_match ?? ""],
     ["feasibility_match", (evaluation as any)?.feasibility_match ?? ""],
     ["optimality_gap", (evaluation as any)?.optimality_gap != null ? String((evaluation as any).optimality_gap) : ""],
+    ["judge_verdict", j?.verdict ?? ""],
+    ["judge_confidence", j?.confidence ?? ""],
+    ["judge_reasoning_quality", j?.reasoning_quality ?? ""],
+    ["judge_action_alignment", j?.action_alignment ?? ""],
+    ["judge_critique", j?.critique ?? ""],
+    ["judge_disagreement_reason", j?.disagreement_reason ?? ""],
+    ["judge_model", j?.model ?? ""],
+    ["judge_provider", j?.provider ?? ""],
+    ["judge_error", j?.error ?? ""],
+    ["cross_check_status", deriveCrossCheck(evaluation, j)],
   ];
   const csv = toCsvString(headers, rows);
   downloadCsv(csv, `run_${run.id.slice(0, 8)}_summary.csv`);
 }
 
 export function exportBatchCsv(
-  runs: Array<{ run: Run; evaluation: RunEvaluation | null; metadata?: RunMetadata | null; recommendation_text?: string }>,
+  runs: Array<{
+    run: Run;
+    evaluation: RunEvaluation | null;
+    metadata?: RunMetadata | null;
+    recommendation_text?: string;
+    judgment?: RunLlmJudgment | null;
+  }>,
   batchId: string,
 ) {
   const headers = [
@@ -91,9 +126,13 @@ export function exportBatchCsv(
     "evaluation_logic_version", "benchmark_case_version", "execution_timestamp",
     "parent_run_id",
     "ground_truth_scenario_id", "action_match", "feasibility_match", "optimality_gap",
+    "judge_verdict", "judge_confidence", "judge_reasoning_quality",
+    "judge_action_alignment", "judge_critique", "judge_disagreement_reason",
+    "judge_model", "judge_provider", "judge_error", "cross_check_status",
   ];
   const rows = runs.map((r) => {
     const m = (r.metadata ?? {}) as any;
+    const j = (r.judgment ?? null) as RunLlmJudgment | null;
     return [
       r.run.id,
       r.run.agent,
@@ -123,6 +162,16 @@ export function exportBatchCsv(
       (r.evaluation as any)?.action_match ?? "",
       (r.evaluation as any)?.feasibility_match ?? "",
       (r.evaluation as any)?.optimality_gap != null ? String((r.evaluation as any).optimality_gap) : "",
+      j?.verdict ?? "",
+      j?.confidence ?? "",
+      j?.reasoning_quality ?? "",
+      j?.action_alignment ?? "",
+      j?.critique ?? "",
+      j?.disagreement_reason ?? "",
+      j?.model ?? "",
+      j?.provider ?? "",
+      j?.error ?? "",
+      deriveCrossCheck(r.evaluation, j),
     ];
   });
   downloadCsv(toCsvString(headers, rows), `batch_${batchId.slice(0, 8)}_analytics.csv`);
