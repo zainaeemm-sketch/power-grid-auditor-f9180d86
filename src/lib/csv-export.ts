@@ -2,6 +2,24 @@ import type { RunDetails, Run, RunEvaluation, RunMetadata, PerturbationTestWithR
 import type { BatchRobustnessSummary } from "@/server/perturbation.functions";
 import type { CounterfactualWithResult } from "@/server/counterfactual/types";
 import type { BatchCounterfactualSummary } from "@/server/counterfactual.functions";
+import type { RunLlmJudgment } from "@/server/judge.functions";
+
+/**
+ * Derive simulator vs LLM-judge cross-check status.
+ * Returns "" if either side is missing.
+ */
+function deriveCrossCheck(
+  evaluation: RunEvaluation | null | undefined,
+  judgment: RunLlmJudgment | null | undefined,
+): string {
+  if (!evaluation || !judgment || !judgment.verdict) return "";
+  const feasible = evaluation.feasibility === "feasible";
+  const agree = judgment.verdict === "agree";
+  if (feasible && agree) return "confirmed";
+  if (feasible && !agree) return "simulator_only";
+  if (!feasible && agree) return "judge_only";
+  return "both_reject";
+}
 
 function escCsv(val: unknown): string {
   if (val == null) return "";
