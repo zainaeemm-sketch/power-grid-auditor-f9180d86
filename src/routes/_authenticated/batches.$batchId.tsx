@@ -73,6 +73,7 @@ function BatchDetailPage() {
   const [executing, setExecuting] = useState(false);
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null);
   const [retryingAll, setRetryingAll] = useState(false);
+  const [judgingAll, setJudgingAll] = useState(false);
   const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
   const [notifOn, setNotifOn] = useState(() => isBrowserNotifEnabled());
   const [executionProgress, setExecutionProgress] = useState<{
@@ -252,6 +253,43 @@ function BatchDetailPage() {
     notifyBatchComplete(succeeded, failed);
     router.invalidate();
   }, [executionProgress, router]);
+
+  // Bulk-judge: judge any completed run that has no judgment (or only an errored one).
+  const unjudgedRuns = useMemo(
+    () =>
+      runs.filter(
+        (r) =>
+          r.run.status === "completed" &&
+          !!r.evaluation &&
+          (!r.judgment || (!r.judgment.verdict && !!r.judgment.error)),
+      ),
+    [runs],
+  );
+
+  const handleJudgeUnjudged = useCallback(async () => {
+    if (unjudgedRuns.length === 0) {
+      toast.info("No unjudged runs in this batch");
+      return;
+    }
+    setJudgingAll(true);
+    let succeeded = 0;
+    let failed = 0;
+    const toastId = toast.loading(`Judging 0/${unjudgedRuns.length}…`);
+    for (let i = 0; i < unjudgedRuns.length; i++) {
+      const r = unjudgedRuns[i];
+      try {
+        const res = await judgeRun({ data: { runId: r.run.id } });
+        if (res.error) failed++;
+        else succeeded++;
+      } catch {
+        failed++;
+      }
+      toast.loading(`Judging ${i + 1}/${unjudgedRuns.length}…`, { id: toastId });
+    }
+    toast.success(`Judging complete: ${succeeded} succeeded, ${failed} failed`, { id: toastId });
+    setJudgingAll(false);
+    router.invalidate();
+  }, [unjudgedRuns, router]);
 
   // Keyboard shortcuts (use refs to avoid forward-reference issues with export handlers)
   const handlersRef = useRef<{ exportBatch?: () => void; exportComparison?: () => void }>({});
