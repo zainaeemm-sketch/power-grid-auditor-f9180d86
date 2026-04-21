@@ -326,6 +326,20 @@ function RunsPage() {
             <SelectItem value={GT_NONE}>Without ground truth</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={ccFilter} onValueChange={setCcFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Cross-check" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={CC_ALL}>All cross-checks</SelectItem>
+            <SelectItem value={CC_DISPUTED}>Disputed (sim ≠ judge)</SelectItem>
+            <SelectItem value={CC_CONFIRMED}>Confirmed</SelectItem>
+            <SelectItem value={CC_BOTH_REJECT}>Both reject</SelectItem>
+            <SelectItem value={CC_SIM_ONLY}>Simulator only</SelectItem>
+            <SelectItem value={CC_JUDGE_ONLY}>Judge only</SelectItem>
+            <SelectItem value={CC_NO_JUDGE}>Not judged yet</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Sort by" />
