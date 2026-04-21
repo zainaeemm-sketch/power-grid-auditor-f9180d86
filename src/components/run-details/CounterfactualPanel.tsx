@@ -100,12 +100,17 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
     .filter((i) => i.result?.status === "success")
     .map((i) => ({
       name: i.action.description ?? i.action.action_type,
-      cf: i.result?.counterfactual_improvement ?? 0,
-      base: i.result?.baseline_improvement ?? 0,
+      violations: i.result?.counterfactual_violations ?? 0,
+      gap: Number(i.result?.optimality_gap ?? 0),
+      improvement: Number(i.result?.counterfactual_improvement ?? 0),
     }));
+  const chartHasSignal = chartData.some(
+    (d) => d.violations > 0 || d.gap > 0 || d.improvement > 0,
+  );
   const chartConfig: ChartConfig = {
-    cf: { label: "Counterfactual", color: "hsl(150 70% 50%)" },
-    base: { label: "Baseline", color: "hsl(220 70% 60%)" },
+    violations: { label: "Post-action violations", color: "hsl(0 75% 60%)" },
+    gap: { label: "Optimality gap", color: "hsl(40 90% 55%)" },
+    improvement: { label: "Improvement", color: "hsl(150 70% 50%)" },
   };
 
   return (
@@ -167,18 +172,30 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
             {chartData.length > 0 && (
               <div className="mb-4">
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Counterfactual vs baseline improvement
+                  Counterfactual outcomes per action (violations, optimality gap, improvement)
                 </p>
-                <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" fontSize={10} interval={0} angle={-15} textAnchor="end" height={50} />
-                    <YAxis fontSize={11} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="base" fill="hsl(220 70% 60%)" />
-                    <Bar dataKey="cf" fill="hsl(150 70% 50%)" />
-                  </BarChart>
-                </ChartContainer>
+                {chartHasSignal ? (
+                  <ChartContainer config={chartConfig} className="h-[220px] w-full">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" fontSize={10} interval={0} angle={-15} textAnchor="end" height={50} />
+                      <YAxis fontSize={11} allowDecimals={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="violations" fill="hsl(0 75% 60%)" />
+                      <Bar dataKey="gap" fill="hsl(40 90% 55%)" />
+                      <Bar dataKey="improvement" fill="hsl(150 70% 50%)" />
+                    </BarChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="rounded-md border border-dashed border-border/60 bg-muted/20 p-4 text-xs text-muted-foreground">
+                    All counterfactuals returned zero violations and zero improvement for this case.
+                    The baseline scenario is unstressed under the active simulator
+                    {items[0]?.result?.simulation_engine ? ` (${items[0].result.simulation_engine})` : ""}
+                    {" "}— there is nothing for any alternative action to resolve. Try a stressed
+                    case (e.g. <code>case30</code> with a contingency) or configure the external
+                    pandapower service so AC power flow can surface real violations.
+                  </div>
+                )}
               </div>
             )}
 
