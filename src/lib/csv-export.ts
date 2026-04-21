@@ -44,8 +44,9 @@ export function downloadCsv(content: string, filename: string) {
 }
 
 export function exportRunCsv(details: RunDetails) {
-  const { run, metadata, recommendation, parseResult, evaluation } = details;
+  const { run, metadata, recommendation, parseResult, evaluation, judgment } = details;
   const m = (metadata ?? {}) as any;
+  const j = (judgment ?? null) as RunLlmJudgment | null;
   const headers = ["field", "value"];
   const rows: string[][] = [
     ["run_id", run.id],
@@ -90,6 +91,16 @@ export function exportRunCsv(details: RunDetails) {
     ["action_match", (evaluation as any)?.action_match ?? ""],
     ["feasibility_match", (evaluation as any)?.feasibility_match ?? ""],
     ["optimality_gap", (evaluation as any)?.optimality_gap != null ? String((evaluation as any).optimality_gap) : ""],
+    ["judge_verdict", j?.verdict ?? ""],
+    ["judge_confidence", j?.confidence ?? ""],
+    ["judge_reasoning_quality", j?.reasoning_quality ?? ""],
+    ["judge_action_alignment", j?.action_alignment ?? ""],
+    ["judge_critique", j?.critique ?? ""],
+    ["judge_disagreement_reason", j?.disagreement_reason ?? ""],
+    ["judge_model", j?.model ?? ""],
+    ["judge_provider", j?.provider ?? ""],
+    ["judge_error", j?.error ?? ""],
+    ["cross_check_status", deriveCrossCheck(evaluation, j)],
   ];
   const csv = toCsvString(headers, rows);
   downloadCsv(csv, `run_${run.id.slice(0, 8)}_summary.csv`);
