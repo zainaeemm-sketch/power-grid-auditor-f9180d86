@@ -7,6 +7,8 @@ export type RunListItem = Run & {
   action_match: RunEvaluation["action_match"] | null;
   optimality_gap: number | null;
   evaluation_against_ground_truth: boolean | null;
+  feasibility: RunEvaluation["feasibility"] | null;
+  judge_verdict: string | null;
 };
 
 export const PARSER_VERSION = "v1";
@@ -17,18 +19,23 @@ export const listRuns = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<{ runs: RunListItem[] }> => {
     const { data, error } = await context.supabase
       .from("runs")
-      .select("*, run_evaluations(action_match, optimality_gap, evaluation_against_ground_truth)")
+      .select(
+        "*, run_evaluations(action_match, optimality_gap, evaluation_against_ground_truth, feasibility), run_llm_judgments(verdict)",
+      )
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(`Failed to fetch runs: ${error.message}`);
     const runs: RunListItem[] = (data ?? []).map((r: any) => {
       const ev = Array.isArray(r.run_evaluations) ? r.run_evaluations[0] : r.run_evaluations;
-      const { run_evaluations, ...rest } = r;
+      const jg = Array.isArray(r.run_llm_judgments) ? r.run_llm_judgments[0] : r.run_llm_judgments;
+      const { run_evaluations, run_llm_judgments, ...rest } = r;
       return {
         ...rest,
         action_match: ev?.action_match ?? null,
         optimality_gap: ev?.optimality_gap ?? null,
         evaluation_against_ground_truth: ev?.evaluation_against_ground_truth ?? null,
+        feasibility: ev?.feasibility ?? null,
+        judge_verdict: jg?.verdict ?? null,
       };
     });
     return { runs };

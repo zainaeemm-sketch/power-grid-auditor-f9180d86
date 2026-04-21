@@ -57,6 +57,24 @@ const GT_ALL = "all";
 const GT_ONLY = "linked";
 const GT_NONE = "none";
 
+const CC_ALL = "all";
+const CC_DISPUTED = "disputed";
+const CC_CONFIRMED = "confirmed";
+const CC_BOTH_REJECT = "both_reject";
+const CC_SIM_ONLY = "simulator_only";
+const CC_JUDGE_ONLY = "judge_only";
+const CC_NO_JUDGE = "no_judgment";
+
+function deriveCrossCheck(feasibility: string | null, verdict: string | null): string | null {
+  if (!feasibility || !verdict) return null;
+  const feasible = feasibility === "feasible";
+  const agree = verdict === "agree";
+  if (feasible && agree) return "confirmed";
+  if (feasible && !agree) return "simulator_only";
+  if (!feasible && agree) return "judge_only";
+  return "both_reject";
+}
+
 function actionMatchVariant(m: string | null | undefined) {
   if (m === "exact") return "default" as const;
   if (m === "partial") return "secondary" as const;
@@ -81,6 +99,7 @@ function RunsPage() {
   const [caseFilter, setCaseFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [gtFilter, setGtFilter] = useState(GT_ALL);
+  const [ccFilter, setCcFilter] = useState(CC_ALL);
   const [sortBy, setSortBy] = useState("recent");
   const [deleteTarget, setDeleteTarget] = useState<RunListItem | null>(null);
   const [editTarget, setEditTarget] = useState<RunListItem | null>(null);
@@ -166,6 +185,16 @@ function RunsPage() {
       const hasGt = Boolean(r.ground_truth_scenario_id) || r.evaluation_against_ground_truth === true;
       if (gtFilter === GT_ONLY && !hasGt) return false;
       if (gtFilter === GT_NONE && hasGt) return false;
+      if (ccFilter !== CC_ALL) {
+        const cc = deriveCrossCheck(r.feasibility, r.judge_verdict);
+        if (ccFilter === CC_NO_JUDGE) {
+          if (cc !== null) return false;
+        } else if (ccFilter === CC_DISPUTED) {
+          if (cc !== "simulator_only" && cc !== "judge_only") return false;
+        } else if (cc !== ccFilter) {
+          return false;
+        }
+      }
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -213,7 +242,7 @@ function RunsPage() {
         );
     }
     return sorted;
-  }, [runs, pendingIds, taskFilter, agentFilter, caseFilter, statusFilter, gtFilter, search, sortBy]);
+  }, [runs, pendingIds, taskFilter, agentFilter, caseFilter, statusFilter, gtFilter, ccFilter, search, sortBy]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -295,6 +324,20 @@ function RunsPage() {
             <SelectItem value={GT_ALL}>All runs</SelectItem>
             <SelectItem value={GT_ONLY}>With ground truth</SelectItem>
             <SelectItem value={GT_NONE}>Without ground truth</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={ccFilter} onValueChange={setCcFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Cross-check" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={CC_ALL}>All cross-checks</SelectItem>
+            <SelectItem value={CC_DISPUTED}>Disputed (sim ≠ judge)</SelectItem>
+            <SelectItem value={CC_CONFIRMED}>Confirmed</SelectItem>
+            <SelectItem value={CC_BOTH_REJECT}>Both reject</SelectItem>
+            <SelectItem value={CC_SIM_ONLY}>Simulator only</SelectItem>
+            <SelectItem value={CC_JUDGE_ONLY}>Judge only</SelectItem>
+            <SelectItem value={CC_NO_JUDGE}>Not judged yet</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
