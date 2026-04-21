@@ -76,6 +76,7 @@ function CompareReportPage() {
     run: d.run,
     evaluation: d.evaluation,
     metadata: d.metadata ?? null,
+    judgment: d.judgment ?? null,
   }));
 
   if (loading) {
