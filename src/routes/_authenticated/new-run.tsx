@@ -11,6 +11,61 @@ import { listScenarios } from "@/server/ground-truth.functions";
 import { useServerFn } from "@tanstack/react-start";
 import type { ExperimentPreset, GroundTruthScenarioListItem } from "@/types/grid-arena";
 import { Play } from "lucide-react";
+import { Zap } from "lucide-react";
+
+type StressedQuickPick = {
+  id: string;
+  label: string;
+  description: string;
+  title: string;
+  task: string;
+  case_name: string;
+  evaluation_mode: "rule_based" | "simulation" | "auto";
+};
+
+const STRESSED_QUICK_PICKS: StressedQuickPick[] = [
+  {
+    id: "case30-overload",
+    label: "case30 — branch overload",
+    description:
+      "case30 with elevated demand on branch 6→8 (rated 16 MW). Baseline overloads expected; agent must redispatch or shed load.",
+    title: "case30 branch overload — corrective dispatch",
+    task:
+      "case30 is operating with branch 6→8 (rated 16 MW) overloaded by ~25% under current dispatch. " +
+      "Propose a single corrective action — either redispatch a generator (set_generator_p_mw on gen index 1 or 2), " +
+      "scale all loads by 0.90–0.95, or open a parallel branch — to bring all line loadings ≤ 100% of rating.",
+    case_name: "case30",
+    evaluation_mode: "simulation",
+  },
+  {
+    id: "case14-line-outage",
+    label: "case14 — line outage N-1",
+    description:
+      "case14 with line 6 (bus 3→4) tripped. Forces rerouting through weaker parallel paths; expect overloads.",
+    title: "case14 line outage — N-1 contingency",
+    task:
+      "case14 has just lost line index 6 (bus 3→4) due to an N-1 contingency. The system is post-trip and " +
+      "several remaining branches are at or above their thermal rating. Propose a single recovery action — " +
+      "scale_all_loads (0.85–0.95), set_generator_p_mw on gens 0 or 1, or further selective line_outage — " +
+      "to restore feasibility (all branches ≤ 100% rated).",
+    case_name: "case14",
+    evaluation_mode: "simulation",
+  },
+  {
+    id: "case30-load-spike",
+    label: "case30 — peak demand spike",
+    description:
+      "case30 under a +15% peak load spike across all buses. Generator P_max limits become binding.",
+    title: "case30 peak load spike — generation scarcity",
+    task:
+      "case30 is experiencing a system-wide demand spike (+15% on all loads). Several generators are " +
+      "approaching or exceeding their P_max limits and one branch is overloaded. Propose a single action — " +
+      "scale_all_loads (0.85–0.92) to shed demand, or set_generator_p_mw to redispatch within limits — " +
+      "to eliminate all violations.",
+    case_name: "case30",
+    evaluation_mode: "simulation",
+  },
+];
 
 export const Route = createFileRoute("/_authenticated/new-run")({
   head: () => ({
