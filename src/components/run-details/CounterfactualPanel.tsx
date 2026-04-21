@@ -100,12 +100,17 @@ export function CounterfactualPanel({ runId }: { runId: string }) {
     .filter((i) => i.result?.status === "success")
     .map((i) => ({
       name: i.action.description ?? i.action.action_type,
-      cf: i.result?.counterfactual_improvement ?? 0,
-      base: i.result?.baseline_improvement ?? 0,
+      violations: i.result?.counterfactual_violations ?? 0,
+      gap: Number(i.result?.optimality_gap ?? 0),
+      improvement: Number(i.result?.counterfactual_improvement ?? 0),
     }));
+  const chartHasSignal = chartData.some(
+    (d) => d.violations > 0 || d.gap > 0 || d.improvement > 0,
+  );
   const chartConfig: ChartConfig = {
-    cf: { label: "Counterfactual", color: "hsl(150 70% 50%)" },
-    base: { label: "Baseline", color: "hsl(220 70% 60%)" },
+    violations: { label: "Post-action violations", color: "hsl(0 75% 60%)" },
+    gap: { label: "Optimality gap", color: "hsl(40 90% 55%)" },
+    improvement: { label: "Improvement", color: "hsl(150 70% 50%)" },
   };
 
   return (
