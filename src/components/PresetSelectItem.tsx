@@ -1,4 +1,4 @@
-import { SelectItem } from "@/components/ui/select";
+import { SelectItem, SelectGroup, SelectLabel, SelectSeparator } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Zap } from "lucide-react";
 
