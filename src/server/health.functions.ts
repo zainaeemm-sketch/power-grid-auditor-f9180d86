@@ -26,7 +26,7 @@ export interface HealthStatus {
   timestamp: string;
 }
 
-export const getHealthStatus = createServerFn({ method: "GET" })
+export const getHealthStatus = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }): Promise<HealthStatus> => {
     const { supabase } = context;
