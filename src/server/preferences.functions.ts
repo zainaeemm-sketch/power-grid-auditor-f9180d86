@@ -15,27 +15,33 @@ export const OPENAI_MODEL_OPTIONS = [
 
 export const getMyPreferences = createServerFn({ method: "GET" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ openai_model: string | null }> => {
+  .handler(async ({ context }): Promise<{ openai_model: string | null; auto_judge_enabled: boolean }> => {
     const { data, error } = await context.supabase
       .from("user_preferences")
-      .select("openai_model")
+      .select("openai_model, auto_judge_enabled")
       .eq("user_id", context.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return { openai_model: (data as any)?.openai_model ?? null };
+    return {
+      openai_model: (data as any)?.openai_model ?? null,
+      auto_judge_enabled: Boolean((data as any)?.auto_judge_enabled),
+    };
   });
 
 export const updateMyPreferences = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
-  .inputValidator((input: { openai_model: string | null }) => input)
+  .inputValidator((input: { openai_model?: string | null; auto_judge_enabled?: boolean }) => input)
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const model = data.openai_model && data.openai_model.trim() ? data.openai_model.trim() : null;
+    const row: any = { user_id: context.userId, updated_at: new Date().toISOString() };
+    if (data.openai_model !== undefined) {
+      row.openai_model = data.openai_model && data.openai_model.trim() ? data.openai_model.trim() : null;
+    }
+    if (data.auto_judge_enabled !== undefined) {
+      row.auto_judge_enabled = !!data.auto_judge_enabled;
+    }
     const { error } = await context.supabase
       .from("user_preferences")
-      .upsert(
-        { user_id: context.userId, openai_model: model, updated_at: new Date().toISOString() },
-        { onConflict: "user_id" },
-      );
+      .upsert(row, { onConflict: "user_id" });
     if (error) throw new Error(error.message);
     return { ok: true };
   });

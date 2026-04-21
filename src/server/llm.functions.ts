@@ -406,6 +406,13 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     await supabase.from("runs").update({ status: "completed" as const }).eq("id", runId);
     await tracer.flush(supabase, runId);
 
+    try {
+      const { maybeAutoJudge } = await import("./judge.functions");
+      void maybeAutoJudge(supabase, context.userId, runId);
+    } catch (e) {
+      console.error("auto-judge dispatch failed:", e);
+    }
+
     return {
       success: true,
       response_text: responseText,
