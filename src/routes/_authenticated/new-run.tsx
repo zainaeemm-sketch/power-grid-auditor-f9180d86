@@ -52,6 +52,20 @@ const STRESSED_QUICK_PICKS: StressedQuickPick[] = [
     evaluation_mode: "simulation",
   },
   {
+    id: "case5-gen-outage",
+    label: "case5 — generator outage",
+    description:
+      "case5 with generator index 2 tripped offline. Remaining units must pick up the slack; expect overloads on tie lines.",
+    title: "case5 generator outage — unit trip recovery",
+    task:
+      "case5 has just lost generator index 2 (forced outage). Remaining generators must absorb the displaced output and " +
+      "at least one branch is now above its thermal rating. Propose a single recovery action — set_generator_p_mw on " +
+      "gen index 0 or 1 to redispatch, scale_all_loads (0.85–0.95) to shed demand, or open a congested branch via " +
+      "line_outage — to restore feasibility (all branches ≤ 100% rated).",
+    case_name: "case5",
+    evaluation_mode: "simulation",
+  },
+  {
     id: "case30-load-spike",
     label: "case30 — peak demand spike",
     description:
