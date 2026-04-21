@@ -2,25 +2,53 @@
 optional perturbation specs, runs PF, and reports violations."""
 from __future__ import annotations
 from typing import Any, Optional
+import numpy as np
+import pandas as pd
 import pandapower as pp
 import pandapower.networks as pn
+
+
+def _make_writable(net) -> None:
+    """Some pandapower/numpy combinations return DataFrames backed by read-only
+    numpy arrays (cached network defs). Power-flow then crashes with
+    'assignment destination is read-only'. Force a writable copy."""
+    for attr in dir(net):
+        if attr.startswith("_"):
+            continue
+        try:
+            df = getattr(net, attr)
+        except Exception:
+            continue
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            for col in df.columns:
+                try:
+                    arr = df[col].values
+                    if isinstance(arr, np.ndarray) and not arr.flags.writeable:
+                        df[col] = arr.copy()
+                except Exception:
+                    pass
 
 
 def _load_case(name: str):
     n = name.lower().replace("_", "").replace("-", "")
     if n in ("case5", "ieee5"):
-        return pn.case5()
-    if n in ("case14", "ieee14"):
-        return pn.case14()
-    if n in ("case30", "ieee30"):
-        return pn.case30()
-    if n in ("case39", "ieee39", "case39ieee"):
-        return pn.case39()
-    if n in ("case57", "ieee57"):
-        return pn.case57()
-    if n in ("case118", "ieee118"):
-        return pn.case118()
-    raise ValueError(f"Unknown case: {name}")
+        net = pn.case5()
+    elif n in ("case9", "ieee9"):
+        net = pn.case9()
+    elif n in ("case14", "ieee14"):
+        net = pn.case14()
+    elif n in ("case30", "ieee30"):
+        net = pn.case30()
+    elif n in ("case39", "ieee39", "case39ieee"):
+        net = pn.case39()
+    elif n in ("case57", "ieee57"):
+        net = pn.case57()
+    elif n in ("case118", "ieee118"):
+        net = pn.case118()
+    else:
+        raise ValueError(f"Unknown case: {name}")
+    _make_writable(net)
+    return net
 
 
 def _violations(net) -> tuple[int, list, list, list]:

@@ -274,7 +274,7 @@ export async function pingExternalSimulator(): Promise<{
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
-        case_name: "case_ieee9",
+        case_name: "case5",
         action: { action_type: "none", enabled: true },
       }),
       signal: simCtl.signal,
