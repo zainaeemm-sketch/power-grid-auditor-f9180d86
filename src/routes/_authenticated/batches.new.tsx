@@ -11,6 +11,7 @@ import { listPresets } from "@/server/runs.functions";
 import type { ExperimentPreset } from "@/types/grid-arena";
 import { toast } from "sonner";
 import { Zap } from "lucide-react";
+import { PresetSelectItem } from "@/components/PresetSelectItem";
 
 export const Route = createFileRoute("/_authenticated/batches/new")({
   head: () => ({
@@ -147,23 +148,9 @@ function NewBatchPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No preset</SelectItem>
-                {presets.map((p) => {
-                  const isStressed = p.name.startsWith("[Stressed] ");
-                  const displayName = isStressed ? p.name.replace("[Stressed] ", "") : p.name;
-                  return (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="flex items-center gap-2">
-                        {isStressed && (
-                          <span className="inline-flex items-center gap-1 rounded border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
-                            <Zap className="h-3 w-3" />
-                            Stressed
-                          </span>
-                        )}
-                        <span>{displayName}</span>
-                      </span>
-                    </SelectItem>
-                  );
-                })}
+                {presets.map((p) => (
+                  <PresetSelectItem key={p.id} id={p.id} name={p.name} />
+                ))}
               </SelectContent>
             </Select>
           </div>
