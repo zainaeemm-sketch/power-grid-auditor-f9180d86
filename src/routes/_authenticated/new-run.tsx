@@ -137,6 +137,20 @@ function NewRunPage() {
         if (presetMode === "rule_based" || presetMode === "simulation" || presetMode === "auto") {
           setEvaluationMode(presetMode);
         }
+        // Auto-fill case_name + title from matching built-in stressed preset
+        const stressed = STRESSED_QUICK_PICKS.find(
+          (pick) => preset.name === `[Stressed] ${pick.label}`,
+        );
+        if (stressed) {
+          setTitle(stressed.title);
+          setTask(stressed.task);
+          setCaseName(stressed.case_name);
+          if (!researchQuestion) {
+            setResearchQuestion(
+              "Does the agent select an action that resolves the seeded violations without introducing new ones?",
+            );
+          }
+        }
       }
     }
   };
