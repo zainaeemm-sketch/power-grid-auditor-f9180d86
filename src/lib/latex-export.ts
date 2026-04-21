@@ -1,4 +1,5 @@
 import type { RunDetails, Run, RunEvaluation, RunMetadata } from "@/types/grid-arena";
+import type { RunLlmJudgment } from "@/server/judge.functions";
 
 function escLatex(val: unknown): string {
   if (val == null) return "";
@@ -8,6 +9,23 @@ function escLatex(val: unknown): string {
     .replace(/~/g, "\\textasciitilde{}")
     .replace(/\^/g, "\\textasciicircum{}")
     .replace(/\n/g, " \\\\ ");
+}
+
+/**
+ * Derive simulator vs LLM-judge cross-check status.
+ * Returns "—" if either side is missing.
+ */
+function deriveCrossCheck(
+  evaluation: RunEvaluation | null | undefined,
+  judgment: RunLlmJudgment | null | undefined,
+): string {
+  if (!evaluation || !judgment || !judgment.verdict) return "—";
+  const feasible = evaluation.feasibility === "feasible";
+  const agree = judgment.verdict === "agree";
+  if (feasible && agree) return "confirmed";
+  if (feasible && !agree) return "simulator_only";
+  if (!feasible && agree) return "judge_only";
+  return "both_reject";
 }
 
 export function toLatexTable(
@@ -46,8 +64,9 @@ function downloadTex(content: string, filename: string) {
 }
 
 export function exportRunLatex(details: RunDetails) {
-  const { run, metadata, evaluation, parseResult } = details;
+  const { run, metadata, evaluation, parseResult, judgment } = details;
   const m = (metadata ?? {}) as Partial<RunMetadata>;
+  const j = judgment ?? null;
   const configRows: string[][] = [
     ["Run ID", run.id],
     ["Title", run.title],
@@ -70,46 +89,80 @@ export function exportRunLatex(details: RunDetails) {
     ["Action applied", evaluation?.action_applied ?? "—"],
     ["Parsed action", parseResult?.action_type ?? "—"],
   ];
+  const judgeRows: string[][] = [
+    ["Verdict", j?.verdict ?? "—"],
+    ["Confidence", j?.confidence ?? "—"],
+    ["Reasoning quality", j?.reasoning_quality ?? "—"],
+    ["Action alignment", j?.action_alignment ?? "—"],
+    ["Critique", j?.critique ?? "—"],
+    ["Disagreement reason", j?.disagreement_reason ?? "—"],
+    ["Model", j?.model ?? "—"],
+    ["Provider", j?.provider ?? "—"],
+    ["Error", j?.error ?? "—"],
+    ["Cross-check status", deriveCrossCheck(evaluation, j)],
+  ];
   const tex = [
     "% GridArena run report — auto-generated",
     toLatexTable(["Field", "Value"], configRows, `Configuration for run ${run.id.slice(0, 8)}`, `cfg-${run.id.slice(0, 8)}`),
     "",
     toLatexTable(["Metric", "Value"], evalRows, `Evaluation for run ${run.id.slice(0, 8)}`, `eval-${run.id.slice(0, 8)}`),
+    "",
+    toLatexTable(["Field", "Value"], judgeRows, `LLM judge for run ${run.id.slice(0, 8)}`, `judge-${run.id.slice(0, 8)}`),
   ].join("\n\n");
   downloadTex(tex, `run_${run.id.slice(0, 8)}_report.tex`);
 }
 
 export function exportBatchLatex(
-  runs: Array<{ run: Run; evaluation: RunEvaluation | null; metadata?: RunMetadata | null }>,
+  runs: Array<{ run: Run; evaluation: RunEvaluation | null; metadata?: RunMetadata | null; judgment?: RunLlmJudgment | null }>,
   batchId: string,
 ) {
-  const headers = ["Run", "Agent", "Case", "Model", "Feasibility", "Improvement", "Confidence"];
-  const rows = runs.map((r) => [
-    r.run.id.slice(0, 8),
-    r.run.agent,
-    r.run.case_name,
-    r.metadata?.model_name ?? "",
-    r.evaluation?.feasibility ?? "—",
-    String(r.evaluation?.violation_improvement ?? "—"),
-    r.evaluation?.confidence ?? "—",
-  ]);
+  const headers = [
+    "Run", "Agent", "Case", "Model",
+    "Feasibility", "Improvement", "Confidence",
+    "Judge verdict", "Judge confidence", "Cross-check",
+  ];
+  const rows = runs.map((r) => {
+    const j = r.judgment ?? null;
+    return [
+      r.run.id.slice(0, 8),
+      r.run.agent,
+      r.run.case_name,
+      r.metadata?.model_name ?? "",
+      r.evaluation?.feasibility ?? "—",
+      String(r.evaluation?.violation_improvement ?? "—"),
+      r.evaluation?.confidence ?? "—",
+      j?.verdict ?? "—",
+      j?.confidence ?? "—",
+      deriveCrossCheck(r.evaluation, j),
+    ];
+  });
   const tex = toLatexTable(headers, rows, `Batch ${batchId.slice(0, 8)} results`, `batch-${batchId.slice(0, 8)}`);
   downloadTex(tex, `batch_${batchId.slice(0, 8)}_report.tex`);
 }
 
 export function exportComparisonLatex(
-  runs: Array<{ run: Run; evaluation: RunEvaluation | null; metadata?: RunMetadata | null }>,
+  runs: Array<{ run: Run; evaluation: RunEvaluation | null; metadata?: RunMetadata | null; judgment?: RunLlmJudgment | null }>,
 ) {
-  const headers = ["Run", "Agent", "Model", "Feasibility", "Improvement", "Confidence", "Grounding"];
-  const rows = runs.map((r) => [
-    r.run.id.slice(0, 8),
-    r.run.agent,
-    r.metadata?.model_name ?? "",
-    r.evaluation?.feasibility ?? "—",
-    String(r.evaluation?.violation_improvement ?? "—"),
-    r.evaluation?.confidence ?? "—",
-    r.evaluation?.grounding_quality ?? "—",
-  ]);
+  const headers = [
+    "Run", "Agent", "Model",
+    "Feasibility", "Improvement", "Confidence", "Grounding",
+    "Judge verdict", "Judge confidence", "Cross-check",
+  ];
+  const rows = runs.map((r) => {
+    const j = r.judgment ?? null;
+    return [
+      r.run.id.slice(0, 8),
+      r.run.agent,
+      r.metadata?.model_name ?? "",
+      r.evaluation?.feasibility ?? "—",
+      String(r.evaluation?.violation_improvement ?? "—"),
+      r.evaluation?.confidence ?? "—",
+      r.evaluation?.grounding_quality ?? "—",
+      j?.verdict ?? "—",
+      j?.confidence ?? "—",
+      deriveCrossCheck(r.evaluation, j),
+    ];
+  });
   const ts = new Date().toISOString().slice(0, 10);
   const tex = toLatexTable(headers, rows, "Run comparison", `compare-${ts}`);
   downloadTex(tex, `comparison_${ts}.tex`);
