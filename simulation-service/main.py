@@ -20,8 +20,9 @@ from pydantic import BaseModel
 from pandapower_runner import simulate_action, simulate_perturbed
 
 API_TOKEN = os.environ.get("SIMULATION_API_TOKEN", "")
+BUILD_VERSION = "2026-04-21-writable-fix-v2"
 
-app = FastAPI(title="GridArena Simulation Service", version="1.1.0")
+app = FastAPI(title="GridArena Simulation Service", version="1.2.0")
 
 
 class Action(BaseModel):
@@ -61,7 +62,14 @@ def _check_auth(authorization: Optional[str]) -> None:
 @app.get("/health")
 def health(authorization: Optional[str] = Header(default=None)) -> dict[str, Any]:
     _check_auth(authorization)
-    return {"status": "ok", "engine": "pandapower", "features": ["simulate", "simulate_perturbed"]}
+    return {"status": "ok", "engine": "pandapower", "version": BUILD_VERSION, "features": ["simulate", "simulate_perturbed"]}
+
+
+@app.get("/version")
+def version() -> dict[str, Any]:
+    """Unauthenticated build-identity endpoint so deployers can confirm which
+    commit is actually live on Railway without needing the bearer token."""
+    return {"version": BUILD_VERSION}
 
 
 def _infeasible_response(case_name: str, reason: str) -> dict[str, Any]:
