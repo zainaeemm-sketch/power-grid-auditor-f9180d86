@@ -260,31 +260,34 @@ export async function pingExternalSimulator(): Promise<{
     clearTimeout(healthTimer);
   }
 
-  // /simulate probe (tiny no-op so a stale build that lacks /simulate is detected)
-  const simCtl = new AbortController();
-  const simTimer = setTimeout(() => simCtl.abort(), 5_000);
+  // /simulate probe — skip if /health already failed (saves a round-trip and
+  // reduces load on a struggling backend that's returning 500s).
   let simulate_status: number | null = null;
   let simulate_error: string | null = null;
-  try {
-    const res = await fetch(`${url}/simulate`, {
-      method: "POST",
-      redirect: "follow",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        case_name: "case5",
-        action: { action_type: "none", enabled: true },
-      }),
-      signal: simCtl.signal,
-    });
-    simulate_status = res.status;
-    if (!res.ok) simulate_error = describeFailure(res, null);
-  } catch (e: any) {
-    simulate_error = describeFailure(null, e);
-  } finally {
-    clearTimeout(simTimer);
+  if (healthError === null) {
+    const simCtl = new AbortController();
+    const simTimer = setTimeout(() => simCtl.abort(), 5_000);
+    try {
+      const res = await fetch(`${url}/simulate`, {
+        method: "POST",
+        redirect: "follow",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          case_name: "case5",
+          action: { action_type: "none", enabled: true },
+        }),
+        signal: simCtl.signal,
+      });
+      simulate_status = res.status;
+      if (!res.ok) simulate_error = describeFailure(res, null);
+    } catch (e: any) {
+      simulate_error = describeFailure(null, e);
+    } finally {
+      clearTimeout(simTimer);
+    }
   }
 
   const latency_ms = Date.now() - start;
