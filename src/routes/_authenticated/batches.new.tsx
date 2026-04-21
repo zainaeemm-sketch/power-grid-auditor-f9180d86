@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator } from "@/components/ui/select";
 import { useState } from "react";
 import { createBatch } from "@/server/batch.functions";
 import { listPresets } from "@/server/runs.functions";
@@ -148,9 +148,31 @@ function NewBatchPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No preset</SelectItem>
-                {presets.map((p) => (
-                  <PresetSelectItem key={p.id} id={p.id} name={p.name} />
-                ))}
+                {(() => {
+                  const builtIn = presets.filter((p) => p.name.startsWith("[Stressed] "));
+                  const custom = presets.filter((p) => !p.name.startsWith("[Stressed] "));
+                  return (
+                    <>
+                      {builtIn.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Built-in</SelectLabel>
+                          {builtIn.map((p) => (
+                            <PresetSelectItem key={p.id} id={p.id} name={p.name} />
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {builtIn.length > 0 && custom.length > 0 && <SelectSeparator />}
+                      {custom.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Your presets</SelectLabel>
+                          {custom.map((p) => (
+                            <PresetSelectItem key={p.id} id={p.id} name={p.name} />
+                          ))}
+                        </SelectGroup>
+                      )}
+                    </>
+                  );
+                })()}
               </SelectContent>
             </Select>
           </div>
