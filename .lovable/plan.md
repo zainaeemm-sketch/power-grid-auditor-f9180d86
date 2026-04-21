@@ -1,47 +1,45 @@
 
 
-## Diagnosis
+## Diagnosis (confirmed)
 
-Your new Railway service is **deployed but serving the wrong code**. The signs:
+`GET /version` → `404 Not Found` on Railway right now. That endpoint exists in the current local code. Therefore **Railway is running a stale build from before our recent fixes**. The Python already has:
+- `_make_writable` with DataFrame reconstruction
+- `try/except` wrapper that returns `infeasible_response` instead of HTTP 500
+- `/version` endpoint
 
-- `https://YOUR-NEW-URL/health` returns `{"detail":"Not Found"}` → FastAPI is running, but it has no `/health` route. Our `main.py` defines `/health`, `/simulate`, `/simulate_perturbed`. So Railway is running **a different `main.py`** (or a default uvicorn template).
-- The OLD URL (`power-grid-auditor-9fc7d1aa-...`) still returns 500 because Lovable's `SIMULATION_SERVICE_URL` secret still points there, and that container is the stale pre-fix build.
+None of these are live. Railway isn't picking up commits.
 
-Root cause: Railway's **Root Directory** is not set to `simulation-service/`. It's building from the repo root, where there's no Dockerfile/main.py, so it falls back to a generic Python app that doesn't have our routes.
+## Why Railway isn't rebuilding
 
-## The fix (you do steps 1–3 in Railway UI, I do step 4)
+Most likely one of these:
 
-### Step 1 — Set the Root Directory in Railway
-1. Open Railway → click your **new** service tile → **Settings** tab.
-2. Scroll to **Source** → **Root Directory** → type exactly: `simulation-service`
-3. Click **Update**.
+1. **GitHub sync lag** — Lovable pushes to GitHub in batches. The `simulation-service/` changes from the last 2 messages may not be on `main` yet.
+2. **Railway isn't watching `simulation-service/`** — Railway's "Watch Paths" feature (Settings → Source → Watch Paths) may be set to a path that excludes `simulation-service/`, so commits touching only that folder don't trigger a redeploy.
+3. **Manual redeploy was skipped** — even after setting Root Directory, you need to redeploy at least once for the new config to take effect on a build.
 
-### Step 2 — Redeploy
-1. Go to **Deployments** tab → click the **⋯** menu on the latest deploy → **Redeploy**.
-2. Wait ~2 min for build to finish (watch logs — you should see `pandapower` installing).
+## The fix — 3 steps, you do them in Railway UI
 
-### Step 3 — Verify in browser
-Open `https://YOUR-NEW-URL/health`. You should see one of:
-- `{"detail":"Missing bearer token"}` ✅ (token enforced — perfect)
-- `{"status":"ok","engine":"pandapower","features":["simulate","simulate_perturbed"]}` ✅
+### Step 1 — Confirm the commit is on GitHub
+1. Open your GitHub repo → **Commits** tab.
+2. You should see recent commits touching `simulation-service/main.py` and `simulation-service/pandapower_runner.py`.
+3. If the latest commit is older than 10 minutes, Lovable hasn't synced yet — wait 2 min and refresh.
 
-If you still see `{"detail":"Not Found"}`, the Root Directory didn't take — re-check Step 1.
+### Step 2 — Force Railway to redeploy the latest commit
+1. Railway → your service → **Deployments** tab.
+2. Check the commit SHA on the top (most recent) deployment. **Does it match the latest GitHub commit?**
+   - **If NO**: click **⋯ menu → Redeploy** on the latest build, OR click **New Deploy → Deploy latest commit**.
+   - **If YES but /version still 404**: the deploy is stale — click **Redeploy** anyway and watch the build logs.
 
-### Step 4 — Reply with the URL + token
+### Step 3 — Verify the build deployed
+Run this in your browser (no auth needed):
+```
+https://gridarena-sim-production.up.railway.app/version
+```
 
-Paste in chat:
-- The new Railway URL
-- The `SIMULATION_API_TOKEN` value you set in Railway Variables
+- ✅ `{"version":"2026-04-21-writable-fix-v2"}` → new code is live, refresh `/health` in GridArena, Simulation Engine flips to Active.
+- ❌ `{"detail":"Not Found"}` → still stale. Go to Railway → Settings → **Source → Watch Paths** and **delete any value there** (leave it blank = watch everything). Click Update. Then Redeploy.
 
-Then I will:
-1. Update the `SIMULATION_SERVICE_URL` secret to your new URL
-2. Update the `SIMULATION_SERVICE_TOKEN` secret to match
-3. You refresh `/health` in Lovable → Simulation Engine flips from **Fallback → DC PF** to **Active — pandapower** with `/simulate 200`
+## If it's STILL stale after step 3
 
-### Also: delete the old Railway service
-Once the new one is live, delete the old `power-grid-auditor-9fc7d1aa` Railway service so it stops costing trial credits and can't confuse future debugging.
-
-## Why this is the permanent fix
-
-The Python code in `simulation-service/main.py` and `pandapower_runner.py` already has the `_make_writable` and `_infeasible_response` hardening from prior turns. The only thing left is making Railway actually run **that** code instead of a stale/wrong build. After Root Directory is set correctly, every future Lovable edit to `simulation-service/` will auto-redeploy via GitHub sync — no more manual steps.
+Railway may be pinned to a specific commit SHA. Go to Settings → Source → Branch → confirm it's set to `main` (not a commit hash). If it's a hash, change to `main` and redeploy.
 
