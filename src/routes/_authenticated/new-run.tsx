@@ -101,6 +101,18 @@ function NewRunPage() {
   const [groundTruthId, setGroundTruthId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
+  const applyStressedQuickPick = (pick: StressedQuickPick) => {
+    setTitle(pick.title);
+    setTask(pick.task);
+    setCaseName(pick.case_name);
+    setEvaluationMode(pick.evaluation_mode);
+    if (!researchQuestion) {
+      setResearchQuestion(
+        "Does the agent select an action that resolves the seeded violations without introducing new ones?",
+      );
+    }
+  };
+
   const handlePresetChange = (value: string) => {
     setPresetId(value === "none" ? "" : value);
     if (value !== "none") {
@@ -145,6 +157,34 @@ function NewRunPage() {
       </h1>
 
       <form onSubmit={handleSubmit}>
+        <Card className="mb-4 border-amber-500/30 bg-amber-500/5 animate-fade-up" style={{ animationDelay: "50ms" }}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <Zap className="h-4 w-4 text-amber-400" />
+              Stressed scenarios — quick-pick
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Pre-fill the form with a case + contingency known to produce non-zero baseline violations,
+              so counterfactual graphs and optimality-gap metrics show real signal.
+            </p>
+            <div className="grid gap-2 md:grid-cols-3">
+              {STRESSED_QUICK_PICKS.map((pick) => (
+                <button
+                  key={pick.id}
+                  type="button"
+                  onClick={() => applyStressedQuickPick(pick)}
+                  className="rounded-md border border-border/60 bg-background/50 p-3 text-left text-xs transition hover:border-amber-400/60 hover:bg-amber-500/10"
+                >
+                  <div className="mb-1 font-semibold text-foreground">{pick.label}</div>
+                  <div className="text-muted-foreground">{pick.description}</div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-border/40 bg-card/60 card-glow animate-fade-up" style={{ animationDelay: "100ms" }}>
           <CardHeader>
             <CardTitle className="text-base font-bold">Run Configuration</CardTitle>
