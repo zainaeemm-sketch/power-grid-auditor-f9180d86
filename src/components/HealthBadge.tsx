@@ -18,10 +18,12 @@ export function HealthBadge() {
       return;
     }
     let cancelled = false;
+    let inFlight = false;
     const check = async () => {
+      if (inFlight) return; // dedupe — avoid concurrent server-fn calls that
+                            // can trigger TanStack Start dev-server races.
+      inFlight = true;
       try {
-        // Skip if the session is missing/expired — avoids unhandled 401 Response
-        // from server-fn machinery that can blank the screen.
         const { data } = await supabase.auth.getSession();
         if (!data.session?.access_token) {
           if (!cancelled) setState("unknown");
@@ -33,13 +35,18 @@ export function HealthBadge() {
         else if (!status.llmConfigured || status.simulator.state !== "active") setState("warn");
         else setState("ok");
       } catch {
-        if (!cancelled) setState("unknown");
+        // Swallow — keep last known state, never blank the screen.
+        if (!cancelled && state === "unknown") setState("unknown");
+      } finally {
+        inFlight = false;
       }
     };
-    check();
-    const id = setInterval(check, 60_000);
+    // Delay first check so it doesn't race with route loaders on initial mount.
+    const initial = setTimeout(check, 1500);
+    const id = setInterval(check, 120_000); // 2 min instead of 60s
     return () => {
       cancelled = true;
+      clearTimeout(initial);
       clearInterval(id);
     };
   }, [user]);
