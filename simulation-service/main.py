@@ -64,6 +64,20 @@ def health(authorization: Optional[str] = Header(default=None)) -> dict[str, Any
     return {"status": "ok", "engine": "pandapower", "features": ["simulate", "simulate_perturbed"]}
 
 
+def _infeasible_response(case_name: str, reason: str) -> dict[str, Any]:
+    return {
+        "feasibility": "infeasible",
+        "baseline_violations": 0,
+        "post_action_violations": 0,
+        "violations_found": 0,
+        "violation_improvement": 0,
+        "line_loadings": [],
+        "voltage_violations": [],
+        "generator_violations": [],
+        "notes": f"Simulator could not evaluate {case_name}: {reason}",
+    }
+
+
 @app.post("/simulate")
 def simulate(req: SimulateRequest, authorization: Optional[str] = Header(default=None)) -> dict[str, Any]:
     _check_auth(authorization)
@@ -72,7 +86,8 @@ def simulate(req: SimulateRequest, authorization: Optional[str] = Header(default
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=f"Simulation failed: {e}")
+        # Never 500 on internal errors — return structured infeasible result
+        return _infeasible_response(req.case_name, str(e))
 
 
 @app.post("/simulate_perturbed")
@@ -86,4 +101,5 @@ def simulate_perturbed_endpoint(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=f"Perturbation simulation failed: {e}")
+        infeasible = _infeasible_response(req.case_name, str(e))
+        return {"baseline": infeasible, "perturbed": infeasible}
