@@ -22,6 +22,7 @@ export interface HealthStatus {
     health_status: number | null;
     simulate_status: number | null;
     simulate_error: string | null;
+    simulate_body: string | null;
   };
   timestamp: string;
 }
@@ -70,6 +71,7 @@ export const getHealthStatus = createServerFn({ method: "POST" })
         health_status: sim.health_status,
         simulate_status: sim.simulate_status,
         simulate_error: sim.simulate_error,
+        simulate_body: sim.simulate_body,
       },
       timestamp: new Date().toISOString(),
     };

@@ -224,6 +224,7 @@ export async function pingExternalSimulator(): Promise<{
   health_status: number | null;
   simulate_status: number | null;
   simulate_error: string | null;
+  simulate_body: string | null;
 }> {
   const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
   if (!url) {

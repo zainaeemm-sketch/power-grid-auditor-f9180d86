@@ -90,7 +90,8 @@ function HealthPage() {
                     ` · /health ${status?.simulator.health_status ?? "—"}` +
                     ` · /simulate ${status?.simulator.simulate_status ?? "—"}` +
                     (status?.simulator.simulate_error ? ` · simulate error: ${status.simulator.simulate_error}` : "") +
-                    (status?.simulator.error && !status?.simulator.simulate_error ? ` (${status.simulator.error})` : "")
+                    (status?.simulator.error && !status?.simulator.simulate_error ? ` (${status.simulator.error})` : "") +
+                    (status?.simulator.simulate_body ? ` · body: ${status.simulator.simulate_body}` : "")
                   : "Unavailable"
             }
           />
