@@ -4,6 +4,7 @@ import { withAuthHeaders } from "@/middleware/auth-headers";
 import type { RunParseResult, RunEvaluation } from "@/types/grid-arena";
 import { runSimulation } from "./simulation/engine";
 import type { EvaluationMode, SimulationEngine, SimulationResult } from "./simulation/types";
+import { maybeAutoJudge } from "./judge.functions";
 
 interface ActionResult {
   action_applied: string;
@@ -202,6 +203,7 @@ export const evaluateRun = createServerFn({ method: "POST" })
       evaluation = inserted as RunEvaluation;
     }
 
+    void maybeAutoJudge(supabase, context.userId, runId);
     return { evaluation };
   });
 
@@ -251,5 +253,6 @@ export const reparseAndEvaluate = createServerFn({ method: "POST" })
       await (supabase as any).from("run_evaluations").insert({ run_id, ...evalFields });
     }
 
+    void maybeAutoJudge(supabase, context.userId, run_id);
     return { success: true, parseResult, evaluation: evalFields };
   });
