@@ -264,6 +264,7 @@ export async function pingExternalSimulator(): Promise<{
   // reduces load on a struggling backend that's returning 500s).
   let simulate_status: number | null = null;
   let simulate_error: string | null = null;
+  let simulate_body: string | null = null;
   if (healthError === null) {
     const simCtl = new AbortController();
     const simTimer = setTimeout(() => simCtl.abort(), 5_000);
@@ -282,7 +283,14 @@ export async function pingExternalSimulator(): Promise<{
         signal: simCtl.signal,
       });
       simulate_status = res.status;
-      if (!res.ok) simulate_error = describeFailure(res, null);
+      if (!res.ok) {
+        simulate_error = describeFailure(res, null);
+        try {
+          simulate_body = (await res.text()).slice(0, 400);
+        } catch {
+          /* ignore */
+        }
+      }
     } catch (e: any) {
       simulate_error = describeFailure(null, e);
     } finally {
@@ -302,5 +310,6 @@ export async function pingExternalSimulator(): Promise<{
     health_status,
     simulate_status,
     simulate_error,
+    simulate_body,
   };
 }
