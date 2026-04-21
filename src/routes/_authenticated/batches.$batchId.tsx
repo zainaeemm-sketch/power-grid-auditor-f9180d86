@@ -468,6 +468,18 @@ function BatchDetailPage() {
           )}
         </Button>
         <Button
+          variant="outline"
+          onClick={handleJudgeUnjudged}
+          disabled={judgingAll || unjudgedRuns.length === 0}
+          title="Run the LLM judge on every completed run that has no judgment yet"
+        >
+          {judgingAll ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Judging…</>
+          ) : (
+            <><Gavel className="mr-2 h-4 w-4" />Judge unjudged ({unjudgedRuns.length})</>
+          )}
+        </Button>
+        <Button
           variant="ghost"
           size="icon"
           className="h-9 w-9"
