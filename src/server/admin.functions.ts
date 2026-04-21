@@ -12,7 +12,7 @@ async function assertAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("Forbidden: admin role required");
 }
 
-export const getApprovalStatus = createServerFn({ method: "GET" })
+export const getApprovalStatus = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
@@ -41,7 +41,7 @@ export const getApprovalStatus = createServerFn({ method: "GET" })
     };
   });
 
-export const isCurrentUserAdmin = createServerFn({ method: "GET" })
+export const isCurrentUserAdmin = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
