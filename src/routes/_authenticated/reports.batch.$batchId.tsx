@@ -196,6 +196,85 @@ function BatchReportPage() {
           );
         })()}
 
+        {(() => {
+          // Judge–Simulator cross-check aggregate
+          const withJudge = runs.filter(
+            (r) => r.evaluation && r.judgment && r.judgment.verdict,
+          );
+          if (withJudge.length === 0) return null;
+
+          let confirmed = 0, simOnly = 0, judgeOnly = 0, bothReject = 0, errors = 0;
+          for (const r of runs) {
+            if (r.judgment?.error) errors += 1;
+          }
+          for (const r of withJudge) {
+            const feasible = r.evaluation!.feasibility === "feasible";
+            const agree = r.judgment!.verdict === "agree";
+            if (feasible && agree) confirmed += 1;
+            else if (feasible && !agree) simOnly += 1;
+            else if (!feasible && agree) judgeOnly += 1;
+            else bothReject += 1;
+          }
+          const total = withJudge.length;
+          // Agreement = simulator feasibility decision matches judge agreement
+          const agreementCount = confirmed + bothReject;
+          const agreementRate = (agreementCount / total) * 100;
+          const disputed = simOnly + judgeOnly;
+          const breakdown = [
+            { name: "confirmed", value: confirmed, color: "#10b981" },
+            { name: "simulator_only", value: simOnly, color: "#f59e0b" },
+            { name: "judge_only", value: judgeOnly, color: "#6366f1" },
+            { name: "both_reject", value: bothReject, color: "#ef4444" },
+          ].filter((d) => d.value > 0);
+
+          return (
+            <ReportSection title="Judge–Simulator Cross-Check">
+              <div className="mb-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                  <div className="text-xs text-muted-foreground">Agreement Rate</div>
+                  <div className="font-mono text-lg">{agreementRate.toFixed(1)}%</div>
+                  <div className="text-xs text-muted-foreground">{agreementCount}/{total} runs</div>
+                </div>
+                <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                  <div className="text-xs text-muted-foreground">Confirmed</div>
+                  <div className="font-mono text-lg">{confirmed}</div>
+                  <div className="text-xs text-muted-foreground">feasible + agree</div>
+                </div>
+                <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                  <div className="text-xs text-muted-foreground">Disputed</div>
+                  <div className="font-mono text-lg">{disputed}</div>
+                  <div className="text-xs text-muted-foreground">{simOnly} sim-only · {judgeOnly} judge-only</div>
+                </div>
+                <div className="rounded-md border border-border/40 bg-background/40 p-3">
+                  <div className="text-xs text-muted-foreground">Judged Coverage</div>
+                  <div className="font-mono text-lg">{total}/{runs.length}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {errors > 0 ? `${errors} judge error${errors === 1 ? "" : "s"}` : "no errors"}
+                  </div>
+                </div>
+              </div>
+              <ReportChart
+                title="Cross-check distribution"
+                filenameBase={`batch_${batch.id.slice(0, 8)}_cross_check`}
+              >
+                <div style={{ width: "100%", height: 260 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={breakdown} dataKey="value" nameKey="name" outerRadius={90} label>
+                        {breakdown.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </ReportChart>
+            </ReportSection>
+          );
+        })()}
+
         <TraceAnalyticsCard batchId={batch.id} />
 
         <ReportSection title="Run-by-Run Results">
