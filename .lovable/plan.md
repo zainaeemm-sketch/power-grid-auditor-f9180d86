@@ -1,66 +1,47 @@
 
 
-## External LLM Judge — powered by your OpenAI key
+## Diagnosis
 
-The judge will use the same OpenAI configuration you already supplied (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`) and the per-user `openai_model` preference, exactly like the existing `llm.functions.ts` pipeline. No Lovable AI Gateway, no new secret.
+Your new Railway service is **deployed but serving the wrong code**. The signs:
 
-### Database (migration)
+- `https://YOUR-NEW-URL/health` returns `{"detail":"Not Found"}` → FastAPI is running, but it has no `/health` route. Our `main.py` defines `/health`, `/simulate`, `/simulate_perturbed`. So Railway is running **a different `main.py`** (or a default uvicorn template).
+- The OLD URL (`power-grid-auditor-9fc7d1aa-...`) still returns 500 because Lovable's `SIMULATION_SERVICE_URL` secret still points there, and that container is the stale pre-fix build.
 
-New table `run_llm_judgments` (1:1 with runs):
-- `id uuid pk`, `run_id uuid` (unique, FK→runs cascade)
-- `verdict text` — `agree | partial | disagree`
-- `confidence text` — `high | medium | low`
-- `reasoning_quality text` — `sound | flawed | unsupported`
-- `action_alignment text` — `aligned | partial | misaligned`
-- `critique text` (≤300 chars), `disagreement_reason text` nullable
-- `model text`, `provider text`
-- `error text` nullable, `created_at`, `updated_at`
-- RLS via `runs.user_id` (mirror `run_evaluations` policies).
+Root cause: Railway's **Root Directory** is not set to `simulation-service/`. It's building from the repo root, where there's no Dockerfile/main.py, so it falls back to a generic Python app that doesn't have our routes.
 
-### Server
+## The fix (you do steps 1–3 in Railway UI, I do step 4)
 
-- `src/server/judge.functions.ts`
-  - `judgeRun({ runId })` — loads run + recommendation + parsed action + evaluation + (optional) ground truth, calls OpenAI via the existing `llm.functions.ts` helper using **tool calling** (`submit_judgment`) so output is strictly typed. Resolves model/key/baseURL the same way `llm.functions.ts` does (user pref → `OPENAI_MODEL` → fallback). Persists into `run_llm_judgments` (upsert on `run_id`).
-  - `getJudgment({ runId })` — fetch one.
-- Hook into `evaluateRun` and `reparseAndEvaluate` in `src/server/evaluation.functions.ts`: after evaluation persists, fire-and-forget `judgeRun(runId)` (non-blocking, errors swallowed into `run_llm_judgments.error`). Gated by user preference `auto_judge_enabled` (see below).
-- Failures are non-fatal — they never break the run pipeline.
+### Step 1 — Set the Root Directory in Railway
+1. Open Railway → click your **new** service tile → **Settings** tab.
+2. Scroll to **Source** → **Root Directory** → type exactly: `simulation-service`
+3. Click **Update**.
 
-### Cross-check derivation (no new column)
+### Step 2 — Redeploy
+1. Go to **Deployments** tab → click the **⋯** menu on the latest deploy → **Redeploy**.
+2. Wait ~2 min for build to finish (watch logs — you should see `pandapower` installing).
 
-Computed in the UI/report layer from `run_evaluations` + `run_llm_judgments`:
-- `confirmed` — feasible + judge `agree`
-- `simulator_only` — feasible + judge `disagree`
-- `judge_only` — infeasible + judge `agree`
-- `both_reject` — infeasible + judge `disagree`
+### Step 3 — Verify in browser
+Open `https://YOUR-NEW-URL/health`. You should see one of:
+- `{"detail":"Missing bearer token"}` ✅ (token enforced — perfect)
+- `{"status":"ok","engine":"pandapower","features":["simulate","simulate_perturbed"]}` ✅
 
-### UI
+If you still see `{"detail":"Not Found"}`, the Root Directory didn't take — re-check Step 1.
 
-- New `src/components/run-details/LlmJudgePanel.tsx` rendered on `/runs/$runId` below `ResultsSummaryPanel`:
-  - Verdict badge (green/amber/red), confidence chip, reasoning-quality chip, action-alignment chip
-  - Critique text + (when present) disagreement reason
-  - Cross-check status pill
-  - "Re-judge this run" button (calls `judgeRun`)
-  - Empty state: "No judgment yet" + manual run button
-- Batch report `/reports/batch/$batchId`: add **Judge–Simulator agreement %** KPI to `KpiCards`/header.
-- `AdminSettings` (or per-user preferences page): toggle **Auto-judge new runs** → writes `user_preferences.auto_judge_enabled`. Default off so token spend is opt-in.
+### Step 4 — Reply with the URL + token
 
-### Preferences extension
+Paste in chat:
+- The new Railway URL
+- The `SIMULATION_API_TOKEN` value you set in Railway Variables
 
-Migration adds `auto_judge_enabled boolean default false` to `user_preferences`. Update `getMyPreferences` / `updateMyPreferences` in `src/server/preferences.functions.ts`.
+Then I will:
+1. Update the `SIMULATION_SERVICE_URL` secret to your new URL
+2. Update the `SIMULATION_SERVICE_TOKEN` secret to match
+3. You refresh `/health` in Lovable → Simulation Engine flips from **Fallback → DC PF** to **Active — pandapower** with `/simulate 200`
 
-### Types & exports
+### Also: delete the old Railway service
+Once the new one is live, delete the old `power-grid-auditor-9fc7d1aa` Railway service so it stops costing trial credits and can't confuse future debugging.
 
-- Add `RunLlmJudgment` to `src/types/grid-arena.ts`; extend `RunDetails` with optional `judgment`.
-- Include judge fields in `src/lib/csv-export.ts` for run + batch exports.
-- `src/server/runs.functions.ts` — include `judgment` in the run-details fetch.
+## Why this is the permanent fix
 
-### Out of scope (v1)
-
-- Multi-judge ensembles, retroactive bulk backfill, chain-of-thought storage, per-batch auto-judge bulk trigger.
-
-### Technical notes (for the dev pass)
-
-- Judge prompt is short and structured — system: "You are an independent power-systems reviewer…", user: serialized run summary. Tool schema enforces enum fields so we never store free-form verdicts.
-- Reuses the **existing OpenAI client/wrapper** from `src/server/llm.functions.ts`; no new HTTP code, no new secret.
-- 402/429/auth errors from OpenAI surface as `run_llm_judgments.error` and a red "Judge unavailable" chip — never block the run.
+The Python code in `simulation-service/main.py` and `pandapower_runner.py` already has the `_make_writable` and `_infeasible_response` hardening from prior turns. The only thing left is making Railway actually run **that** code instead of a stale/wrong build. After Root Directory is set correctly, every future Lovable edit to `simulation-service/` will auto-redeploy via GitHub sync — no more manual steps.
 
