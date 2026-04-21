@@ -236,6 +236,7 @@ export async function pingExternalSimulator(): Promise<{
       health_status: null,
       simulate_status: null,
       simulate_error: null,
+      simulate_body: null,
     };
   }
   const token = process.env.SIMULATION_SERVICE_TOKEN;
