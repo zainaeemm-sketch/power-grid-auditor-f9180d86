@@ -14,12 +14,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard, FileText } from "lucide-react";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard, FileText, Gavel } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getBatchDetails } from "@/server/batch.functions";
 import { executeRunLlm } from "@/server/llm.functions";
+import { judgeRun } from "@/server/judge.functions";
 import type { BatchDetails, RunStatus, RunEvaluation } from "@/types/grid-arena";
 import { exportBatchCsv, exportComparisonCsv } from "@/lib/csv-export";
 import { requestNotificationPermission, notifyBatchComplete, isSoundEnabled, setSoundEnabled, isBrowserNotifEnabled, setBrowserNotifEnabled } from "@/lib/notifications";
@@ -72,6 +73,7 @@ function BatchDetailPage() {
   const [executing, setExecuting] = useState(false);
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null);
   const [retryingAll, setRetryingAll] = useState(false);
+  const [judgingAll, setJudgingAll] = useState(false);
   const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
   const [notifOn, setNotifOn] = useState(() => isBrowserNotifEnabled());
   const [executionProgress, setExecutionProgress] = useState<{
@@ -252,6 +254,43 @@ function BatchDetailPage() {
     router.invalidate();
   }, [executionProgress, router]);
 
+  // Bulk-judge: judge any completed run that has no judgment (or only an errored one).
+  const unjudgedRuns = useMemo(
+    () =>
+      runs.filter(
+        (r) =>
+          r.run.status === "completed" &&
+          !!r.evaluation &&
+          (!r.judgment || (!r.judgment.verdict && !!r.judgment.error)),
+      ),
+    [runs],
+  );
+
+  const handleJudgeUnjudged = useCallback(async () => {
+    if (unjudgedRuns.length === 0) {
+      toast.info("No unjudged runs in this batch");
+      return;
+    }
+    setJudgingAll(true);
+    let succeeded = 0;
+    let failed = 0;
+    const toastId = toast.loading(`Judging 0/${unjudgedRuns.length}…`);
+    for (let i = 0; i < unjudgedRuns.length; i++) {
+      const r = unjudgedRuns[i];
+      try {
+        const res = await judgeRun({ data: { runId: r.run.id } });
+        if (res.error) failed++;
+        else succeeded++;
+      } catch {
+        failed++;
+      }
+      toast.loading(`Judging ${i + 1}/${unjudgedRuns.length}…`, { id: toastId });
+    }
+    toast.success(`Judging complete: ${succeeded} succeeded, ${failed} failed`, { id: toastId });
+    setJudgingAll(false);
+    router.invalidate();
+  }, [unjudgedRuns, router]);
+
   // Keyboard shortcuts (use refs to avoid forward-reference issues with export handlers)
   const handlersRef = useRef<{ exportBatch?: () => void; exportComparison?: () => void }>({});
   useEffect(() => {
@@ -426,6 +465,18 @@ function BatchDetailPage() {
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Running…</>
           ) : (
             <><Play className="mr-2 h-4 w-4" />Run All Experiments</>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleJudgeUnjudged}
+          disabled={judgingAll || unjudgedRuns.length === 0}
+          title="Run the LLM judge on every completed run that has no judgment yet"
+        >
+          {judgingAll ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Judging…</>
+          ) : (
+            <><Gavel className="mr-2 h-4 w-4" />Judge unjudged ({unjudgedRuns.length})</>
           )}
         </Button>
         <Button
