@@ -25,6 +25,7 @@ import { GroundTruthComparisonPanel } from "@/components/run-details/GroundTruth
 import { SensitivityPanel } from "@/components/run-details/SensitivityPanel";
 import { DecisionTracePanel } from "@/components/run-details/DecisionTracePanel";
 import { CounterfactualPanel } from "@/components/run-details/CounterfactualPanel";
+import { LlmJudgePanel } from "@/components/run-details/LlmJudgePanel";
 
 export const Route = createFileRoute("/_authenticated/runs/$runId")({
   head: () => ({
@@ -138,6 +139,7 @@ function RunDetailPage() {
       </div>
 
       <div className="mt-4 grid gap-4">
+        <LlmJudgePanel runId={run.id} evaluation={details.evaluation ?? null} />
         <DecisionTracePanel runId={run.id} evaluation={details.evaluation ?? null} />
         <CounterfactualPanel runId={run.id} />
         <SensitivityPanel runId={run.id} />
