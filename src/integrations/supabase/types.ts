@@ -756,6 +756,62 @@ export type Database = {
           },
         ]
       }
+      run_llm_judgments: {
+        Row: {
+          action_alignment: string | null
+          confidence: string | null
+          created_at: string
+          critique: string | null
+          disagreement_reason: string | null
+          error: string | null
+          id: string
+          model: string | null
+          provider: string | null
+          reasoning_quality: string | null
+          run_id: string
+          updated_at: string
+          verdict: string | null
+        }
+        Insert: {
+          action_alignment?: string | null
+          confidence?: string | null
+          created_at?: string
+          critique?: string | null
+          disagreement_reason?: string | null
+          error?: string | null
+          id?: string
+          model?: string | null
+          provider?: string | null
+          reasoning_quality?: string | null
+          run_id: string
+          updated_at?: string
+          verdict?: string | null
+        }
+        Update: {
+          action_alignment?: string | null
+          confidence?: string | null
+          created_at?: string
+          critique?: string | null
+          disagreement_reason?: string | null
+          error?: string | null
+          id?: string
+          model?: string | null
+          provider?: string | null
+          reasoning_quality?: string | null
+          run_id?: string
+          updated_at?: string
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_llm_judgments_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: true
+            referencedRelation: "runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       run_metadata: {
         Row: {
           benchmark_case_version: string | null
@@ -1050,18 +1106,21 @@ export type Database = {
       }
       user_preferences: {
         Row: {
+          auto_judge_enabled: boolean
           created_at: string
           openai_model: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          auto_judge_enabled?: boolean
           created_at?: string
           openai_model?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          auto_judge_enabled?: boolean
           created_at?: string
           openai_model?: string | null
           updated_at?: string
