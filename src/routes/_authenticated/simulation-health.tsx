@@ -35,8 +35,18 @@ export const Route = createFileRoute("/_authenticated/simulation-health")({
 
 function SimulationHealthPage() {
   const [diag, setDiag] = useState<SimulationDiagnostics | null>(null);
+  const [history, setHistory] = useState<SimulationHealthHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const loadHistory = async () => {
+    try {
+      const list = await listSimulationHealthHistory();
+      setHistory(list);
+    } catch (e) {
+      console.warn("Failed to load history", e);
+    }
+  };
 
   const refresh = async () => {
     setLoading(true);
@@ -44,6 +54,7 @@ function SimulationHealthPage() {
     try {
       const d = await getSimulationDiagnostics();
       setDiag(d);
+      await loadHistory();
     } catch (e: any) {
       setError(e?.message ?? "Failed to load diagnostics");
     } finally {
@@ -51,9 +62,15 @@ function SimulationHealthPage() {
     }
   };
 
+  const remove = async (id: string) => {
+    await deleteSimulationHealthCheck({ data: { id } });
+    await loadHistory();
+  };
+
   useEffect(() => {
     refresh();
   }, []);
+
 
   const versionOk = diag?.version.status === 200 && !!diag?.version.version;
   const healthOk = diag?.health.status === 200 && !diag?.health.error;
