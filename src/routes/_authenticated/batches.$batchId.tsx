@@ -791,18 +791,32 @@ function BatchDetailPage() {
                 No simulator results — try a supported case
               </div>
               <p className="text-sm text-muted-foreground">
-                Runs in this batch used{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
-                  {caseRecommendation.unsupportedCases.join(", ")}
-                </code>
-                , which neither the built-in simulator nor the PyPSA service can run. Create a new
-                batch with{" "}
+                Runs in this batch used the following case{caseRecommendation.unsupportedCases.length === 1 ? "" : "s"}, which neither the built-in simulator nor the PyPSA service can run:
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {caseRecommendation.unsupportedCases.map((c) => (
+                  <code
+                    key={c}
+                    className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 font-mono text-xs text-amber-700 dark:text-amber-300"
+                  >
+                    {c}
+                  </code>
+                ))}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Why the charts are empty:</span>{" "}
+                with no compatible simulator, every run skipped power-flow evaluation, so
+                violation improvement, sensitivity, and counterfactual metrics are all zero or
+                missing.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Re-run with{" "}
                 <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ieee14</code> or{" "}
                 <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ieee30</code>{" "}
-                (built-in) or{" "}
+                (built-in) — or{" "}
                 <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">case14</code> /{" "}
                 <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">case30</code>{" "}
-                (PyPSA) to populate charts.
+                (PyPSA) — to populate the charts.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button asChild size="sm">
