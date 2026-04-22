@@ -310,7 +310,31 @@ function BatchDetailPage() {
     const normalizations = distinctCases.map((c) => normalizeCaseName(c));
     const allUnsupported = normalizations.every((n) => n.supportedAs === null);
     if (!allUnsupported) return null;
-    return { unsupportedCases: distinctCases };
+
+    // Collect distinct evaluation failure reasons from runs.
+    const reasonSet = new Set<string>();
+    for (const r of runs) {
+      const note = (r.evaluation?.notes ?? "").trim();
+      if (note) reasonSet.add(note);
+      const sim = r.evaluation?.simulation_details as
+        | (Record<string, unknown> & { failure_reason?: unknown; error?: unknown })
+        | null
+        | undefined;
+      if (sim) {
+        if (typeof sim.failure_reason === "string" && sim.failure_reason.trim()) {
+          reasonSet.add(sim.failure_reason.trim());
+        }
+        if (typeof sim.error === "string" && sim.error.trim()) {
+          reasonSet.add(sim.error.trim());
+        }
+      }
+      if (!r.evaluation && r.run.status === "completed") {
+        reasonSet.add("Run completed without an evaluation record.");
+      }
+    }
+    const reasons = Array.from(reasonSet).slice(0, 5);
+
+    return { unsupportedCases: distinctCases, reasons };
   }, [runs]);
 
   const recommendationKey = batch ? `batch-rec-dismissed-${batch.id}` : null;
