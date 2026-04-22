@@ -39,8 +39,26 @@ export interface ReadinessResult {
   notes: string | null;
   error: string | null;
   raw_body_preview: string | null;
+  request_url: string | null;
+  request_payload: unknown;
   timestamp: string;
 }
+
+/**
+ * Strict no-op payload that matches the simulator's Pydantic `SimulateRequest`
+ * schema (see simulation-service/main.py). All `Action` fields are explicit
+ * so the server validates, and `action_type: "none"` + `enabled: true` makes
+ * pypsa_runner skip mutation while still running a real baseline solve.
+ */
+export const READINESS_PAYLOAD = {
+  case_name: "case14",
+  action: {
+    action_type: "none" as string | null,
+    target_index: null as number | null,
+    value: null as number | null,
+    enabled: true,
+  },
+} as const;
 
 function normalizeUrl(raw: string | undefined): string | null {
   if (!raw) return null;
@@ -67,23 +85,23 @@ export const runProductionReadinessCheck = createServerFn({ method: "POST" })
         notes: "External simulator URL not configured",
         error: "SIMULATION_SERVICE_URL not set",
         raw_body_preview: null,
+        request_url: null,
+        request_payload: READINESS_PAYLOAD,
         timestamp,
       };
     }
     const token = process.env.SIMULATION_SERVICE_TOKEN;
+    const request_url = `${url}/simulate`;
     const start = performance.now();
     try {
-      const res = await fetch(`${url}/simulate`, {
+      const res = await fetch(request_url, {
         method: "POST",
         redirect: "follow",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          case_name: "case14",
-          action: { action_type: "none", enabled: false },
-        }),
+        body: JSON.stringify(READINESS_PAYLOAD),
         signal: AbortSignal.timeout(15_000),
       });
       const latency_ms = Math.round(performance.now() - start);
