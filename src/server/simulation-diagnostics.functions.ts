@@ -126,19 +126,7 @@ export const getSimulationDiagnostics = createServerFn({ method: "POST" })
         url: null,
         version: { status: null, version: null, engine: null, error: "Not configured", latency_ms: null },
         health: { status: null, body: null, error: "Not configured", latency_ms: null },
-        simulate: {
-          status: null,
-          ok: false,
-          case_name: "case5",
-          feasibility: null,
-          baseline_violations: null,
-          post_action_violations: null,
-          line_loadings_count: null,
-          notes: null,
-          error: "Not configured",
-          raw_body: null,
-          latency_ms: null,
-        },
+        simulates: [],
         timestamp,
       };
     }
