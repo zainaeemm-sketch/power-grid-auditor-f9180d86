@@ -40,9 +40,10 @@ bun run dev`}</CodeBlock>
 
       <h2>3. Deploying the simulation service (optional)</h2>
       <p>
-        If you want physics-accurate evaluation via pandapower, deploy the
-        FastAPI container under <code>simulation-service/</code> to any host
-        that exposes an HTTPS URL (e.g. Fly.io, Railway, Render).
+        If you want physics-accurate evaluation via <strong>PyPSA</strong> (pure
+        Python, no native binaries), deploy the FastAPI container under{" "}
+        <code>simulation-service/</code> to any host that exposes an HTTPS URL
+        (e.g. Fly.io, Railway, Render).
       </p>
       <CodeBlock language="bash">{`cd simulation-service
 docker build -t gridarena-sim .
@@ -67,6 +68,11 @@ docker run -p 8000:8000 gridarena-sim`}</CodeBlock>
         <li>Sign in, then visit <code>/system-status</code> — the queue should report 0 active jobs.</li>
         <li>Visit <code>/health</code> — engines and providers should report green.</li>
         <li>Run the validation suite from <code>/validation</code> — all categories should pass.</li>
+        <li>
+          (Admin only) Visit <code>/simulation-health</code> — runs <code>/version</code>,{" "}
+          <code>/health</code>, and parallel <code>/simulate</code> self-tests across IEEE
+          case5/14/30 and persists each probe to history for later review.
+        </li>
       </ul>
     </>
   );

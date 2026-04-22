@@ -26,7 +26,7 @@ function DocsOverview() {
       <ul>
         <li>Run a single LLM agent on a benchmark case (case5 / case14 / case30) and inspect every step.</li>
         <li>Compose presets and execute large batch experiments with background queueing.</li>
-        <li>Evaluate recommendations against a deterministic DC powerflow solver (or external pandapower service).</li>
+        <li>Evaluate recommendations against a deterministic DC powerflow solver (or external PyPSA service).</li>
         <li>Compare runs side-by-side, export results to CSV / LaTeX / SVG, and validate the system itself.</li>
       </ul>
 
@@ -38,6 +38,10 @@ function DocsOverview() {
         <li><Link to="/docs/architecture">Architecture</Link> — system diagram and component responsibilities.</li>
         <li><Link to="/docs/reproducibility">Reproducibility</Link> — three reproducible experiments with expected metrics.</li>
         <li><Link to="/docs/troubleshooting">Troubleshooting</Link> — common errors and fixes.</li>
+        <li>
+          (Admin) <Link to="/simulation-health">Simulation Health</Link> — run engine self-tests
+          across IEEE case5/14/30 and review failure history.
+        </li>
       </ul>
 
       <div className="my-6 rounded-lg border border-primary/30 bg-primary/5 p-4">

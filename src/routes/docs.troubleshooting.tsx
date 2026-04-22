@@ -33,11 +33,24 @@ function TroublePage() {
 
       <h2>Simulation engine “unavailable”</h2>
       <p>
-        The Health badge shows <em>unavailable</em> when the external pandapower service can't
-        be reached. GridArena automatically falls back to the in-Worker DC solver — runs still
-        succeed and the engine used is recorded on the evaluation row. To re-enable AC
-        simulation, verify <code>SIMULATION_SERVICE_URL</code> and <code>SIMULATION_SERVICE_TOKEN</code> in
-        Cloud secrets.
+        The Health badge shows <em>unavailable</em> when the external <strong>PyPSA</strong>{" "}
+        service can't be reached. GridArena automatically falls back to the in-Worker DC solver —
+        runs still succeed and the engine used is recorded on the evaluation row. To re-enable
+        the external engine, verify <code>SIMULATION_SERVICE_URL</code> and{" "}
+        <code>SIMULATION_SERVICE_TOKEN</code> in Cloud secrets.
+      </p>
+
+      <h2>Diagnose engine failures (admin)</h2>
+      <p>
+        Admins can open <code>/simulation-health</code> to run end-to-end self-tests against the
+        external engine. The page probes <code>/version</code> and <code>/health</code>, then
+        executes <code>/simulate</code> in parallel for IEEE case5/14/30 and renders actionable
+        troubleshooting tips based on the exact failing endpoint response — missing{" "}
+        <code>SIMULATION_SERVICE_URL</code> or <code>SIMULATION_SERVICE_TOKEN</code>, DNS or
+        connection errors, 401/403 authentication failures, 5xx with raw response samples, and
+        per-case timeout hints. Each probe is stored in history so you can review past failures
+        and confirm when a fix took effect. A banner alert fires only on state changes (pass → fail)
+        to avoid noise.
       </p>
 
       <h2>“Unauthorized” errors</h2>

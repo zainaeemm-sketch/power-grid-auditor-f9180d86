@@ -30,7 +30,7 @@ The app runs at `http://localhost:3000`. Database, auth, and the LLM gateway are
 
 ## Optional simulation service
 
-For physics-accurate AC powerflow, deploy the FastAPI container under `simulation-service/`:
+For physics-accurate power flow via **PyPSA** (pure Python, no native binaries), deploy the FastAPI container under `simulation-service/`:
 
 ```bash
 cd simulation-service
@@ -38,7 +38,7 @@ docker build -t gridarena-sim .
 docker run -p 8000:8000 gridarena-sim
 ```
 
-Then set `SIMULATION_SERVICE_URL` and `SIMULATION_SERVICE_TOKEN` in Cloud secrets. GridArena falls back to the in-Worker DC solver when the service is unavailable.
+Then set `SIMULATION_SERVICE_URL` and `SIMULATION_SERVICE_TOKEN` in Cloud secrets. GridArena falls back to the in-Worker DC solver when the service is unavailable. Admins can run engine self-tests across IEEE case5/14/30 from `/simulation-health`.
 
 ## Reproducing experiments
 

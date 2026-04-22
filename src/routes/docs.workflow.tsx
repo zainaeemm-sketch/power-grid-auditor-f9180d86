@@ -64,9 +64,9 @@ function WorkflowPage() {
       <h2>5. Simulation &amp; Evaluation</h2>
       <p>
         The action is applied to a fresh copy of the benchmark case. In simulation mode, GridArena
-        calls the external pandapower service (full AC powerflow) or falls back to the bundled
-        deterministic DC solver. Baseline and post-action violations are counted, feasibility is
-        assessed, and the engine used is recorded on the evaluation row.
+        calls the external <strong>PyPSA</strong> service (power flow on IEEE case5/14/30) or
+        falls back to the bundled deterministic DC solver. Baseline and post-action violations are
+        counted, feasibility is assessed, and the engine used is recorded on the evaluation row.
       </p>
 
       <h2>6. Persistence</h2>
