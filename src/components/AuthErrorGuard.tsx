@@ -65,10 +65,17 @@ export function AuthErrorGuard() {
 
     const onError = (ev: ErrorEvent) => {
       const msg = typeof ev.message === "string" ? ev.message : "";
-      // Auth Response surfaced as plain error
-      if (msg.includes("[object Response]")) {
+      // Auth Response surfaced as plain error — check both the underlying
+      // error object and the stringified message.
+      if (isUnauthorizedResponse(ev.error) || msg.includes("[object Response]")) {
         ev.preventDefault();
         void tryRefresh();
+        return;
+      }
+      // Any Response thrown (non-2xx) — swallow to avoid blank screen;
+      // the failing call will retry on next poll/navigation.
+      if (ev.error instanceof Response) {
+        ev.preventDefault();
         return;
       }
       // Known TanStack server-fn handler crash when request context is
