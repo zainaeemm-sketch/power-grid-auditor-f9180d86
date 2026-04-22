@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard, FileText, Gavel } from "lucide-react";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard, FileText, Gavel, Lightbulb, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -291,8 +291,52 @@ function BatchDetailPage() {
     router.invalidate();
   }, [unjudgedRuns, router]);
 
+  // Auto-recommend a supported case when charts will be empty due to unsupported case_name.
+  const caseRecommendation = useMemo(() => {
+    const SUPPORTED_BUILTIN = new Set(["ieee9", "ieee14", "ieee30"]);
+    const SUPPORTED_PYPSA = new Set(["case5", "case14", "case30"]);
+    if (runs.length === 0) return null;
+    const allFinished = runs.every(
+      (r) => r.run.status === "completed" || (r.run.status as string) === "failed",
+    );
+    if (!allFinished) return null;
+    const allZeroImprovement = runs.every(
+      (r) => !r.evaluation || !r.evaluation.violation_improvement,
+    );
+    if (!allZeroImprovement) return null;
+    const distinctCases = Array.from(
+      new Set(runs.map((r) => r.run.case_name).filter(Boolean)),
+    ) as string[];
+    if (distinctCases.length === 0) return null;
+    const allUnsupported = distinctCases.every((c) => {
+      const key = c.toLowerCase();
+      return !SUPPORTED_BUILTIN.has(key) && !SUPPORTED_PYPSA.has(key);
+    });
+    if (!allUnsupported) return null;
+    return { unsupportedCases: distinctCases };
+  }, [runs]);
+
+  const recommendationKey = batch ? `batch-rec-dismissed-${batch.id}` : null;
+  const [recommendationDismissed, setRecommendationDismissed] = useState(false);
+  useEffect(() => {
+    if (!recommendationKey) {
+      setRecommendationDismissed(false);
+      return;
+    }
+    try {
+      setRecommendationDismissed(sessionStorage.getItem(recommendationKey) === "1");
+    } catch { /* ignore */ }
+  }, [recommendationKey]);
+  const dismissRecommendation = useCallback(() => {
+    setRecommendationDismissed(true);
+    if (recommendationKey) {
+      try { sessionStorage.setItem(recommendationKey, "1"); } catch { /* ignore */ }
+    }
+  }, [recommendationKey]);
+
   // Keyboard shortcuts (use refs to avoid forward-reference issues with export handlers)
   const handlersRef = useRef<{ exportBatch?: () => void; exportComparison?: () => void }>({});
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -733,6 +777,48 @@ function BatchDetailPage() {
                 </tbody>
               </table>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Auto-recommendation: unsupported case → empty charts */}
+      {caseRecommendation && !recommendationDismissed && (
+        <Card className="mb-4 border-amber-500/40 bg-amber-500/10">
+          <CardContent className="flex items-start gap-3 py-4">
+            <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+            <div className="flex-1">
+              <div className="mb-1 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                No simulator results — try a supported case
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Runs in this batch used{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+                  {caseRecommendation.unsupportedCases.join(", ")}
+                </code>
+                , which neither the built-in simulator nor the PyPSA service can run. Create a new
+                batch with{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ieee14</code> or{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ieee30</code>{" "}
+                (built-in) or{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">case14</code> /{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">case30</code>{" "}
+                (PyPSA) to populate charts.
+              </p>
+              <div className="mt-3">
+                <Button asChild size="sm">
+                  <Link to="/batches/new">New Batch</Link>
+                </Button>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={dismissRecommendation}
+              aria-label="Dismiss recommendation"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </CardContent>
         </Card>
       )}
