@@ -265,7 +265,8 @@ export interface SimulationHealthHistoryEntry {
 export const listSimulationHealthHistory = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }): Promise<SimulationHealthHistoryEntry[]> => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
     const { data, error } = await supabase
       .from("simulation_health_checks")
       .select(
