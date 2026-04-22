@@ -181,7 +181,7 @@ function HealthPage() {
             label="Simulation Engine"
             detail={
               status?.simulator.state === "active"
-                ? `Active — pandapower service responding (${status.simulator.latency_ms} ms · /health ${status.simulator.health_status} · /simulate ${status.simulator.simulate_status})`
+                ? `Active — PyPSA service responding (${status.simulator.latency_ms} ms · /health ${status.simulator.health_status} · /simulate ${status.simulator.simulate_status})`
                 : status?.simulator.state === "fallback"
                   ? `Fallback → DC PF` +
                     ` · /health ${status?.simulator.health_status ?? "—"}` +
