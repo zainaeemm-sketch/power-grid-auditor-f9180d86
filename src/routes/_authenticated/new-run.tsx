@@ -13,6 +13,8 @@ import type { ExperimentPreset, GroundTruthScenarioListItem } from "@/types/grid
 import { Play } from "lucide-react";
 import { Zap } from "lucide-react";
 import { PresetSelectItem, PresetGroupedList } from "@/components/PresetSelectItem";
+import { ScenarioAssistCard } from "@/components/new-run/ScenarioAssistCard";
+import type { ScenarioSuggestion } from "@/server/scenario-assist.functions";
 
 type StressedQuickPick = {
   id: string;
@@ -121,6 +123,21 @@ function NewRunPage() {
   const [groundTruthId, setGroundTruthId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
+  const applyAiSuggestion = (s: ScenarioSuggestion) => {
+    const overwriteField = (label: string, current: string, next: string, setter: (v: string) => void) => {
+      if (current.trim() && current.trim() !== next.trim()) {
+        const ok = window.confirm(`Overwrite ${label}?\n\nCurrent: ${current.slice(0, 80)}${current.length > 80 ? "…" : ""}\n\nNew: ${next.slice(0, 80)}${next.length > 80 ? "…" : ""}`);
+        if (!ok) return;
+      }
+      setter(next);
+    };
+    overwriteField("Title", title, s.title, setTitle);
+    overwriteField("Task", task, s.task, setTask);
+    overwriteField("Case", caseName, s.case_name, setCaseName);
+    overwriteField("Research question", researchQuestion, s.research_question, setResearchQuestion);
+    setEvaluationMode(s.evaluation_mode);
+  };
+
   const applyStressedQuickPick = (pick: StressedQuickPick) => {
     setTitle(pick.title);
     setTask(pick.task);
@@ -191,6 +208,8 @@ function NewRunPage() {
       </h1>
 
       <form onSubmit={handleSubmit}>
+        <ScenarioAssistCard onApply={applyAiSuggestion} />
+
         <Card className="mb-4 border-amber-500/30 bg-amber-500/5 animate-fade-up" style={{ animationDelay: "50ms" }}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
