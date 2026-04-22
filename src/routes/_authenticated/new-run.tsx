@@ -89,6 +89,10 @@ export const Route = createFileRoute("/_authenticated/new-run")({
       { name: "description", content: "Create a new experiment run." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { case?: string } => {
+    const c = typeof search.case === "string" ? (search.case as string) : undefined;
+    return c ? { case: c } : {};
+  },
   loader: async () => {
     if (typeof window === "undefined") return { presets: [], scenarios: [] };
     try {
