@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard, FileText, Gavel } from "lucide-react";
+import { ArrowLeft, Play, Download, CheckCircle2, XCircle, Loader2, RotateCcw, Volume2, VolumeX, Bell, BellOff, Keyboard, FileText, Gavel, Lightbulb, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
