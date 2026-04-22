@@ -1,73 +1,29 @@
 
 
-## Production Readiness Check on Health Page
+## Use the user's OpenAI key (not Lovable AI) for the Scenario Assist suggestion card
 
-Add a one-shot button to `/health` that performs a live end-to-end test of the PyPSA simulator by sending a real `case14` no-op action to `/simulate` and reporting the round-trip result.
+You're right — the previous plan said "Lovable AI". This project already has its own LLM setup (`OPENAI_API_KEY` + `OPENAI_BASE_URL` + `OPENAI_MODEL`, the same vars shown on the System Health page), and existing server functions in `src/server/assistant.functions.ts` and `src/server/llm.functions.ts` already call that OpenAI-compatible endpoint. The Scenario Assist feature will reuse that exact same path — no Lovable AI gateway, no new keys.
 
-### What the user gets
+### What changes vs the previous plan
 
-A new "Production readiness" card at the bottom of the System Health page with:
-- A **"Run live PyPSA test"** button
-- On click: spinner + "Pinging case14…" status
-- Results panel showing:
-  - HTTP status from the external `/simulate` call
-  - Round-trip latency (ms)
-  - Engine reported (`pypsa` / fallback)
-  - Baseline + post-action violation counts (proves real solve happened)
-  - Feasibility flag
-  - Any error message returned
-- Green/amber/red badge summarizing pass/warn/fail
+- The new server function `suggestScenario` will call **the same OpenAI-compatible endpoint** the rest of the app already uses (`OPENAI_BASE_URL` + `OPENAI_API_KEY`, model = `OPENAI_MODEL`), via the existing helper pattern in `src/server/llm.functions.ts` / `assistant.functions.ts`.
+- No reference to Lovable AI, no `LOVABLE_API_KEY`, no `ai.gateway.lovable.dev`.
+- The suggestion card UI will show a small footer line: **"Suggested by `{OPENAI_MODEL}` via your configured OpenAI endpoint"** so it's visually obvious which key/model produced it.
+- If `OPENAI_API_KEY` is missing on the server, the function returns a clear error and the UI shows: *"Set OPENAI_API_KEY on the server to enable AI Assist"* (links mentally to the System Health page where you already see this status).
 
-### Technical changes
+### Files (unchanged from before, just corrected provider)
 
-**1. New server function: `runProductionReadinessCheck` in `src/server/health.functions.ts`**
-- Auth-protected (`requireSupabaseAuth`)
-- Uses `SIMULATION_SERVICE_URL` + `SIMULATION_SERVICE_TOKEN` from env
-- Sends `POST {url}/simulate` with payload:
-  ```json
-  { "case_name": "case14", "action": { "enabled": false } }
-  ```
-- 15s timeout via `AbortSignal.timeout(15_000)`
-- Measures latency with `performance.now()`
-- Returns:
-  ```ts
-  {
-    ok: boolean;
-    status: "pass" | "warn" | "fail";
-    http_status: number | null;
-    latency_ms: number;
-    engine: string | null;
-    feasibility: string | null;
-    baseline_violations: number | null;
-    post_action_violations: number | null;
-    notes: string | null;
-    error: string | null;
-    raw_body_preview: string | null; // first 500 chars
-    timestamp: string;
-  }
-  ```
-- Status logic:
-  - `pass` — HTTP 200, engine === "pypsa", no error
-  - `warn` — HTTP 200 but engine missing/feasibility infeasible
-  - `fail` — non-200, timeout, or thrown error
-- If `SIMULATION_SERVICE_URL` is not set → returns `fail` with note "External simulator URL not configured"
-- Wrapped in try/catch — never throws
+- **New** `src/server/scenario-assist.functions.ts` — `suggestScenario` server fn. Auth-protected via `requireSupabaseAuth`. Reads `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` from `process.env`. Uses tool-calling (`propose_scenario` function schema) for structured output. Constrains `case_name` to `case5` | `case14` | `case30`. Surfaces 401/402/429 from the upstream OpenAI-compatible provider as typed error messages.
+- **New** `src/components/new-run/ScenarioAssistCard.tsx` — textarea + "Suggest with AI" button + preview card with **Apply to form** / **Discard** / **Regenerate**. Footer shows the model name returned by the server.
+- **Edit** `src/routes/_authenticated/new-run.tsx` — mount `<ScenarioAssistCard onApply={...} />` above the Stressed quick-pick. `applySuggestion` does per-field overwrite confirmation.
 
-**2. UI changes in `src/routes/_authenticated/health.tsx`**
-- Add new `<Card>` "Production Readiness" below the existing checklist
-- Local state: `readiness: ReadinessResult | null`, `readinessLoading: boolean`
-- Button calls `runProductionReadinessCheck()` (no args)
-- Result rendering: stat grid (status / latency / engine / violations) + collapsible raw body preview if `fail`
-- Use existing `CheckCircle2 / AlertCircle / XCircle` icons keyed by `status`
+### Behaviour (unchanged)
 
-### Files
+- Suggest, don't apply: form fields stay untouched until you click **Apply to form**.
+- Per-field overwrite confirmation if a field already has user input.
+- AI is constrained to the 3 supported cases so the simulator can actually run the result.
 
-- **Edit** `src/server/health.functions.ts` — add `runProductionReadinessCheck` server fn + `ReadinessResult` type export
-- **Edit** `src/routes/_authenticated/health.tsx` — add new card, button, state, render logic
+### Out of scope (saved for the follow-up)
 
-### Out of scope
-
-- No DB writes, no history of past runs (one-shot only)
-- No changes to `HealthBadge` (it stays a passive `/health` ping)
-- No changes to the simulation service itself
+Custom user cases (`user_cases` table + JSON case editor + solver wiring) — separate plan after this ships.
 
