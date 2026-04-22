@@ -103,7 +103,6 @@ function SimulationHealthPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-</main-replace-marker>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
