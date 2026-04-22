@@ -1,13 +1,15 @@
 """
-GridArena power-system simulation microservice.
+GridArena power-system simulation microservice (PyPSA edition).
 
-Runs pandapower DC/AC power flow on standard IEEE cases and returns
-violation counts compatible with GridArena's evaluation schema.
+Runs PyPSA DC power flow on standard IEEE cases (case5, case14, case30) and
+returns violation counts compatible with GridArena's evaluation schema.
 
 Endpoints:
-  POST /simulate            — apply a structured action and report violations
-  POST /simulate_perturbed  — apply perturbation spec + action, return both
-                              baseline (action only) and perturbed results
+  GET  /health             — auth probe
+  GET  /version            — unauthenticated build identity
+  POST /simulate           — apply a structured action and report violations
+  POST /simulate_perturbed — apply perturbation + action, return baseline +
+                             perturbed results
 """
 
 from __future__ import annotations
@@ -17,12 +19,12 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 
-from pandapower_runner import simulate_action, simulate_perturbed
+from pypsa_runner import simulate_action, simulate_perturbed
 
 API_TOKEN = os.environ.get("SIMULATION_API_TOKEN", "")
-BUILD_VERSION = "2026-04-21-writable-fix-v2"
+BUILD_VERSION = "2026-04-22-pypsa-v1"
 
-app = FastAPI(title="GridArena Simulation Service", version="1.2.0")
+app = FastAPI(title="GridArena Simulation Service", version="2.0.0")
 
 
 class Action(BaseModel):
@@ -62,14 +64,19 @@ def _check_auth(authorization: Optional[str]) -> None:
 @app.get("/health")
 def health(authorization: Optional[str] = Header(default=None)) -> dict[str, Any]:
     _check_auth(authorization)
-    return {"status": "ok", "engine": "pandapower", "version": BUILD_VERSION, "features": ["simulate", "simulate_perturbed"]}
+    return {
+        "status": "ok",
+        "engine": "pypsa",
+        "version": BUILD_VERSION,
+        "features": ["simulate", "simulate_perturbed"],
+    }
 
 
 @app.get("/version")
 def version() -> dict[str, Any]:
     """Unauthenticated build-identity endpoint so deployers can confirm which
-    commit is actually live on Railway without needing the bearer token."""
-    return {"version": BUILD_VERSION}
+    commit is actually live without needing the bearer token."""
+    return {"version": BUILD_VERSION, "engine": "pypsa"}
 
 
 def _infeasible_response(case_name: str, reason: str) -> dict[str, Any]:
@@ -82,6 +89,8 @@ def _infeasible_response(case_name: str, reason: str) -> dict[str, Any]:
         "line_loadings": [],
         "voltage_violations": [],
         "generator_violations": [],
+        "engine": "pypsa",
+        "case_name": case_name,
         "notes": f"Simulator could not evaluate {case_name}: {reason}",
     }
 
