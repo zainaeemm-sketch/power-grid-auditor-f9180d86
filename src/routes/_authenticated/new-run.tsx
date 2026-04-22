@@ -110,10 +110,11 @@ function NewRunPage() {
   const navigate = useNavigate();
   const createRunFn = useServerFn(createRun);
 
+  const search = Route.useSearch() as { case?: string };
   const [title, setTitle] = useState("");
   const [task, setTask] = useState("");
   const [agent, setAgent] = useState("");
-  const [caseName, setCaseName] = useState("");
+  const [caseName, setCaseName] = useState(search.case ?? "");
   const [researchQuestion, setResearchQuestion] = useState("");
   const [presetId, setPresetId] = useState<string>("");
   const [evaluationMode, setEvaluationMode] = useState<"rule_based" | "simulation" | "auto">("rule_based");
