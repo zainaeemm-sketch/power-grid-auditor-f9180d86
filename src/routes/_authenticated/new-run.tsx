@@ -362,6 +362,65 @@ function NewRunPage() {
           </CardContent>
         </Card>
       </form>
+
+      <AlertDialog open={pendingSuggestion !== null} onOpenChange={(open) => { if (!open) setPendingSuggestion(null); }}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply AI suggestion to form?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {overwriteCount > 0 ? (
+                <>
+                  <span className="font-semibold text-foreground">{overwriteCount}</span> field{overwriteCount === 1 ? "" : "s"} will be overwritten
+                  {newCount > 0 ? <> and <span className="font-semibold text-foreground">{newCount}</span> new field{newCount === 1 ? "" : "s"} filled.</> : "."}
+                </>
+              ) : (
+                <>{pendingDiffs.length} field{pendingDiffs.length === 1 ? "" : "s"} will be filled. No existing values will be lost.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="max-h-[50vh] overflow-y-auto space-y-3 text-xs">
+            {pendingDiffs.map((d) => (
+              <div key={d.key} className="rounded-md border border-border/50 bg-muted/30 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="font-semibold text-foreground text-sm">{d.label}</span>
+                  {d.willOverwrite ? (
+                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">OVERWRITE</span>
+                  ) : (
+                    <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">NEW</span>
+                  )}
+                </div>
+                {d.willOverwrite && (
+                  <div className="mb-2">
+                    <div className="text-muted-foreground font-medium mb-0.5">Current</div>
+                    <div className="rounded bg-background/50 p-2 text-foreground/70 line-through whitespace-pre-wrap break-words">
+                      {d.current.length > 240 ? d.current.slice(0, 240) + "…" : d.current}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <div className="text-muted-foreground font-medium mb-0.5">New</div>
+                  <div className="rounded bg-primary/5 border border-primary/20 p-2 text-foreground whitespace-pre-wrap break-words">
+                    {d.next.length > 240 ? d.next.slice(0, 240) + "…" : d.next}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {pendingDiffs.length === 0 && (
+              <div className="rounded-md border border-border/50 bg-muted/30 p-3 text-muted-foreground">
+                The suggestion matches your current form values. Nothing will change.
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmApply} disabled={pendingDiffs.length === 0}>
+              Apply {pendingDiffs.length > 0 ? `${pendingDiffs.length} change${pendingDiffs.length === 1 ? "" : "s"}` : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
