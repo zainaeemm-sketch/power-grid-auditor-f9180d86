@@ -371,27 +371,40 @@ function BatchDetailPage() {
     router.invalidate();
   }, [unjudgedRuns, router]);
 
-  // Auto-recommend a supported case when charts will be empty due to unsupported case_name.
+  // Auto-recommend a supported case when charts will be empty.
+  // Reliable trigger: any sensitivity/counterfactual evaluations were skipped due to
+  // "No simulator available" (or similar). Fallback trigger: every run has zero
+  // violation_improvement AND every distinct case_name normalizes to unsupported.
   const caseRecommendation = useMemo(() => {
     if (runs.length === 0) return null;
     const allFinished = runs.every(
       (r) => r.run.status === "completed" || (r.run.status as string) === "failed",
     );
     if (!allFinished) return null;
-    const allZeroImprovement = runs.every(
-      (r) => !r.evaluation || !r.evaluation.violation_improvement,
-    );
-    if (!allZeroImprovement) return null;
+
     const distinctCases = Array.from(
       new Set(runs.map((r) => r.run.case_name).filter(Boolean)),
     ) as string[];
     if (distinctCases.length === 0) return null;
     const normalizations = distinctCases.map((c) => normalizeCaseName(c));
     const allUnsupported = normalizations.every((n) => n.supportedAs === null);
-    if (!allUnsupported) return null;
 
-    // Collect distinct evaluation failure reasons from runs.
+    const hasSkippedEvals =
+      !!skipSignal &&
+      (skipSignal.perturbationSkipped > 0 || skipSignal.counterfactualSkipped > 0);
+
+    const allZeroImprovement = runs.every(
+      (r) => !r.evaluation || !r.evaluation.violation_improvement,
+    );
+
+    // Trigger if simulator-skipped evals are detected, OR fall back to the
+    // older heuristic (zero improvement + all unsupported case names).
+    const shouldShow = hasSkippedEvals || (allZeroImprovement && allUnsupported);
+    if (!shouldShow) return null;
+
+    // Collect distinct reasons: skip reasons from sensitivity/CF + run evaluation notes.
     const reasonSet = new Set<string>();
+    for (const r of skipSignal?.reasons ?? []) reasonSet.add(r);
     for (const r of runs) {
       const note = (r.evaluation?.notes ?? "").trim();
       if (note) reasonSet.add(note);
@@ -413,8 +426,14 @@ function BatchDetailPage() {
     }
     const reasons = Array.from(reasonSet).slice(0, 5);
 
-    return { unsupportedCases: distinctCases, reasons };
-  }, [runs]);
+    return {
+      unsupportedCases: distinctCases,
+      reasons,
+      skipSignal,
+      triggerReason: hasSkippedEvals ? ("skipped-evals" as const) : ("zero-improvement" as const),
+    };
+  }, [runs, skipSignal]);
+
 
   const recommendationKey = batch ? `batch-rec-dismissed-${batch.id}` : null;
   const [recommendationDismissed, setRecommendationDismissed] = useState(false);
