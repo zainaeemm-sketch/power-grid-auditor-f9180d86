@@ -8,7 +8,7 @@ export function ArchitectureDiagram({ className }: { className?: string }) {
   return (
     <div className={className}>
       <svg
-        viewBox="0 0 800 460"
+        viewBox="0 0 800 540"
         xmlns="http://www.w3.org/2000/svg"
         role="img"
         aria-label="GridArena system architecture diagram"
