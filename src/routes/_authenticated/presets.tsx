@@ -162,6 +162,89 @@ function PresetsPage() {
     setPromptTemplateVersion(""); setParserVersion(""); setEvalVersion(""); setEvaluationMode("rule_based");
   };
 
+  // ---- AI Assist state ----
+  type PFieldKey = "name" | "provider_name" | "model_name" | "system_prompt" | "default_prompt_text" | "temperature" | "top_p" | "max_tokens" | "evaluation_mode" | "notes";
+  type PDiffRow = { key: PFieldKey; label: string; current: string; next: string; isOverwrite: boolean };
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [pendingPresetSuggestion, setPendingPresetSuggestion] = useState<PresetSuggestion | null>(null);
+  const [pendingPresetDiff, setPendingPresetDiff] = useState<PDiffRow[]>([]);
+  const [presetValidationError, setPresetValidationError] = useState<string | null>(null);
+
+  const validatePresetSuggestion = (s: PresetSuggestion): string | null => {
+    if (!s.name.trim() || s.name.length > 80) return "Suggested name must be 1–80 characters.";
+    if (s.temperature < 0 || s.temperature > 2) return "Temperature must be between 0 and 2.";
+    if (s.top_p < 0 || s.top_p > 1) return "Top-p must be between 0 and 1.";
+    if (!Number.isInteger(s.max_tokens) || s.max_tokens < 1 || s.max_tokens > 8192) return "Max tokens must be an integer between 1 and 8192.";
+    if (!isAllowedEvaluationMode(s.evaluation_mode)) return `Evaluation mode must be one of: ${ALLOWED_EVALUATION_MODES.join(", ")}.`;
+    if (s.system_prompt.length > 4000) return "System prompt must be ≤ 4000 characters.";
+    return null;
+  };
+
+  const buildPresetDiff = (s: PresetSuggestion): PDiffRow[] => {
+    const rows: Array<{ key: PFieldKey; label: string; current: string; next: string }> = [
+      { key: "name", label: "Name", current: name, next: s.name },
+      { key: "provider_name", label: "Provider", current: providerName, next: s.provider_name },
+      { key: "model_name", label: "Model", current: modelName, next: s.model_name },
+      { key: "system_prompt", label: "System Prompt", current: systemPrompt, next: s.system_prompt },
+      { key: "default_prompt_text", label: "Default Prompt", current: defaultPrompt, next: s.default_prompt_text },
+      { key: "temperature", label: "Temperature", current: temperature, next: String(s.temperature) },
+      { key: "top_p", label: "Top-p", current: topP, next: String(s.top_p) },
+      { key: "max_tokens", label: "Max Tokens", current: maxTokens, next: String(s.max_tokens) },
+      { key: "evaluation_mode", label: "Evaluation Mode", current: evaluationMode, next: s.evaluation_mode },
+      { key: "notes", label: "Notes", current: notes, next: s.notes },
+    ];
+    return rows.map((r) => ({ ...r, isOverwrite: r.current.trim().length > 0 && r.current !== r.next }));
+  };
+
+  const applyPresetSuggestionDirect = (s: PresetSuggestion) => {
+    setName(s.name);
+    setProviderName(s.provider_name);
+    setModelName(s.model_name);
+    setSystemPrompt(s.system_prompt);
+    setDefaultPrompt(s.default_prompt_text);
+    setTemperature(String(s.temperature));
+    setTopP(String(s.top_p));
+    setMaxTokens(String(s.max_tokens));
+    setEvaluationMode(s.evaluation_mode);
+    setNotes(s.notes);
+    toast.success("Suggestion applied to form");
+  };
+
+  const handlePresetAssistApply = (s: PresetSuggestion) => {
+    const err = validatePresetSuggestion(s);
+    setPresetValidationError(err);
+    if (err) {
+      toast.error("Suggestion failed validation");
+      setPendingPresetSuggestion(s);
+      setPendingPresetDiff([]);
+      return;
+    }
+    const diff = buildPresetDiff(s);
+    const hasOverwrite = diff.some((d) => d.isOverwrite);
+    if (!hasOverwrite) {
+      applyPresetSuggestionDirect(s);
+      setPendingPresetSuggestion(null);
+      return;
+    }
+    setPendingPresetSuggestion(s);
+    setPendingPresetDiff(diff);
+  };
+
+  const confirmPresetApply = () => {
+    if (!pendingPresetSuggestion) return;
+    applyPresetSuggestionDirect(pendingPresetSuggestion);
+    setPendingPresetSuggestion(null);
+    setPendingPresetDiff([]);
+    setPresetValidationError(null);
+  };
+
+  const cancelPresetApply = () => {
+    setPendingPresetSuggestion(null);
+    setPendingPresetDiff([]);
+  };
+
+  const showPresetDiffModal = !!pendingPresetSuggestion && pendingPresetDiff.length > 0 && !presetValidationError;
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
