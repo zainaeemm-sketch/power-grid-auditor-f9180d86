@@ -781,6 +781,48 @@ function BatchDetailPage() {
         </Card>
       )}
 
+      {/* Auto-recommendation: unsupported case → empty charts */}
+      {caseRecommendation && !recommendationDismissed && (
+        <Card className="mb-4 border-amber-500/40 bg-amber-500/10">
+          <CardContent className="flex items-start gap-3 py-4">
+            <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+            <div className="flex-1">
+              <div className="mb-1 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                No simulator results — try a supported case
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Runs in this batch used{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+                  {caseRecommendation.unsupportedCases.join(", ")}
+                </code>
+                , which neither the built-in simulator nor the PyPSA service can run. Create a new
+                batch with{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ieee14</code> or{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ieee30</code>{" "}
+                (built-in) or{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">case14</code> /{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">case30</code>{" "}
+                (PyPSA) to populate charts.
+              </p>
+              <div className="mt-3">
+                <Button asChild size="sm">
+                  <Link to="/batches/new">New Batch</Link>
+                </Button>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={dismissRecommendation}
+              aria-label="Dismiss recommendation"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Charts */}
       {agentStats.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-2">
