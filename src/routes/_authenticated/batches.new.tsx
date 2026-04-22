@@ -17,6 +17,9 @@ export const Route = createFileRoute("/_authenticated/batches/new")({
   head: () => ({
     meta: [{ title: "New Batch — GridArena" }],
   }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    cases: typeof search.cases === "string" ? (search.cases as string) : undefined,
+  }),
   loader: async () => {
     if (typeof window === "undefined") return { presets: [] };
     try {
