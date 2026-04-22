@@ -39,6 +39,11 @@ import {
 import { BatchSensitivitySection } from "@/components/batch/BatchSensitivitySection";
 import { BatchCounterfactualSection } from "@/components/batch/BatchCounterfactualSection";
 import { normalizeCaseName } from "@/lib/case-normalize";
+import {
+  classifyCounterfactual,
+  classifyPerturbation,
+  isSkippedFailure,
+} from "@/lib/simulation-skip";
 
 export const Route = createFileRoute("/_authenticated/batches/$batchId")({
   head: () => ({
@@ -97,6 +102,80 @@ function BatchDetailPage() {
   useEffect(() => {
     completedCountRef.current = runs.filter((r) => r.run.status === "completed").length;
   }, [runs]);
+
+  // Detect skipped sensitivity/counterfactual evaluations (e.g., "No simulator available").
+  // This is a more reliable signal that charts will be empty than violation_improvement alone,
+  // because a run can have a non-zero improvement but still produce no perturbation/CF data.
+  const [skipSignal, setSkipSignal] = useState<{
+    perturbationSkipped: number;
+    perturbationTotal: number;
+    counterfactualSkipped: number;
+    counterfactualTotal: number;
+    reasons: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (runIds.length === 0) {
+      setSkipSignal(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      // perturbation_results joins via perturbation_tests.run_id
+      const [{ data: pertTests }, { data: cfActions }] = await Promise.all([
+        supabase.from("perturbation_tests").select("id,run_id").in("run_id", runIds),
+        supabase.from("counterfactual_actions").select("id,run_id").in("run_id", runIds),
+      ]);
+      const pertIds = (pertTests ?? []).map((t) => t.id);
+      const cfIds = (cfActions ?? []).map((a) => a.id);
+      const [{ data: pertResults }, { data: cfResults }] = await Promise.all([
+        pertIds.length
+          ? supabase
+              .from("perturbation_results")
+              .select("failure_reason,notes,robustness_result")
+              .in("perturbation_test_id", pertIds)
+          : Promise.resolve({ data: [] as Array<{ failure_reason: string | null; notes: string | null; robustness_result: string | null }> }),
+        cfIds.length
+          ? supabase
+              .from("counterfactual_results")
+              .select("failure_reason,status")
+              .in("counterfactual_action_id", cfIds)
+          : Promise.resolve({ data: [] as Array<{ failure_reason: string | null; status: string | null }> }),
+      ]);
+      if (cancelled) return;
+
+      const reasonSet = new Set<string>();
+      let pSkipped = 0;
+      for (const r of pertResults ?? []) {
+        if (classifyPerturbation(r.failure_reason, r.notes) === "skipped") {
+          pSkipped++;
+          if (r.failure_reason && isSkippedFailure(r.failure_reason)) {
+            reasonSet.add(r.failure_reason.trim());
+          } else if (r.notes && isSkippedFailure(r.notes)) {
+            reasonSet.add(r.notes.trim());
+          }
+        }
+      }
+      let cSkipped = 0;
+      for (const r of cfResults ?? []) {
+        if (classifyCounterfactual(r.status, r.failure_reason) === "skipped") {
+          cSkipped++;
+          if (r.failure_reason) reasonSet.add(r.failure_reason.trim());
+        }
+      }
+
+      setSkipSignal({
+        perturbationSkipped: pSkipped,
+        perturbationTotal: pertResults?.length ?? 0,
+        counterfactualSkipped: cSkipped,
+        counterfactualTotal: cfResults?.length ?? 0,
+        reasons: Array.from(reasonSet).slice(0, 5),
+      });
+    })().catch(() => { if (!cancelled) setSkipSignal(null); });
+    return () => { cancelled = true; };
+  }, [runIds]);
+
+
 
   useEffect(() => {
     if (runIds.length === 0 || !batch) return;
@@ -292,27 +371,40 @@ function BatchDetailPage() {
     router.invalidate();
   }, [unjudgedRuns, router]);
 
-  // Auto-recommend a supported case when charts will be empty due to unsupported case_name.
+  // Auto-recommend a supported case when charts will be empty.
+  // Reliable trigger: any sensitivity/counterfactual evaluations were skipped due to
+  // "No simulator available" (or similar). Fallback trigger: every run has zero
+  // violation_improvement AND every distinct case_name normalizes to unsupported.
   const caseRecommendation = useMemo(() => {
     if (runs.length === 0) return null;
     const allFinished = runs.every(
       (r) => r.run.status === "completed" || (r.run.status as string) === "failed",
     );
     if (!allFinished) return null;
-    const allZeroImprovement = runs.every(
-      (r) => !r.evaluation || !r.evaluation.violation_improvement,
-    );
-    if (!allZeroImprovement) return null;
+
     const distinctCases = Array.from(
       new Set(runs.map((r) => r.run.case_name).filter(Boolean)),
     ) as string[];
     if (distinctCases.length === 0) return null;
     const normalizations = distinctCases.map((c) => normalizeCaseName(c));
     const allUnsupported = normalizations.every((n) => n.supportedAs === null);
-    if (!allUnsupported) return null;
 
-    // Collect distinct evaluation failure reasons from runs.
+    const hasSkippedEvals =
+      !!skipSignal &&
+      (skipSignal.perturbationSkipped > 0 || skipSignal.counterfactualSkipped > 0);
+
+    const allZeroImprovement = runs.every(
+      (r) => !r.evaluation || !r.evaluation.violation_improvement,
+    );
+
+    // Trigger if simulator-skipped evals are detected, OR fall back to the
+    // older heuristic (zero improvement + all unsupported case names).
+    const shouldShow = hasSkippedEvals || (allZeroImprovement && allUnsupported);
+    if (!shouldShow) return null;
+
+    // Collect distinct reasons: skip reasons from sensitivity/CF + run evaluation notes.
     const reasonSet = new Set<string>();
+    for (const r of skipSignal?.reasons ?? []) reasonSet.add(r);
     for (const r of runs) {
       const note = (r.evaluation?.notes ?? "").trim();
       if (note) reasonSet.add(note);
@@ -334,8 +426,14 @@ function BatchDetailPage() {
     }
     const reasons = Array.from(reasonSet).slice(0, 5);
 
-    return { unsupportedCases: distinctCases, reasons };
-  }, [runs]);
+    return {
+      unsupportedCases: distinctCases,
+      reasons,
+      skipSignal,
+      triggerReason: hasSkippedEvals ? ("skipped-evals" as const) : ("zero-improvement" as const),
+    };
+  }, [runs, skipSignal]);
+
 
   const recommendationKey = batch ? `batch-rec-dismissed-${batch.id}` : null;
   const [recommendationDismissed, setRecommendationDismissed] = useState(false);
@@ -837,6 +935,22 @@ function BatchDetailPage() {
                 violation improvement, sensitivity, and counterfactual metrics are all zero or
                 missing.
               </p>
+              {caseRecommendation.skipSignal &&
+                (caseRecommendation.skipSignal.perturbationSkipped > 0 ||
+                  caseRecommendation.skipSignal.counterfactualSkipped > 0) && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Detected{" "}
+                    <span className="font-medium text-foreground">
+                      {caseRecommendation.skipSignal.perturbationSkipped}
+                    </span>
+                    /{caseRecommendation.skipSignal.perturbationTotal} sensitivity and{" "}
+                    <span className="font-medium text-foreground">
+                      {caseRecommendation.skipSignal.counterfactualSkipped}
+                    </span>
+                    /{caseRecommendation.skipSignal.counterfactualTotal} counterfactual evaluations
+                    skipped due to no available simulator.
+                  </p>
+                )}
               {caseRecommendation.reasons.length > 0 && (
                 <div className="mt-2">
                   <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
