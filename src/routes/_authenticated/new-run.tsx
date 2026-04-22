@@ -89,6 +89,10 @@ export const Route = createFileRoute("/_authenticated/new-run")({
       { name: "description", content: "Create a new experiment run." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { case?: string } => {
+    const c = typeof search.case === "string" ? (search.case as string) : undefined;
+    return c ? { case: c } : {};
+  },
   loader: async () => {
     if (typeof window === "undefined") return { presets: [], scenarios: [] };
     try {
@@ -106,10 +110,11 @@ function NewRunPage() {
   const navigate = useNavigate();
   const createRunFn = useServerFn(createRun);
 
+  const search = Route.useSearch() as { case?: string };
   const [title, setTitle] = useState("");
   const [task, setTask] = useState("");
   const [agent, setAgent] = useState("");
-  const [caseName, setCaseName] = useState("");
+  const [caseName, setCaseName] = useState(search.case ?? "");
   const [researchQuestion, setResearchQuestion] = useState("");
   const [presetId, setPresetId] = useState<string>("");
   const [evaluationMode, setEvaluationMode] = useState<"rule_based" | "simulation" | "auto">("rule_based");

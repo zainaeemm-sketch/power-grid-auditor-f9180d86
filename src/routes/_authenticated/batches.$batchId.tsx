@@ -804,9 +804,21 @@ function BatchDetailPage() {
                 <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">case30</code>{" "}
                 (PyPSA) to populate charts.
               </p>
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Button asChild size="sm">
-                  <Link to="/batches/new">New Batch</Link>
+                  <Link to="/batches/new" search={{ cases: "ieee14" }}>
+                    New Batch with ieee14
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/batches/new" search={{ cases: "ieee30" }}>
+                    New Batch with ieee30
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/new-run" search={{ case: "ieee14" }}>
+                    New Run with ieee14
+                  </Link>
                 </Button>
               </div>
             </div>
