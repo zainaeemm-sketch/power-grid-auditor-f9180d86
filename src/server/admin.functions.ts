@@ -1,7 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
+
+function getServiceRoleClient() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("Server is missing Supabase service-role configuration");
+  }
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 async function assertAdmin(supabase: any, userId: string) {
   const { data, error } = await supabase.rpc("has_role", {
@@ -281,4 +293,77 @@ export const resendWelcomeEmail = createServerFn({ method: "POST" })
 
     await enqueueWelcomeEmail(supabase, row.user_id, row.email);
     return { success: true };
+  });
+
+const createUserSchema = z.object({
+  email: z.string().email().max(255),
+  password: z.string().min(8).max(128),
+  role: z.enum(["user", "admin"]).default("user"),
+  auto_approve: z.boolean().default(true),
+  send_welcome_email: z.boolean().default(true),
+});
+
+export const createUserManually = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: unknown) => createUserSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const admin = getServiceRoleClient();
+
+    // Create the auth user (auto-confirmed)
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+    });
+
+    if (createErr || !created?.user) {
+      const msg = createErr?.message ?? "Failed to create user";
+      if (/already registered|already exists|duplicate/i.test(msg)) {
+        throw new Error("A user with this email already exists");
+      }
+      throw new Error(msg);
+    }
+
+    const newUserId = created.user.id;
+    const nowIso = new Date().toISOString();
+    const status = data.auto_approve ? "approved" : "pending";
+
+    // Upsert approval row (the on_auth_user_created trigger may have inserted a pending row)
+    const { error: approvalErr } = await admin
+      .from("user_approvals")
+      .upsert(
+        {
+          user_id: newUserId,
+          email: data.email,
+          status,
+          requested_at: nowIso,
+          reviewed_at: data.auto_approve ? nowIso : null,
+          reviewed_by: data.auto_approve ? userId : null,
+          notes: "Created manually by admin",
+        },
+        { onConflict: "user_id" },
+      );
+    if (approvalErr) {
+      // Roll back the auth user so we don't leave orphans
+      await admin.auth.admin.deleteUser(newUserId).catch(() => {});
+      throw new Error(approvalErr.message);
+    }
+
+    if (data.role === "admin") {
+      const { error: roleErr } = await admin
+        .from("user_roles")
+        .insert({ user_id: newUserId, role: "admin" });
+      if (roleErr && !/duplicate/i.test(roleErr.message)) {
+        throw new Error(roleErr.message);
+      }
+    }
+
+    if (data.send_welcome_email && data.auto_approve) {
+      await enqueueWelcomeEmail(admin, newUserId, data.email);
+    }
+
+    return { user_id: newUserId, email: data.email, status };
   });

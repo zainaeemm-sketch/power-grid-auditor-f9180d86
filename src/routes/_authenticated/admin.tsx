@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { AdminShell, type AdminSection } from "@/components/admin/AdminShell";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSettings } from "@/components/admin/AdminSettings";
+import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
@@ -91,11 +92,14 @@ function AdminPage() {
 function UsersSection() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold">User Approvals</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Approve or reject new sign-ups. Approved users receive a welcome email.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">User Approvals</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Approve or reject new sign-ups. Approved users receive a welcome email.
+          </p>
+        </div>
+        <CreateUserDialog />
       </div>
 
       <Card className="border-warning/30 bg-warning/5">
