@@ -127,6 +127,7 @@ export const getSimulationDiagnostics = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }): Promise<SimulationDiagnostics> => {
     const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
     const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
     const token = process.env.SIMULATION_SERVICE_TOKEN;
     const timestamp = new Date().toISOString();
