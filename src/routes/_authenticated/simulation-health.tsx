@@ -11,6 +11,7 @@ import {
   type SimulationDiagnostics,
   type SimulationHealthHistoryEntry,
 } from "@/server/simulation-diagnostics.functions";
+import { isCurrentUserAdmin } from "@/server/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/simulation-health")({
   head: () => ({
