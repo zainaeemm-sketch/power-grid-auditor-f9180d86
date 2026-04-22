@@ -39,6 +39,11 @@ import {
 import { BatchSensitivitySection } from "@/components/batch/BatchSensitivitySection";
 import { BatchCounterfactualSection } from "@/components/batch/BatchCounterfactualSection";
 import { normalizeCaseName } from "@/lib/case-normalize";
+import {
+  classifyCounterfactual,
+  classifyPerturbation,
+  isSkippedFailure,
+} from "@/lib/simulation-skip";
 
 export const Route = createFileRoute("/_authenticated/batches/$batchId")({
   head: () => ({
