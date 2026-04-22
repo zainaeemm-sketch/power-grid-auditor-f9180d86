@@ -37,10 +37,11 @@ function LoginPage() {
     try {
       if (isSignup) {
         await signup(email, password);
+        navigate({ to: "/pending-approval" });
       } else {
         await login(email, password);
+        navigate({ to: "/" });
       }
-      navigate({ to: "/" });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
@@ -109,6 +110,12 @@ function LoginPage() {
                 {isSignup ? "Sign in" : "Sign up"}
               </button>
             </div>
+
+            {isSignup && (
+              <p className="text-center text-xs text-muted-foreground">
+                New accounts require admin approval before you can use GridArena.
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>
