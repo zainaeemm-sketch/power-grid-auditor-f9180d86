@@ -54,8 +54,9 @@ function SimulationHealthPage() {
 
   const versionOk = diag?.version.status === 200 && !!diag?.version.version;
   const healthOk = diag?.health.status === 200 && !diag?.health.error;
-  const simOk = !!diag?.simulate.ok;
-  const overallOk = versionOk && healthOk && simOk;
+  const sims = diag?.simulates ?? [];
+  const simAllOk = sims.length > 0 && sims.every((s) => s.ok);
+  const overallOk = versionOk && healthOk && simAllOk;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
@@ -141,45 +142,46 @@ function SimulationHealthPage() {
         </CardContent>
       </Card>
 
-      {/* /simulate self-test */}
-      <Card className="mb-4 border-border/40 bg-card/60">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <StatusIcon ok={simOk} />
-            <span className="font-mono">POST /simulate</span>
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              case5 · no-op action · DC power flow
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <Row label="Status" value={diag?.simulate.status?.toString() ?? "—"} />
-          <Row label="Latency" value={diag?.simulate.latency_ms ? `${diag.simulate.latency_ms} ms` : "—"} />
-          <Row label="Feasibility" value={diag?.simulate.feasibility ?? "—"} mono />
-          <Row
-            label="Baseline violations"
-            value={diag?.simulate.baseline_violations?.toString() ?? "—"}
-          />
-          <Row
-            label="Post-action violations"
-            value={diag?.simulate.post_action_violations?.toString() ?? "—"}
-          />
-          <Row
-            label="Line loadings returned"
-            value={diag?.simulate.line_loadings_count?.toString() ?? "—"}
-          />
-          {diag?.simulate.notes && <Row label="Notes" value={diag.simulate.notes} />}
-          {diag?.simulate.error && <Row label="Error" value={diag.simulate.error} error />}
-          {!simOk && diag?.simulate.raw_body && (
-            <div>
-              <p className="mb-1 text-xs text-muted-foreground">Raw response body</p>
-              <pre className="overflow-x-auto rounded-md border border-border/30 bg-muted/30 p-2 font-mono text-xs">
-                {diag.simulate.raw_body}
-              </pre>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* /simulate self-tests — one card per IEEE case */}
+      {sims.map((s) => (
+        <Card key={s.case_name} className="mb-4 border-border/40 bg-card/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <StatusIcon ok={s.ok} />
+              <span className="font-mono">POST /simulate</span>
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {s.case_name} · no-op action · DC power flow
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row label="Status" value={s.status?.toString() ?? "—"} />
+            <Row label="Latency" value={s.latency_ms ? `${s.latency_ms} ms` : "—"} />
+            <Row label="Feasibility" value={s.feasibility ?? "—"} mono />
+            <Row label="Baseline violations" value={s.baseline_violations?.toString() ?? "—"} />
+            <Row label="Post-action violations" value={s.post_action_violations?.toString() ?? "—"} />
+            <Row label="Line loadings returned" value={s.line_loadings_count?.toString() ?? "—"} />
+            {s.notes && <Row label="Notes" value={s.notes} />}
+            {s.error && <Row label="Error" value={s.error} error />}
+            {!s.ok && s.raw_body && (
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">Raw response body</p>
+                <pre className="overflow-x-auto rounded-md border border-border/30 bg-muted/30 p-2 font-mono text-xs">
+                  {s.raw_body}
+                </pre>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+
+      {diag && sims.length === 0 && (
+        <Card className="mb-4 border-border/40 bg-card/60">
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            No simulation self-tests ran (service not configured).
+          </CardContent>
+        </Card>
+      )}
 
       {diag && (
         <p className="mt-4 text-xs text-muted-foreground">
