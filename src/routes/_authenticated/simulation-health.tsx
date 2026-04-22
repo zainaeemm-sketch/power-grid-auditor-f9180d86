@@ -119,6 +119,36 @@ function SimulationHealthPage() {
         </Button>
       </div>
 
+      {showAlert && stateChangeAlert && (
+        <div
+          role="alert"
+          className="mb-6 flex items-start gap-3 rounded-lg border border-destructive/60 bg-destructive/10 p-4"
+        >
+          <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-destructive">
+              Simulation health just started failing
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              At {new Date(stateChangeAlert.at).toLocaleString()} — the previous check was passing.
+            </p>
+            {stateChangeAlert.reasons.length > 0 && (
+              <p className="mt-1 text-xs text-destructive">
+                Failing: {stateChangeAlert.reasons.join(" · ")}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDismissedAlertId(stateChangeAlert.id)}
+            aria-label="Dismiss alert"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {error && (
         <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <p className="text-sm text-destructive">{error}</p>
