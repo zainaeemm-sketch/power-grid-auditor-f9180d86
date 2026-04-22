@@ -27,6 +27,16 @@ export interface HealthStatus {
   timestamp: string;
 }
 
+export interface ReadinessRequestPayload {
+  case_name: string;
+  action: {
+    action_type: string | null;
+    target_index: number | null;
+    value: number | null;
+    enabled: boolean;
+  };
+}
+
 export interface ReadinessResult {
   ok: boolean;
   status: "pass" | "warn" | "fail";
@@ -40,7 +50,7 @@ export interface ReadinessResult {
   error: string | null;
   raw_body_preview: string | null;
   request_url: string | null;
-  request_payload: unknown;
+  request_payload: ReadinessRequestPayload;
   timestamp: string;
 }
 
@@ -50,15 +60,15 @@ export interface ReadinessResult {
  * so the server validates, and `action_type: "none"` + `enabled: true` makes
  * pypsa_runner skip mutation while still running a real baseline solve.
  */
-export const READINESS_PAYLOAD = {
+export const READINESS_PAYLOAD: ReadinessRequestPayload = {
   case_name: "case14",
   action: {
-    action_type: "none" as string | null,
-    target_index: null as number | null,
-    value: null as number | null,
+    action_type: "none",
+    target_index: null,
+    value: null,
     enabled: true,
   },
-} as const;
+};
 
 function normalizeUrl(raw: string | undefined): string | null {
   if (!raw) return null;
@@ -122,6 +132,8 @@ export const runProductionReadinessCheck = createServerFn({ method: "POST" })
           notes: `HTTP ${http_status} from /simulate`,
           error: `Non-2xx response (${http_status})`,
           raw_body_preview,
+          request_url,
+          request_payload: READINESS_PAYLOAD,
           timestamp,
         };
       }
@@ -142,6 +154,8 @@ export const runProductionReadinessCheck = createServerFn({ method: "POST" })
           notes: "Response was not valid JSON",
           error: e?.message ?? "JSON parse error",
           raw_body_preview,
+          request_url,
+          request_payload: READINESS_PAYLOAD,
           timestamp,
         };
       }
@@ -180,6 +194,8 @@ export const runProductionReadinessCheck = createServerFn({ method: "POST" })
         notes,
         error: null,
         raw_body_preview: status === "pass" ? null : raw_body_preview,
+        request_url,
+        request_payload: READINESS_PAYLOAD,
         timestamp,
       };
     } catch (err: any) {
@@ -197,6 +213,8 @@ export const runProductionReadinessCheck = createServerFn({ method: "POST" })
         notes: isTimeout ? "Request timed out after 15s" : "Network error reaching simulator",
         error: err?.message ?? "Unknown error",
         raw_body_preview: null,
+        request_url,
+        request_payload: READINESS_PAYLOAD,
         timestamp,
       };
     }
