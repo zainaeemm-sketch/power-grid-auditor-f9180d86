@@ -295,6 +295,40 @@ function PresetsPage() {
             <DialogHeader>
               <DialogTitle>Create Preset</DialogTitle>
             </DialogHeader>
+
+            <Collapsible open={assistOpen} onOpenChange={setAssistOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-md border border-border/60 bg-card/40 px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Describe your preset with AI (optional)
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${assistOpen ? "rotate-180" : ""}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <PresetAssistCard onApply={handlePresetAssistApply} />
+                {presetValidationError && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Cannot apply suggestion</AlertTitle>
+                    <AlertDescription>
+                      {presetValidationError}{" "}
+                      <button
+                        className="ml-1 underline"
+                        onClick={() => { setPresetValidationError(null); setPendingPresetSuggestion(null); }}
+                      >
+                        Dismiss
+                      </button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
                 <Label>Name</Label>
