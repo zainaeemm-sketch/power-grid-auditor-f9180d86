@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
+import type { Json } from "@/integrations/supabase/types";
 
 function normalizeServiceUrl(rawUrl: string | undefined): string | null {
   if (!rawUrl) return null;
@@ -115,13 +116,46 @@ async function probeSimulate(
 
 export const getSimulationDiagnostics = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
-  .handler(async (): Promise<SimulationDiagnostics> => {
+  .handler(async ({ context }): Promise<SimulationDiagnostics> => {
+    const { supabase, userId } = context;
     const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
     const token = process.env.SIMULATION_SERVICE_TOKEN;
     const timestamp = new Date().toISOString();
 
+    const persist = async (diag: SimulationDiagnostics) => {
+      const sim_total_count = diag.simulates.length;
+      const sim_pass_count = diag.simulates.filter((s) => s.ok).length;
+      const sim_all_ok = sim_total_count > 0 && sim_pass_count === sim_total_count;
+      const versionOk = diag.version.status === 200 && !!diag.version.version;
+      const healthOk = diag.health.status === 200 && !diag.health.error;
+      const overall_ok = diag.configured && versionOk && healthOk && sim_all_ok;
+      try {
+        await supabase.from("simulation_health_checks").insert({
+          user_id: userId,
+          configured: diag.configured,
+          service_url: diag.url,
+          overall_ok,
+          version_status: diag.version.status,
+          version_value: diag.version.version,
+          version_engine: diag.version.engine,
+          version_latency_ms: diag.version.latency_ms,
+          version_error: diag.version.error,
+          health_status: diag.health.status,
+          health_latency_ms: diag.health.latency_ms,
+          health_error: diag.health.error,
+          health_body: diag.health.body,
+          simulates: diag.simulates as unknown as Json,
+          sim_all_ok,
+          sim_total_count,
+          sim_pass_count,
+        });
+      } catch (e) {
+        console.warn("[simulation-diagnostics] failed to persist check", e);
+      }
+    };
+
     if (!url) {
-      return {
+      const diag: SimulationDiagnostics = {
         configured: false,
         url: null,
         version: { status: null, version: null, engine: null, error: "Not configured", latency_ms: null },
@@ -129,6 +163,8 @@ export const getSimulationDiagnostics = createServerFn({ method: "POST" })
         simulates: [],
         timestamp,
       };
+      await persist(diag);
+      return diag;
     }
 
     // /version (unauthenticated)
@@ -184,7 +220,7 @@ export const getSimulationDiagnostics = createServerFn({ method: "POST" })
       SIMULATE_CASES.map((c) => probeSimulate(url, token, c)),
     );
 
-    return {
+    const diag: SimulationDiagnostics = {
       configured: true,
       url,
       version,
@@ -192,5 +228,59 @@ export const getSimulationDiagnostics = createServerFn({ method: "POST" })
       simulates,
       timestamp,
     };
+    await persist(diag);
+    return diag;
   });
+
+export interface SimulationHealthHistoryEntry {
+  id: string;
+  created_at: string;
+  configured: boolean;
+  service_url: string | null;
+  overall_ok: boolean;
+  version_status: number | null;
+  version_value: string | null;
+  version_engine: string | null;
+  version_latency_ms: number | null;
+  version_error: string | null;
+  health_status: number | null;
+  health_latency_ms: number | null;
+  health_error: string | null;
+  sim_all_ok: boolean;
+  sim_total_count: number;
+  sim_pass_count: number;
+  simulates: SimulateProbe[];
+}
+
+export const listSimulationHealthHistory = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .handler(async ({ context }): Promise<SimulationHealthHistoryEntry[]> => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("simulation_health_checks")
+      .select(
+        "id, created_at, configured, service_url, overall_ok, version_status, version_value, version_engine, version_latency_ms, version_error, health_status, health_latency_ms, health_error, sim_all_ok, sim_total_count, sim_pass_count, simulates",
+      )
+      .order("created_at", { ascending: false })
+      .limit(25);
+    if (error) {
+      console.error("[simulation-diagnostics] listSimulationHealthHistory failed", error);
+      return [];
+    }
+    return (data ?? []) as unknown as SimulationHealthHistoryEntry[];
+  });
+
+export const deleteSimulationHealthCheck = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => input)
+  .handler(async ({ data, context }): Promise<{ success: boolean }> => {
+    const { supabase } = context;
+    const { error } = await supabase.from("simulation_health_checks").delete().eq("id", data.id);
+    if (error) {
+      console.error("[simulation-diagnostics] deleteSimulationHealthCheck failed", error);
+      return { success: false };
+    }
+    return { success: true };
+  });
+
 

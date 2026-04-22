@@ -2,11 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Activity, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Activity, Zap, History, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   getSimulationDiagnostics,
+  listSimulationHealthHistory,
+  deleteSimulationHealthCheck,
   type SimulationDiagnostics,
+  type SimulationHealthHistoryEntry,
 } from "@/server/simulation-diagnostics.functions";
 
 export const Route = createFileRoute("/_authenticated/simulation-health")({
@@ -32,8 +35,18 @@ export const Route = createFileRoute("/_authenticated/simulation-health")({
 
 function SimulationHealthPage() {
   const [diag, setDiag] = useState<SimulationDiagnostics | null>(null);
+  const [history, setHistory] = useState<SimulationHealthHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const loadHistory = async () => {
+    try {
+      const list = await listSimulationHealthHistory();
+      setHistory(list);
+    } catch (e) {
+      console.warn("Failed to load history", e);
+    }
+  };
 
   const refresh = async () => {
     setLoading(true);
@@ -41,6 +54,7 @@ function SimulationHealthPage() {
     try {
       const d = await getSimulationDiagnostics();
       setDiag(d);
+      await loadHistory();
     } catch (e: any) {
       setError(e?.message ?? "Failed to load diagnostics");
     } finally {
@@ -48,9 +62,15 @@ function SimulationHealthPage() {
     }
   };
 
+  const remove = async (id: string) => {
+    await deleteSimulationHealthCheck({ data: { id } });
+    await loadHistory();
+  };
+
   useEffect(() => {
     refresh();
   }, []);
+
 
   const versionOk = diag?.version.status === 200 && !!diag?.version.version;
   const healthOk = diag?.health.status === 200 && !diag?.health.error;
@@ -188,6 +208,81 @@ function SimulationHealthPage() {
           Last checked: {new Date(diag.timestamp).toLocaleString()}
         </p>
       )}
+
+      {/* History */}
+      <Card className="mt-6 border-border/40 bg-card/60">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <History className="h-4 w-4" />
+            Recent checks
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              ({history.length} stored, newest first)
+            </span>
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Each refresh of this page is recorded so you can review failures over time.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {history.length === 0 && (
+            <p className="text-xs text-muted-foreground">No history yet.</p>
+          )}
+          {history.map((h) => (
+            <div
+              key={h.id}
+              className="flex items-start justify-between gap-3 rounded-md border border-border/30 bg-muted/20 px-3 py-2"
+            >
+              <div className="flex items-start gap-2">
+                {h.overall_ok ? (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
+                ) : (
+                  <XCircle className="mt-0.5 h-4 w-4 text-destructive" />
+                )}
+                <div>
+                  <p className="text-sm font-medium">
+                    {new Date(h.created_at).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {h.configured ? (
+                      <>
+                        version {h.version_value ?? "—"} · sims {h.sim_pass_count}/{h.sim_total_count}
+                        {h.version_latency_ms != null && ` · v ${h.version_latency_ms}ms`}
+                        {h.health_latency_ms != null && ` · h ${h.health_latency_ms}ms`}
+                      </>
+                    ) : (
+                      "Service not configured"
+                    )}
+                  </p>
+                  {(h.version_error || h.health_error) && (
+                    <p className="text-xs text-destructive">
+                      {h.version_error && `version: ${h.version_error}`}
+                      {h.version_error && h.health_error && " · "}
+                      {h.health_error && `health: ${h.health_error}`}
+                    </p>
+                  )}
+                  {!h.sim_all_ok && h.sim_total_count > 0 && (
+                    <p className="text-xs text-destructive">
+                      Failed cases:{" "}
+                      {h.simulates
+                        .filter((s) => !s.ok)
+                        .map((s) => `${s.case_name} (${s.error ?? "fail"})`)
+                        .join(", ")}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => remove(h.id)}
+                aria-label="Delete check"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="mt-6 flex gap-2">
         <Button variant="outline" size="sm" asChild>
