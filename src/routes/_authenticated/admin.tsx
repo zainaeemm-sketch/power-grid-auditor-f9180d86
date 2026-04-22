@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { AdminShell, type AdminSection } from "@/components/admin/AdminShell";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSettings } from "@/components/admin/AdminSettings";
+import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
