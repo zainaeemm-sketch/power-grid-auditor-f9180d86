@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   getHealthStatus,
   runProductionReadinessCheck,
+  READINESS_PAYLOAD,
   type HealthStatus,
   type ReadinessResult,
 } from "@/server/health.functions";
@@ -55,6 +56,8 @@ function HealthPage() {
         notes: "Server function call failed",
         error: err?.message ?? "Unknown error",
         raw_body_preview: null,
+        request_url: null,
+        request_payload: READINESS_PAYLOAD,
         timestamp: new Date().toISOString(),
       });
     } finally {
