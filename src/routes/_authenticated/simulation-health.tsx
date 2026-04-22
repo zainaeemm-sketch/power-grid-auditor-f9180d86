@@ -78,8 +78,32 @@ function SimulationHealthPage() {
   const simAllOk = sims.length > 0 && sims.every((s) => s.ok);
   const overallOk = versionOk && healthOk && simAllOk;
 
+  // State-change detection: alert only when previous check passed and current failed.
+  const stateChangeAlert = useMemo(() => {
+    if (history.length < 2) return null;
+    const [current, previous] = history;
+    if (current.overall_ok) return null;
+    if (!previous.overall_ok) return null; // already failing — quiet
+    const reasons: string[] = [];
+    if (current.version_error || current.version_status !== 200) {
+      reasons.push(`version (${current.version_error ?? `HTTP ${current.version_status ?? "?"}`})`);
+    }
+    if (!current.sim_all_ok && current.sim_total_count > 0) {
+      const failed = current.simulates.filter((s) => !s.ok).map((s) => s.case_name);
+      reasons.push(`simulate (${failed.join(", ")})`);
+    }
+    if (current.health_error || (current.health_status !== null && current.health_status !== 200)) {
+      reasons.push(`health (${current.health_error ?? `HTTP ${current.health_status}`})`);
+    }
+    return { id: current.id, at: current.created_at, reasons };
+  }, [history]);
+
+  const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null);
+  const showAlert = stateChangeAlert && stateChangeAlert.id !== dismissedAlertId;
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
+</main-replace-marker>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
