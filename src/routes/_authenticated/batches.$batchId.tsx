@@ -293,8 +293,6 @@ function BatchDetailPage() {
 
   // Auto-recommend a supported case when charts will be empty due to unsupported case_name.
   const caseRecommendation = useMemo(() => {
-    const SUPPORTED_BUILTIN = new Set(["ieee9", "ieee14", "ieee30"]);
-    const SUPPORTED_PYPSA = new Set(["case5", "case14", "case30"]);
     if (runs.length === 0) return null;
     const allFinished = runs.every(
       (r) => r.run.status === "completed" || (r.run.status as string) === "failed",
@@ -308,10 +306,8 @@ function BatchDetailPage() {
       new Set(runs.map((r) => r.run.case_name).filter(Boolean)),
     ) as string[];
     if (distinctCases.length === 0) return null;
-    const allUnsupported = distinctCases.every((c) => {
-      const key = c.toLowerCase();
-      return !SUPPORTED_BUILTIN.has(key) && !SUPPORTED_PYPSA.has(key);
-    });
+    const normalizations = distinctCases.map((c) => normalizeCaseName(c));
+    const allUnsupported = normalizations.every((n) => n.supportedAs === null);
     if (!allUnsupported) return null;
     return { unsupportedCases: distinctCases };
   }, [runs]);
