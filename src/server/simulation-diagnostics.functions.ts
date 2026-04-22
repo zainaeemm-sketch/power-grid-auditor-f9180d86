@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
+import type { Json } from "@/integrations/supabase/types";
 
 function normalizeServiceUrl(rawUrl: string | undefined): string | null {
   if (!rawUrl) return null;
