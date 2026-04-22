@@ -3,8 +3,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 import { DEMO_PRESETS } from "@/lib/demo-dataset";
 
-const DEMO_MODEL = "google/gemini-2.5-flash";
-const DEMO_PROVIDER = "Lovable AI Gateway";
+const DEMO_MODEL = "gpt-4o-mini";
+const DEMO_PROVIDER = "OpenAI";
 
 /**
  * Idempotently seed demo presets and example completed runs for the

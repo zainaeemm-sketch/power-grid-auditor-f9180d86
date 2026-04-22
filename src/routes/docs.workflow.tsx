@@ -49,8 +49,9 @@ function WorkflowPage() {
 
       <h2>3. LLM call</h2>
       <p>
-        The Edge Worker calls the configured LLM via the Lovable AI Gateway with the rendered
-        prompt. A deterministic <code>random_seed</code> and fixed sampling parameters make the
+        The Edge Worker calls the configured LLM via the OpenAI API (using the server-side{" "}
+        <code>OPENAI_API_KEY</code> secret) with the rendered prompt. A deterministic{" "}
+        <code>random_seed</code> and fixed sampling parameters make the
         same input reproduce the same output (within provider tolerances).
       </p>
 
