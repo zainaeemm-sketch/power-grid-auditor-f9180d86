@@ -1,5 +1,7 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
-pandapower==2.14.11
 pydantic==2.9.2
-numpy==1.26.4
+pypsa>=0.27,<0.30
+pandas>=2.0,<2.3
+numpy>=1.24,<2.0
+scipy>=1.11,<1.14
