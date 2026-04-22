@@ -44,13 +44,14 @@ export const Route = createFileRoute("/_authenticated/batches/new")({
 
 function NewBatchPage() {
   const { presets } = Route.useLoaderData() as { presets: ExperimentPreset[] };
+  const search = Route.useSearch() as { cases?: string };
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState("");
   const [task, setTask] = useState("");
   const [researchQuestion, setResearchQuestion] = useState("");
   const [agentsText, setAgentsText] = useState("");
-  const [casesText, setCasesText] = useState("");
+  const [casesText, setCasesText] = useState(search.cases ?? "");
   const [presetId, setPresetId] = useState<string | undefined>(undefined);
 
   const agents = agentsText.split(",").map((s) => s.trim()).filter(Boolean);
