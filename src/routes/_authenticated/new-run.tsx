@@ -164,7 +164,40 @@ function NewRunPage() {
     setEvaluationMode(s.evaluation_mode);
   };
 
+  const TASK_MIN = 20;
+  const TASK_MAX = 1500;
+
+  const validateSuggestion = (s: ScenarioSuggestion): string | null => {
+    const taskLen = s.task.trim().length;
+    if (taskLen < TASK_MIN) {
+      return `Task is too short (${taskLen} chars). Need at least ${TASK_MIN} characters describing the corrective action. Try Regenerate.`;
+    }
+    if (taskLen > TASK_MAX) {
+      return `Task is too long (${taskLen} chars). Maximum is ${TASK_MAX}. Try Regenerate with a tighter prompt.`;
+    }
+    const text = `${s.task} ${s.title}`.toLowerCase();
+    const mentionsSimAction =
+      /\b(set_generator_p_mw|scale_all_loads|line_outage|redispatch|power[- ]?flow|overload|contingency|n-?1|trip|outage|p_max|mw\b)/.test(text);
+    const looksHeuristic = /\b(rule[- ]?based|heuristic|simple if|threshold)\b/.test(text);
+    if (s.evaluation_mode === "rule_based" && mentionsSimAction && !looksHeuristic) {
+      return "Evaluation mode is 'rule_based' but the task describes a simulation-grade action (overload/contingency/redispatch). Switch the suggestion to 'simulation' or 'auto', or Regenerate.";
+    }
+    if (s.evaluation_mode === "simulation" && !mentionsSimAction && looksHeuristic) {
+      return "Evaluation mode is 'simulation' but the task reads as a rule-based heuristic with no power-flow signals. Switch to 'rule_based', or Regenerate.";
+    }
+    return null;
+  };
+
+  const [applyError, setApplyError] = useState<string | null>(null);
+
   const applyAiSuggestion = (s: ScenarioSuggestion) => {
+    const err = validateSuggestion(s);
+    if (err) {
+      setApplyError(err);
+      setPendingSuggestion(null);
+      return;
+    }
+    setApplyError(null);
     const anyExisting = [title, task, caseName, researchQuestion].some((v) => v.trim().length > 0);
     if (!anyExisting) {
       writeSuggestion(s);
@@ -174,7 +207,14 @@ function NewRunPage() {
   };
 
   const confirmApply = () => {
-    if (pendingSuggestion) writeSuggestion(pendingSuggestion);
+    if (!pendingSuggestion) return;
+    const err = validateSuggestion(pendingSuggestion);
+    if (err) {
+      setApplyError(err);
+      setPendingSuggestion(null);
+      return;
+    }
+    writeSuggestion(pendingSuggestion);
     setPendingSuggestion(null);
   };
 
