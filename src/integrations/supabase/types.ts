@@ -1074,6 +1074,72 @@ export type Database = {
           },
         ]
       }
+      simulation_health_checks: {
+        Row: {
+          configured: boolean
+          created_at: string
+          health_body: string | null
+          health_error: string | null
+          health_latency_ms: number | null
+          health_status: number | null
+          id: string
+          overall_ok: boolean
+          service_url: string | null
+          sim_all_ok: boolean
+          sim_pass_count: number
+          sim_total_count: number
+          simulates: Json
+          user_id: string
+          version_engine: string | null
+          version_error: string | null
+          version_latency_ms: number | null
+          version_status: number | null
+          version_value: string | null
+        }
+        Insert: {
+          configured?: boolean
+          created_at?: string
+          health_body?: string | null
+          health_error?: string | null
+          health_latency_ms?: number | null
+          health_status?: number | null
+          id?: string
+          overall_ok?: boolean
+          service_url?: string | null
+          sim_all_ok?: boolean
+          sim_pass_count?: number
+          sim_total_count?: number
+          simulates?: Json
+          user_id: string
+          version_engine?: string | null
+          version_error?: string | null
+          version_latency_ms?: number | null
+          version_status?: number | null
+          version_value?: string | null
+        }
+        Update: {
+          configured?: boolean
+          created_at?: string
+          health_body?: string | null
+          health_error?: string | null
+          health_latency_ms?: number | null
+          health_status?: number | null
+          id?: string
+          overall_ok?: boolean
+          service_url?: string | null
+          sim_all_ok?: boolean
+          sim_pass_count?: number
+          sim_total_count?: number
+          simulates?: Json
+          user_id?: string
+          version_engine?: string | null
+          version_error?: string | null
+          version_latency_ms?: number | null
+          version_status?: number | null
+          version_value?: string | null
+        }
+        Relationships: []
+      }
       user_approvals: {
         Row: {
           email: string
