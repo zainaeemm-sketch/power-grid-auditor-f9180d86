@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { listPresets, createPreset, deletePreset, updatePreset } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import type { ExperimentPreset } from "@/types/grid-arena";
@@ -165,7 +165,23 @@ function PresetsPage() {
   // ---- AI Assist state ----
   type PFieldKey = "name" | "provider_name" | "model_name" | "system_prompt" | "default_prompt_text" | "temperature" | "top_p" | "max_tokens" | "evaluation_mode" | "notes";
   type PDiffRow = { key: PFieldKey; label: string; current: string; next: string; isOverwrite: boolean };
-  const [assistOpen, setAssistOpen] = useState(false);
+  const ASSIST_OPEN_KEY = "gridarena.presetAssist.open.v1";
+  const [assistOpen, setAssistOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(ASSIST_OPEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(ASSIST_OPEN_KEY, assistOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [assistOpen]);
   const [pendingPresetSuggestion, setPendingPresetSuggestion] = useState<PresetSuggestion | null>(null);
   const [pendingPresetDiff, setPendingPresetDiff] = useState<PDiffRow[]>([]);
   const [presetValidationError, setPresetValidationError] = useState<string | null>(null);
