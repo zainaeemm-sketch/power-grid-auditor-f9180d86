@@ -77,6 +77,20 @@ export function ArchitectureDiagram({ className }: { className?: string }) {
           <text x="400" y="418" textAnchor="middle" fontSize="10" fill="var(--muted-foreground)">always available</text>
         </g>
 
+        {/* Simulation Health (admin) */}
+        <g>
+          <rect x="200" y="460" width="400" height="60" rx="10"
+                fill="color-mix(in oklab, oklch(0.78 0.14 75) 14%, transparent)"
+                stroke="oklch(0.78 0.14 75)" strokeWidth="1.5" strokeDasharray="3 3" />
+          <text x="400" y="484" textAnchor="middle" fontSize="13" fontWeight="600" fill="var(--foreground)">Simulation Health (admin)</text>
+          <text x="400" y="504" textAnchor="middle" fontSize="11" fill="var(--muted-foreground)">probes /version + /health + /simulate · writes simulation_health_checks</text>
+        </g>
+
+        {/* Health probe arrows */}
+        <line x1="350" y1="460" x2="430" y2="342" stroke="oklch(0.78 0.14 75)" strokeWidth="1.2" strokeDasharray="3 3" markerEnd="url(#arrow)" />
+        <line x1="500" y1="460" x2="520" y2="342" stroke="oklch(0.78 0.14 75)" strokeWidth="1.2" strokeDasharray="3 3" markerEnd="url(#arrow)" />
+        <line x1="550" y1="460" x2="650" y2="162" stroke="oklch(0.78 0.14 75)" strokeWidth="1.2" strokeDasharray="3 3" markerEnd="url(#arrow)" />
+
         {/* Arrows */}
         <line x1="240" y1="80" x2="298" y2="80" stroke="var(--muted-foreground)" strokeWidth="1.5" markerEnd="url(#arrow)" />
         <line x1="500" y1="80" x2="558" y2="80" stroke="var(--muted-foreground)" strokeWidth="1.5" markerEnd="url(#arrow)" />
