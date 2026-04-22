@@ -143,7 +143,7 @@ export const getSimulationDiagnostics = createServerFn({ method: "POST" })
           health_latency_ms: diag.health.latency_ms,
           health_error: diag.health.error,
           health_body: diag.health.body,
-          simulates: diag.simulates,
+          simulates: diag.simulates as unknown as Json,
           sim_all_ok,
           sim_total_count,
           sim_pass_count,
