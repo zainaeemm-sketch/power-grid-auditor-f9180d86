@@ -27,6 +27,163 @@ export interface HealthStatus {
   timestamp: string;
 }
 
+export interface ReadinessResult {
+  ok: boolean;
+  status: "pass" | "warn" | "fail";
+  http_status: number | null;
+  latency_ms: number;
+  engine: string | null;
+  feasibility: string | null;
+  baseline_violations: number | null;
+  post_action_violations: number | null;
+  notes: string | null;
+  error: string | null;
+  raw_body_preview: string | null;
+  timestamp: string;
+}
+
+function normalizeUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const t = raw.trim().replace(/\/+$/, "");
+  if (!t) return null;
+  return /^https?:\/\//i.test(t) ? t : `https://${t}`;
+}
+
+export const runProductionReadinessCheck = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .handler(async (): Promise<ReadinessResult> => {
+    const timestamp = new Date().toISOString();
+    const url = normalizeUrl(process.env.SIMULATION_SERVICE_URL);
+    if (!url) {
+      return {
+        ok: false,
+        status: "fail",
+        http_status: null,
+        latency_ms: 0,
+        engine: null,
+        feasibility: null,
+        baseline_violations: null,
+        post_action_violations: null,
+        notes: "External simulator URL not configured",
+        error: "SIMULATION_SERVICE_URL not set",
+        raw_body_preview: null,
+        timestamp,
+      };
+    }
+    const token = process.env.SIMULATION_SERVICE_TOKEN;
+    const start = performance.now();
+    try {
+      const res = await fetch(`${url}/simulate`, {
+        method: "POST",
+        redirect: "follow",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          case_name: "case14",
+          action: { action_type: "none", enabled: false },
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const latency_ms = Math.round(performance.now() - start);
+      const http_status = res.status;
+      const text = await res.text();
+      const raw_body_preview = text.slice(0, 500);
+
+      if (!res.ok) {
+        return {
+          ok: false,
+          status: "fail",
+          http_status,
+          latency_ms,
+          engine: null,
+          feasibility: null,
+          baseline_violations: null,
+          post_action_violations: null,
+          notes: `HTTP ${http_status} from /simulate`,
+          error: `Non-2xx response (${http_status})`,
+          raw_body_preview,
+          timestamp,
+        };
+      }
+
+      let json: any = null;
+      try {
+        json = JSON.parse(text);
+      } catch (e: any) {
+        return {
+          ok: false,
+          status: "fail",
+          http_status,
+          latency_ms,
+          engine: null,
+          feasibility: null,
+          baseline_violations: null,
+          post_action_violations: null,
+          notes: "Response was not valid JSON",
+          error: e?.message ?? "JSON parse error",
+          raw_body_preview,
+          timestamp,
+        };
+      }
+
+      const engine: string | null = json?.engine ?? json?.notes?.toLowerCase?.()?.includes("pandapower") ? "pandapower" : (json?.engine ?? null);
+      const feasibility: string | null = json?.feasibility ?? null;
+      const baseline_violations =
+        typeof json?.baseline_violations === "number" ? json.baseline_violations : null;
+      const post_action_violations =
+        typeof json?.post_action_violations === "number" ? json.post_action_violations : null;
+
+      const isPandapower =
+        engine === "pandapower" ||
+        engine === "pypsa" ||
+        (typeof json?.notes === "string" && /pandapower|pypsa/i.test(json.notes));
+
+      let status: "pass" | "warn" | "fail" = "pass";
+      let notes: string | null = json?.notes ?? "Live /simulate succeeded";
+      if (!isPandapower) {
+        status = "warn";
+        notes = "Engine field missing or not pandapower/pypsa";
+      } else if (feasibility === "infeasible") {
+        status = "warn";
+        notes = "Solver returned infeasible for case14 no-op (unexpected)";
+      }
+
+      return {
+        ok: true,
+        status,
+        http_status,
+        latency_ms,
+        engine,
+        feasibility,
+        baseline_violations,
+        post_action_violations,
+        notes,
+        error: null,
+        raw_body_preview: status === "pass" ? null : raw_body_preview,
+        timestamp,
+      };
+    } catch (err: any) {
+      const latency_ms = Math.round(performance.now() - start);
+      const isTimeout = err?.name === "TimeoutError" || err?.name === "AbortError";
+      return {
+        ok: false,
+        status: "fail",
+        http_status: null,
+        latency_ms,
+        engine: null,
+        feasibility: null,
+        baseline_violations: null,
+        post_action_violations: null,
+        notes: isTimeout ? "Request timed out after 15s" : "Network error reaching simulator",
+        error: err?.message ?? "Unknown error",
+        raw_body_preview: null,
+        timestamp,
+      };
+    }
+  });
+
 export const getHealthStatus = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }): Promise<HealthStatus> => {
