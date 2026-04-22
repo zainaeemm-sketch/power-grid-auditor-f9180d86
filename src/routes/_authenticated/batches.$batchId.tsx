@@ -38,6 +38,7 @@ import {
 } from "recharts";
 import { BatchSensitivitySection } from "@/components/batch/BatchSensitivitySection";
 import { BatchCounterfactualSection } from "@/components/batch/BatchCounterfactualSection";
+import { normalizeCaseName } from "@/lib/case-normalize";
 
 export const Route = createFileRoute("/_authenticated/batches/$batchId")({
   head: () => ({
