@@ -322,7 +322,7 @@ function NewBatchPage() {
               <div key={row.key} className="rounded-md border border-border/60 p-2">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-semibold">{row.label}</span>
-                  <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${row.isOverwrite ? "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300" : "bg-primary/15 text-primary"}`}>
+                  <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${row.isOverwrite ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"}`}>
                     {row.isOverwrite ? "OVERWRITE" : "NEW"}
                   </span>
                 </div>
