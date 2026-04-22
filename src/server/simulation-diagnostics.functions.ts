@@ -9,6 +9,20 @@ function normalizeServiceUrl(rawUrl: string | undefined): string | null {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+export interface SimulateProbe {
+  status: number | null;
+  ok: boolean;
+  case_name: string;
+  feasibility: string | null;
+  baseline_violations: number | null;
+  post_action_violations: number | null;
+  line_loadings_count: number | null;
+  notes: string | null;
+  error: string | null;
+  raw_body: string | null;
+  latency_ms: number | null;
+}
+
 export interface SimulationDiagnostics {
   configured: boolean;
   url: string | null;
@@ -25,20 +39,78 @@ export interface SimulationDiagnostics {
     error: string | null;
     latency_ms: number | null;
   };
-  simulate: {
-    status: number | null;
-    ok: boolean;
-    case_name: string;
-    feasibility: string | null;
-    baseline_violations: number | null;
-    post_action_violations: number | null;
-    line_loadings_count: number | null;
-    notes: string | null;
-    error: string | null;
-    raw_body: string | null;
-    latency_ms: number | null;
-  };
+  simulates: SimulateProbe[];
   timestamp: string;
+}
+
+const SIMULATE_CASES = ["case5", "case14", "case30"] as const;
+
+async function probeSimulate(
+  url: string,
+  token: string | undefined,
+  caseName: string,
+): Promise<SimulateProbe> {
+  const start = Date.now();
+  const probe: SimulateProbe = {
+    status: null,
+    ok: false,
+    case_name: caseName,
+    feasibility: null,
+    baseline_violations: null,
+    post_action_violations: null,
+    line_loadings_count: null,
+    notes: null,
+    error: null,
+    raw_body: null,
+    latency_ms: null,
+  };
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 10_000);
+    const res = await fetch(`${url}/simulate`, {
+      method: "POST",
+      redirect: "follow",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        case_name: caseName,
+        action: { action_type: "none", enabled: true },
+      }),
+      signal: ctl.signal,
+    });
+    clearTimeout(t);
+    probe.status = res.status;
+    probe.latency_ms = Date.now() - start;
+    const text = await res.text();
+    probe.raw_body = text.slice(0, 600);
+    if (res.ok) {
+      try {
+        const j = JSON.parse(text) as {
+          feasibility?: string;
+          baseline_violations?: number;
+          post_action_violations?: number;
+          line_loadings?: unknown[];
+          notes?: string;
+        };
+        probe.ok = true;
+        probe.feasibility = j.feasibility ?? null;
+        probe.baseline_violations = j.baseline_violations ?? null;
+        probe.post_action_violations = j.post_action_violations ?? null;
+        probe.line_loadings_count = Array.isArray(j.line_loadings) ? j.line_loadings.length : null;
+        probe.notes = j.notes ?? null;
+      } catch (e: any) {
+        probe.error = `Invalid JSON: ${e?.message ?? "parse error"}`;
+      }
+    } else {
+      probe.error = `HTTP ${res.status}`;
+    }
+  } catch (e: any) {
+    probe.error = e?.message ?? "fetch failed";
+    probe.latency_ms = Date.now() - start;
+  }
+  return probe;
 }
 
 export const getSimulationDiagnostics = createServerFn({ method: "POST" })
