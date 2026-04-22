@@ -1,89 +1,92 @@
 
 
-## Revised plan: AI Assist for Batches first, shared agent source, soft cap
+## Transactional approval emails from `info@gridarena.eu`
 
-Folds in the three refinements from the previous reply. Same OpenAI-compatible endpoint already used by `/new-run` (`OPENAI_API_KEY` + `OPENAI_BASE_URL` + `OPENAI_MODEL`). No Lovable AI, no new keys.
+WordPress-style automatic emails for the signup → approval lifecycle, sent from your own domain.
 
-### Ship order
+### The three emails
 
-**Phase 1 — Shared allowed-values source** (small refactor, unblocks the rest)
-**Phase 2 — Batches AI Assist** (highest value)
-**Phase 3 — Presets AI Assist** (collapsed/optional, lowest value)
+1. **"Signup received"** → sent to the new user the moment they sign up. *"Thanks for signing up to GridArena. An admin will review your request shortly."*
+2. **"Account approved — welcome"** → sent to the user when an admin approves them. Includes a sign-in link.
+3. **"Account not approved"** *(optional, off by default)* → sent on rejection. Polite, includes admin notes if provided.
 
-Each phase is independently shippable.
+All three sent from **`GridArena <info@gridarena.eu>`** with `reply-to: info@gridarena.eu`.
 
----
+### What's already there vs. what's missing
 
-### Phase 1 — Shared allowed-values source
+| Piece | Status |
+|---|---|
+| `user_approvals` row created on signup (DB trigger) | works |
+| Admin approve/reject UI | works |
+| `send_welcome_email` job enqueued on approve | enqueued but **never processed** (no handler) |
+| Signup-received email | **missing entirely** |
+| Email domain `gridarena.eu` verified for sending | **not set up** |
+| Email-sending infrastructure (queue worker, templates) | **not set up** |
 
-Single source of truth so adding an agent or case only requires editing one file.
+### How it will work (WordPress-like flow)
 
-- **New** `src/lib/allowed-values.ts` exporting:
-  - `ALLOWED_CASES = ["case5", "case14", "case30"] as const` + `AllowedCase` type
-  - `ALLOWED_AGENTS = [...] as const` + `AllowedAgent` type — initial list seeded from current usage (`poweragent`, `powerfm`, `gridgpt`, `gpt-4o`, `claude-3.5`); confirmed against existing batch/run code during exploration
-  - `ALLOWED_EVALUATION_MODES = ["rule_based", "simulation", "auto"] as const`
-  - Helper `isAllowedAgent(x)` / `isAllowedCase(x)` for runtime checks
-- **Edit** `src/server/scenario-assist.functions.ts` — import `ALLOWED_CASES` and build the case enum from it instead of the hard-coded array currently in the tool schema.
-- No UI changes in this phase.
+```text
+User signs up
+  └─ DB trigger creates user_approvals row (pending)
+  └─ DB trigger enqueues "send_signup_received_email" job   [NEW]
+        └─ Worker sends "We got your request" email           [NEW]
 
-When custom user cases land later, only `allowed-values.ts` (or a small loader that merges built-ins + user cases) changes — every assist function picks it up automatically.
+Admin clicks Approve
+  └─ user_approvals.status = approved
+  └─ existing code enqueues "send_welcome_email" job
+        └─ Worker sends "Welcome, you're in" email            [NEW handler]
 
----
+Admin clicks Reject (with notes)
+  └─ user_approvals.status = rejected
+  └─ enqueues "send_rejection_email" job (optional toggle)   [NEW]
+        └─ Worker sends polite rejection email                 [NEW]
+```
 
-### Phase 2 — Batches AI Assist
+The job queue + cron drain you already have is reused — we just add handlers for the email job types.
 
-Mounted at the top of `/batches/new`, above the Batch Configuration card.
+### Sender setup — `info@gridarena.eu`
 
-User types e.g. *"compare three agents on IEEE 14-bus and 30-bus under load scaling"* → AI returns suggested batch config.
+Email domain setup in Lovable Cloud requires **workspace admin/owner** permissions. You (or your workspace owner) need to:
 
-**Suggested fields**: `name`, `task`, `research_question`, `agents[]` (constrained to `ALLOWED_AGENTS`), `cases[]` (constrained to `ALLOWED_CASES`), `rationale`. Returned as comma-joined strings to match the existing form inputs.
+1. Open the Email setup dialog (I'll surface it during implementation).
+2. Enter `gridarena.eu` as the sending domain.
+3. Add the DNS records Lovable shows you (SPF, DKIM, DMARC) at your DNS provider.
+4. Wait for DNS verification (usually minutes, can take up to a few hours).
 
-**Apply flow** (mirrors new-run):
-- Empty form → apply directly.
-- Any field filled → single `AlertDialog` summary modal with per-field diff (NEW vs OVERWRITE badges, current struck-through vs new).
+Once verified, all three emails will send from `info@gridarena.eu` automatically. Until DNS is verified, the system will fall back to a sandbox sender so you can test end-to-end without waiting.
 
-**Validation before Apply**:
-- name 1–80, task 1–60
-- ≥ 1 agent, ≥ 1 case
-- every agent ∈ `ALLOWED_AGENTS`, every case ∈ `ALLOWED_CASES`
-- **Total runs (`agents × cases`) > 50 → soft yellow warning, not a hard block.** User can Apply anyway. Hard block only if total runs is 0 or > 500 (sanity ceiling).
-- Inline destructive alert on hard failures, inline yellow alert for the soft cap.
+### Files / changes
 
-**Files**:
-- **New** `src/server/batch-assist.functions.ts` — `suggestBatch` server fn. Same OpenAI call pattern, error codes, and auth wrapping as `scenario-assist.functions.ts`. Tool schema = `propose_batch` with `agents` / `cases` as `string[]` whose `items.enum` is built from `ALLOWED_AGENTS` / `ALLOWED_CASES` at request time.
-- **New** `src/components/batch/BatchAssistCard.tsx` — textarea + Suggest button + preview card with Apply / Discard / Regenerate. Footer: *"Suggested by `{OPENAI_MODEL}` via your configured OpenAI endpoint"*. Three example prompts.
-- **Edit** `src/routes/_authenticated/batches.new.tsx` — mount `<BatchAssistCard onApply={...} />`, add `applyBatchSuggestion`, `pendingBatchSuggestion` state, `validateBatchSuggestion`, AlertDialog summary modal, soft-cap warning Alert.
+**Database (migration)**
+- New trigger on `user_approvals` INSERT → enqueues `send_signup_received_email` job for new pending rows.
+- Optional: trigger on UPDATE to `rejected` → enqueues `send_rejection_email` (toggleable per approval).
 
----
+**Email templates** (React Email, branded GridArena dark/emerald to match the app)
+- `supabase/functions/_shared/email-templates/signup-received.tsx`
+- `supabase/functions/_shared/email-templates/welcome.tsx`
+- `supabase/functions/_shared/email-templates/rejection.tsx`
 
-### Phase 3 — Presets AI Assist (collapsed by default)
+Each includes: GridArena header, the message, a CTA button (sign-in link for welcome, "Contact us" for the others), and a footer with `info@gridarena.eu` reply-to.
 
-Lower priority — most preset fields are numeric knobs faster to slide than describe. Make it opt-in so it doesn't clutter the Create Preset dialog.
+**Worker handlers** — extend `src/routes/hooks/process-jobs.ts` and `src/server/queue/worker.functions.ts` to handle the three new `job_type`s by rendering the template and sending via the configured email provider.
 
-Mounted **inside the Create Preset `DialogContent`**, but wrapped in a `<Collapsible>` that defaults to closed, with a subtle trigger: *"Describe your preset with AI (optional)"*.
+**Admin UI** (`src/routes/_authenticated/admin.tsx`)
+- Add a small "Send rejection email" toggle next to the Reject button (default off, remembers last choice).
+- The existing "Resend email" button keeps working (re-queues the welcome email).
 
-**Suggested fields**: `name`, `provider_name`, `model_name`, `system_prompt`, `default_prompt_text`, `temperature`, `top_p`, `max_tokens`, `evaluation_mode`, `notes`, `rationale`. Version fields left alone.
+**Settings panel** (small addition to `src/components/admin/AdminSettings.tsx`)
+- Read-only status: "Sender domain: `gridarena.eu` — Verified ✅ / Pending ⏳ / Not configured ❌"
+- Link to re-open the domain setup dialog if not configured.
 
-**Apply flow**: identical to Batches — direct apply when empty, summary modal with diff when any field is filled.
+### Permissions note
 
-**Validation before Apply**: name 1–80, temperature 0–2, top_p 0–1, max_tokens 1–8192, evaluation_mode ∈ `ALLOWED_EVALUATION_MODES`, system_prompt ≤ 4000 chars. Inline destructive alert on failure.
+Because email domain setup requires workspace admin/owner rights, when implementation starts I'll either:
+- Trigger the email setup dialog for you to complete (if you have those rights), then continue automatically; **or**
+- If you don't have those rights, build everything except the domain step, and leave clear instructions for your workspace admin to finish the `gridarena.eu` verification — once they do, emails start flowing with no further code changes.
 
-**Files**:
-- **New** `src/server/preset-assist.functions.ts` — `suggestPreset` server fn, same pattern. Tool schema = `propose_preset`.
-- **New** `src/components/presets/PresetAssistCard.tsx` — same shape as the others, three preset-specific examples.
-- **Edit** `src/routes/_authenticated/presets.tsx` — mount inside Collapsible at the top of Create Preset dialog, add apply/validate/diff modal logic.
+### Out of scope
 
----
-
-### Consistent behaviour across all three pages
-
-- **Suggest, don't apply** — preview card; nothing fills until you click Apply.
-- **Single confirmation modal** with field-by-field diff if any target field has user input.
-- **Client-side validation** blocks Apply on hard errors, warns on soft caps.
-- **Footer** on every preview card identifies the model + endpoint.
-- **Same error toasts** for missing key / 401 / 429 / 402.
-
-### Out of scope (queued)
-
-Custom user cases (`user_cases` table + JSON editor + solver wiring). When it lands, `allowed-values.ts` becomes the single integration point — every assistant picks up new cases automatically.
+- Marketing / newsletter emails — this plan is strictly the three lifecycle emails.
+- Per-user email preferences (unsubscribe). Transactional approval emails normally don't have unsubscribe; they're tied to account state.
+- Re-styling existing Supabase auth emails (signup confirmation, password reset). Can be added in a follow-up using the same domain.
 
