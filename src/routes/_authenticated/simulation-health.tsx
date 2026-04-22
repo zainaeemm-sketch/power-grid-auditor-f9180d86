@@ -310,6 +310,38 @@ function SimulationHealthPage() {
         </CardHeader>
       </Card>
 
+      {/* Troubleshooting tips — context-aware */}
+      {diag && tips.length > 0 && (
+        <Card className="mb-4 border-amber-500/40 bg-amber-500/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Wrench className="h-4 w-4 text-amber-500" />
+              Troubleshooting
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                ({tips.length} suggestion{tips.length === 1 ? "" : "s"})
+              </span>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Based on the exact failure of each probe in the latest check.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tips.map((tip, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-background/40 p-3"
+              >
+                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <div>
+                  <p className="text-sm font-medium">{tip.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{tip.body}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* /version */}
       <Card className="mb-4 border-border/40 bg-card/60">
         <CardHeader className="pb-3">
