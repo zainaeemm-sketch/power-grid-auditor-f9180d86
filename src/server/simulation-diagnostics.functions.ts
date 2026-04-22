@@ -285,7 +285,8 @@ export const deleteSimulationHealthCheck = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data, context }): Promise<{ success: boolean }> => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
     const { error } = await supabase.from("simulation_health_checks").delete().eq("id", data.id);
     if (error) {
       console.error("[simulation-diagnostics] deleteSimulationHealthCheck failed", error);
