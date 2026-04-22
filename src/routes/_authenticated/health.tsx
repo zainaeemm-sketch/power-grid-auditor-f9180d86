@@ -296,7 +296,7 @@ function ReadinessHistoryChart({
   const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(PAD_Y + innerH).toFixed(1)} L ${points[0].x.toFixed(1)} ${(PAD_Y + innerH).toFixed(1)} Z`;
 
   const dotColor = (s: ReadinessHistoryEntry["status"]) =>
-    s === "pass" ? "hsl(var(--primary))" : s === "warn" ? "rgb(245 158 11)" : "rgb(239 68 68)";
+    s === "pass" ? "hsl(var(--primary))" : s === "warn" ? "hsl(var(--warning, 38 92% 50%))" : "hsl(var(--destructive))";
 
   const passCount = history.filter((h) => h.status === "pass").length;
   const warnCount = history.filter((h) => h.status === "warn").length;
