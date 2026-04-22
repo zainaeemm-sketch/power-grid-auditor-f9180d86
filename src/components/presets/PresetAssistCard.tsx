@@ -98,6 +98,16 @@ export function PresetAssistCard({ onApply }: Props) {
     if (!suggestion) return;
     onApply(suggestion);
     setSuggestion(null);
+    setPrompt("");
+    setModel(null);
+    clearDraft();
+  };
+
+  const discard = () => {
+    setSuggestion(null);
+    setModel(null);
+    // Keep the prompt so the user can tweak and regenerate; persist the cleared suggestion.
+    saveDraft({ prompt, suggestion: null, model: null });
   };
 
   return (
