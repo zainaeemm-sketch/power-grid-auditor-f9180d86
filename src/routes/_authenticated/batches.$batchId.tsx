@@ -103,6 +103,80 @@ function BatchDetailPage() {
     completedCountRef.current = runs.filter((r) => r.run.status === "completed").length;
   }, [runs]);
 
+  // Detect skipped sensitivity/counterfactual evaluations (e.g., "No simulator available").
+  // This is a more reliable signal that charts will be empty than violation_improvement alone,
+  // because a run can have a non-zero improvement but still produce no perturbation/CF data.
+  const [skipSignal, setSkipSignal] = useState<{
+    perturbationSkipped: number;
+    perturbationTotal: number;
+    counterfactualSkipped: number;
+    counterfactualTotal: number;
+    reasons: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (runIds.length === 0) {
+      setSkipSignal(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      // perturbation_results joins via perturbation_tests.run_id
+      const [{ data: pertTests }, { data: cfActions }] = await Promise.all([
+        supabase.from("perturbation_tests").select("id,run_id").in("run_id", runIds),
+        supabase.from("counterfactual_actions").select("id,run_id").in("run_id", runIds),
+      ]);
+      const pertIds = (pertTests ?? []).map((t) => t.id);
+      const cfIds = (cfActions ?? []).map((a) => a.id);
+      const [{ data: pertResults }, { data: cfResults }] = await Promise.all([
+        pertIds.length
+          ? supabase
+              .from("perturbation_results")
+              .select("failure_reason,notes,robustness_result")
+              .in("perturbation_test_id", pertIds)
+          : Promise.resolve({ data: [] as Array<{ failure_reason: string | null; notes: string | null; robustness_result: string | null }> }),
+        cfIds.length
+          ? supabase
+              .from("counterfactual_results")
+              .select("failure_reason,status")
+              .in("counterfactual_action_id", cfIds)
+          : Promise.resolve({ data: [] as Array<{ failure_reason: string | null; status: string | null }> }),
+      ]);
+      if (cancelled) return;
+
+      const reasonSet = new Set<string>();
+      let pSkipped = 0;
+      for (const r of pertResults ?? []) {
+        if (classifyPerturbation(r.failure_reason, r.notes) === "skipped") {
+          pSkipped++;
+          if (r.failure_reason && isSkippedFailure(r.failure_reason)) {
+            reasonSet.add(r.failure_reason.trim());
+          } else if (r.notes && isSkippedFailure(r.notes)) {
+            reasonSet.add(r.notes.trim());
+          }
+        }
+      }
+      let cSkipped = 0;
+      for (const r of cfResults ?? []) {
+        if (classifyCounterfactual(r.status, r.failure_reason) === "skipped") {
+          cSkipped++;
+          if (r.failure_reason) reasonSet.add(r.failure_reason.trim());
+        }
+      }
+
+      setSkipSignal({
+        perturbationSkipped: pSkipped,
+        perturbationTotal: pertResults?.length ?? 0,
+        counterfactualSkipped: cSkipped,
+        counterfactualTotal: cfResults?.length ?? 0,
+        reasons: Array.from(reasonSet).slice(0, 5),
+      });
+    })().catch(() => { if (!cancelled) setSkipSignal(null); });
+    return () => { cancelled = true; };
+  }, [runIds]);
+
+
+
   useEffect(() => {
     if (runIds.length === 0 || !batch) return;
     const channel = supabase
