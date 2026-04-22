@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Activity, Zap, History, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Activity, Zap, History, Trash2, BellRing, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getSimulationDiagnostics,
   listSimulationHealthHistory,
