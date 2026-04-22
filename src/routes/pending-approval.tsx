@@ -80,7 +80,7 @@ function PendingApprovalPage() {
           <CardDescription>
             {isRejected
               ? "Your account access has been declined. Please contact an administrator if you believe this is a mistake."
-              : "Your account is pending administrator approval. You'll be redirected automatically once approved."}
+              : "Your request is in the queue — an administrator has been notified. You'll be redirected automatically once approved."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
