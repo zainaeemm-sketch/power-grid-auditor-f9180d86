@@ -6,6 +6,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator } from "@/components/ui/select";
 import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { listPresets, createRun } from "@/server/runs.functions";
 import { listScenarios } from "@/server/ground-truth.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -123,20 +133,54 @@ function NewRunPage() {
   const [groundTruthId, setGroundTruthId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
-  const applyAiSuggestion = (s: ScenarioSuggestion) => {
-    const overwriteField = (label: string, current: string, next: string, setter: (v: string) => void) => {
-      if (current.trim() && current.trim() !== next.trim()) {
-        const ok = window.confirm(`Overwrite ${label}?\n\nCurrent: ${current.slice(0, 80)}${current.length > 80 ? "…" : ""}\n\nNew: ${next.slice(0, 80)}${next.length > 80 ? "…" : ""}`);
-        if (!ok) return;
-      }
-      setter(next);
-    };
-    overwriteField("Title", title, s.title, setTitle);
-    overwriteField("Task", task, s.task, setTask);
-    overwriteField("Case", caseName, s.case_name, setCaseName);
-    overwriteField("Research question", researchQuestion, s.research_question, setResearchQuestion);
+  const [pendingSuggestion, setPendingSuggestion] = useState<ScenarioSuggestion | null>(null);
+
+  type FieldDiff = {
+    key: "title" | "task" | "case_name" | "research_question" | "evaluation_mode";
+    label: string;
+    current: string;
+    next: string;
+    willOverwrite: boolean;
+  };
+
+  const computeDiffs = (s: ScenarioSuggestion): FieldDiff[] => {
+    const rows: FieldDiff[] = [
+      { key: "title", label: "Title", current: title, next: s.title, willOverwrite: false },
+      { key: "task", label: "Task", current: task, next: s.task, willOverwrite: false },
+      { key: "case_name", label: "Case", current: caseName, next: s.case_name, willOverwrite: false },
+      { key: "research_question", label: "Research question", current: researchQuestion, next: s.research_question, willOverwrite: false },
+      { key: "evaluation_mode", label: "Evaluation mode", current: evaluationMode, next: s.evaluation_mode, willOverwrite: false },
+    ];
+    return rows
+      .filter((r) => r.current.trim() !== r.next.trim() || !r.current.trim())
+      .map((r) => ({ ...r, willOverwrite: r.current.trim().length > 0 }));
+  };
+
+  const writeSuggestion = (s: ScenarioSuggestion) => {
+    setTitle(s.title);
+    setTask(s.task);
+    setCaseName(s.case_name);
+    setResearchQuestion(s.research_question);
     setEvaluationMode(s.evaluation_mode);
   };
+
+  const applyAiSuggestion = (s: ScenarioSuggestion) => {
+    const anyExisting = [title, task, caseName, researchQuestion].some((v) => v.trim().length > 0);
+    if (!anyExisting) {
+      writeSuggestion(s);
+      return;
+    }
+    setPendingSuggestion(s);
+  };
+
+  const confirmApply = () => {
+    if (pendingSuggestion) writeSuggestion(pendingSuggestion);
+    setPendingSuggestion(null);
+  };
+
+  const pendingDiffs = pendingSuggestion ? computeDiffs(pendingSuggestion) : [];
+  const overwriteCount = pendingDiffs.filter((d) => d.willOverwrite).length;
+  const newCount = pendingDiffs.length - overwriteCount;
 
   const applyStressedQuickPick = (pick: StressedQuickPick) => {
     setTitle(pick.title);
@@ -318,6 +362,65 @@ function NewRunPage() {
           </CardContent>
         </Card>
       </form>
+
+      <AlertDialog open={pendingSuggestion !== null} onOpenChange={(open) => { if (!open) setPendingSuggestion(null); }}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply AI suggestion to form?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {overwriteCount > 0 ? (
+                <>
+                  <span className="font-semibold text-foreground">{overwriteCount}</span> field{overwriteCount === 1 ? "" : "s"} will be overwritten
+                  {newCount > 0 ? <> and <span className="font-semibold text-foreground">{newCount}</span> new field{newCount === 1 ? "" : "s"} filled.</> : "."}
+                </>
+              ) : (
+                <>{pendingDiffs.length} field{pendingDiffs.length === 1 ? "" : "s"} will be filled. No existing values will be lost.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="max-h-[50vh] overflow-y-auto space-y-3 text-xs">
+            {pendingDiffs.map((d) => (
+              <div key={d.key} className="rounded-md border border-border/50 bg-muted/30 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="font-semibold text-foreground text-sm">{d.label}</span>
+                  {d.willOverwrite ? (
+                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">OVERWRITE</span>
+                  ) : (
+                    <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">NEW</span>
+                  )}
+                </div>
+                {d.willOverwrite && (
+                  <div className="mb-2">
+                    <div className="text-muted-foreground font-medium mb-0.5">Current</div>
+                    <div className="rounded bg-background/50 p-2 text-foreground/70 line-through whitespace-pre-wrap break-words">
+                      {d.current.length > 240 ? d.current.slice(0, 240) + "…" : d.current}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <div className="text-muted-foreground font-medium mb-0.5">New</div>
+                  <div className="rounded bg-primary/5 border border-primary/20 p-2 text-foreground whitespace-pre-wrap break-words">
+                    {d.next.length > 240 ? d.next.slice(0, 240) + "…" : d.next}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {pendingDiffs.length === 0 && (
+              <div className="rounded-md border border-border/50 bg-muted/30 p-3 text-muted-foreground">
+                The suggestion matches your current form values. Nothing will change.
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmApply} disabled={pendingDiffs.length === 0}>
+              Apply {pendingDiffs.length > 0 ? `${pendingDiffs.length} change${pendingDiffs.length === 1 ? "" : "s"}` : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
