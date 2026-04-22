@@ -178,7 +178,7 @@ export function PresetAssistCard({ onApply }: Props) {
                 <Check className="mr-1.5 h-3.5 w-3.5" />
                 Apply to form
               </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => setSuggestion(null)}>
+              <Button type="button" size="sm" variant="outline" onClick={discard}>
                 <X className="mr-1.5 h-3.5 w-3.5" />
                 Discard
               </Button>
