@@ -2,7 +2,7 @@
  * Static SVG methodology diagram for GridArena.
  * Shows the end-to-end experimental pipeline: inputs → agent → action →
  * validation/simulation/evaluation → metrics → persistence, with the
- * tiered simulation engine (pandapower-external → DC fallback → skipped)
+ * tiered simulation engine (PyPSA-external → DC fallback → skipped)
  * surfaced explicitly so it matches the per-row engine badges in the UI.
  * Theme-aware via CSS variables (same pattern as ArchitectureDiagram).
  */
@@ -83,11 +83,11 @@ export function MethodologyDiagram({ className }: { className?: string }) {
                 fill="color-mix(in oklab, var(--primary) 8%, transparent)" stroke="var(--primary)" strokeWidth="1.5" />
           <text x="450" y="382" textAnchor="middle" fontSize="13" fontWeight="600" fill="var(--foreground)">Simulation (tiered)</text>
 
-          {/* Tier 1 — pandapower external */}
+          {/* Tier 1 — PyPSA external */}
           <rect x="346" y="395" width="208" height="34" rx="6"
                 fill="color-mix(in oklab, oklch(0.72 0.16 155) 18%, transparent)"
                 stroke="oklch(0.72 0.16 155)" strokeWidth="1" />
-          <text x="450" y="416" textAnchor="middle" fontSize="11" fontWeight="600" fill="var(--foreground)">pandapower (external AC)</text>
+          <text x="450" y="416" textAnchor="middle" fontSize="11" fontWeight="600" fill="var(--foreground)">PyPSA (external power flow)</text>
 
           {/* Tier 2 — DC fallback */}
           <rect x="346" y="437" width="208" height="34" rx="6"

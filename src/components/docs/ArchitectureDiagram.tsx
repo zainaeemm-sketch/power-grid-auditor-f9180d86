@@ -65,7 +65,7 @@ export function ArchitectureDiagram({ className }: { className?: string }) {
           <rect x="420" y="260" width="200" height="80" rx="10"
                 fill="var(--card)" stroke="var(--border)" strokeWidth="1.5" />
           <text x="520" y="288" textAnchor="middle" fontSize="14" fontWeight="600" fill="var(--foreground)">Simulation Service</text>
-          <text x="520" y="310" textAnchor="middle" fontSize="11" fill="var(--muted-foreground)">pandapower (Python)</text>
+          <text x="520" y="310" textAnchor="middle" fontSize="11" fill="var(--muted-foreground)">PyPSA (Python)</text>
           <text x="520" y="326" textAnchor="middle" fontSize="11" fill="var(--muted-foreground)">optional · external</text>
         </g>
 

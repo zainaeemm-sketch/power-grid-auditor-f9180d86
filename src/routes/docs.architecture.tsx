@@ -60,9 +60,24 @@ function ArchitecturePage() {
 
       <h3>Simulation Service (optional)</h3>
       <p>
-        FastAPI + pandapower container hosted externally. Provides full AC powerflow when a
-        higher-fidelity engine is needed. Falls back to the in-Worker DC solver when the service
-        is unavailable, so evaluations never block.
+        FastAPI + <strong>PyPSA</strong> container hosted externally — pure Python with no native
+        binaries, supporting IEEE <code>case5</code>, <code>case14</code>, and <code>case30</code>.
+        Exposes a stable HTTP contract (<code>/version</code>, <code>/health</code>,{" "}
+        <code>/simulate</code>) used by both the evaluator and the diagnostics layer. Falls back
+        to the in-Worker DC solver when the service is unavailable, so evaluations never block.
+      </p>
+
+      <h3 id="simulation-health-admin">Simulation Health (admin)</h3>
+      <p>
+        An admin-only diagnostics layer at <code>/simulation-health</code> that probes the
+        external engine end-to-end: it calls <code>/version</code> and <code>/health</code>, then
+        runs <code>/simulate</code> in parallel against IEEE case5/14/30. Each probe is persisted
+        to <code>simulation_health_checks</code> (RLS-scoped) so failures can be reviewed over
+        time. The page surfaces a state-change alert banner when the engine flips from pass to
+        fail and renders contextual troubleshooting tips derived from the exact failing endpoint
+        response (missing <code>SIMULATION_SERVICE_URL</code> / <code>TOKEN</code>, DNS or
+        connection errors, 401/403, 5xx, per-case timeouts). Access is gated server-side via the{" "}
+        <code>has_role</code> RPC — non-admin users see an access-required notice.
       </p>
 
       <h3 id="counterfactual-engine-layer-e">Counterfactual Engine (Layer E)</h3>
