@@ -294,6 +294,23 @@ function NewRunPage() {
       <form onSubmit={handleSubmit}>
         <ScenarioAssistCard onApply={applyAiSuggestion} />
 
+        {applyError && (
+          <div
+            role="alert"
+            className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive animate-fade-up"
+          >
+            <div className="mb-1 font-semibold">Suggestion can't be applied</div>
+            <div className="text-destructive/90">{applyError}</div>
+            <button
+              type="button"
+              onClick={() => setApplyError(null)}
+              className="mt-2 text-[10px] uppercase tracking-wide text-destructive/70 underline hover:text-destructive"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         <Card className="mb-4 border-amber-500/30 bg-amber-500/5 animate-fade-up" style={{ animationDelay: "50ms" }}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
