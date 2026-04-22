@@ -30,6 +30,38 @@ export const Route = createFileRoute("/_authenticated/health")({
   ),
 });
 
+interface ReadinessHistoryEntry {
+  timestamp: string;
+  status: "pass" | "warn" | "fail";
+  http_status: number | null;
+  latency_ms: number;
+  engine: string | null;
+}
+
+const HISTORY_KEY = "gridarena.readiness.history.v1";
+const HISTORY_MAX = 20;
+
+function loadHistory(): ReadinessHistoryEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(-HISTORY_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(entries: ReadinessHistoryEntry[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(-HISTORY_MAX)));
+  } catch {
+    /* quota or disabled — ignore */
+  }
+}
+
 function HealthPage() {
   const { user } = useAuth();
   const [status, setStatus] = useState<HealthStatus | null>(null);
@@ -37,14 +69,42 @@ function HealthPage() {
   const [error, setError] = useState<string | null>(null);
   const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
+  const [history, setHistory] = useState<ReadinessHistoryEntry[]>([]);
+
+  useEffect(() => {
+    setHistory(loadHistory());
+  }, []);
+
+  const recordHistory = (r: ReadinessResult) => {
+    setHistory((prev) => {
+      const next = [
+        ...prev,
+        {
+          timestamp: r.timestamp,
+          status: r.status,
+          http_status: r.http_status,
+          latency_ms: r.latency_ms,
+          engine: r.engine,
+        },
+      ].slice(-HISTORY_MAX);
+      saveHistory(next);
+      return next;
+    });
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    saveHistory([]);
+  };
 
   const runReadiness = async () => {
     setReadinessLoading(true);
     try {
       const r = await runProductionReadinessCheck();
       setReadiness(r);
+      recordHistory(r);
     } catch (err: any) {
-      setReadiness({
+      const fallback: ReadinessResult = {
         ok: false,
         status: "fail",
         http_status: null,
@@ -59,7 +119,9 @@ function HealthPage() {
         request_url: null,
         request_payload: READINESS_PAYLOAD,
         timestamp: new Date().toISOString(),
-      });
+      };
+      setReadiness(fallback);
+      recordHistory(fallback);
     } finally {
       setReadinessLoading(false);
     }
@@ -190,9 +252,134 @@ function HealthPage() {
           </details>
 
           {readiness && <ReadinessPanel result={readiness} />}
+
+          <ReadinessHistoryChart history={history} onClear={clearHistory} />
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function ReadinessHistoryChart({
+  history,
+  onClear,
+}: {
+  history: ReadinessHistoryEntry[];
+  onClear: () => void;
+}) {
+  if (history.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-border/40 bg-muted/10 p-3 text-xs text-muted-foreground">
+        No readiness history yet — run the test above to start tracking latency and HTTP status over time.
+      </div>
+    );
+  }
+
+  const W = 320;
+  const H = 80;
+  const PAD_X = 8;
+  const PAD_Y = 8;
+  const innerW = W - PAD_X * 2;
+  const innerH = H - PAD_Y * 2;
+
+  const latencies = history.map((h) => h.latency_ms);
+  const maxLatency = Math.max(...latencies, 100);
+  const stepX = history.length > 1 ? innerW / (history.length - 1) : 0;
+
+  const points = history.map((h, i) => {
+    const x = PAD_X + i * stepX;
+    const y = PAD_Y + innerH - (h.latency_ms / maxLatency) * innerH;
+    return { x, y, entry: h };
+  });
+
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(PAD_Y + innerH).toFixed(1)} L ${points[0].x.toFixed(1)} ${(PAD_Y + innerH).toFixed(1)} Z`;
+
+  const dotColor = (s: ReadinessHistoryEntry["status"]) =>
+    s === "pass" ? "hsl(var(--primary))" : s === "warn" ? "hsl(var(--warning, 38 92% 50%))" : "hsl(var(--destructive))";
+
+  const passCount = history.filter((h) => h.status === "pass").length;
+  const warnCount = history.filter((h) => h.status === "warn").length;
+  const failCount = history.filter((h) => h.status === "fail").length;
+  const avgLatency = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length);
+  const last = history[history.length - 1];
+
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/10 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold">Recent checks ({history.length}/{HISTORY_MAX})</p>
+          <p className="text-[11px] text-muted-foreground">
+            Latency over time · pass <span className="text-emerald-500">{passCount}</span> · warn{" "}
+            <span className="text-amber-500">{warnCount}</span> · fail{" "}
+            <span className="text-destructive">{failCount}</span>
+          </p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onClear} className="h-7 px-2 text-xs">
+          Clear
+        </Button>
+      </div>
+
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="h-20 w-full"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="Readiness latency chart"
+      >
+        <defs>
+          <linearGradient id="readinessFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* baseline */}
+        <line
+          x1={PAD_X}
+          y1={PAD_Y + innerH}
+          x2={W - PAD_X}
+          y2={PAD_Y + innerH}
+          stroke="currentColor"
+          strokeOpacity="0.15"
+          strokeWidth="1"
+        />
+        {history.length > 1 && (
+          <>
+            <path d={areaPath} fill="url(#readinessFill)" />
+            <path d={linePath} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" />
+          </>
+        )}
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={2.5}
+            fill={dotColor(p.entry.status)}
+          >
+            <title>
+              {new Date(p.entry.timestamp).toLocaleString()} — {p.entry.latency_ms} ms · HTTP{" "}
+              {p.entry.http_status ?? "—"} · {p.entry.status.toUpperCase()}
+            </title>
+          </circle>
+        ))}
+      </svg>
+
+      <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+        <div className="rounded border border-border/30 bg-background/40 px-2 py-1">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Avg latency</p>
+          <p className="font-mono font-medium">{avgLatency} ms</p>
+        </div>
+        <div className="rounded border border-border/30 bg-background/40 px-2 py-1">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Peak latency</p>
+          <p className="font-mono font-medium">{maxLatency} ms</p>
+        </div>
+        <div className="rounded border border-border/30 bg-background/40 px-2 py-1">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Last HTTP</p>
+          <p className="font-mono font-medium">{last.http_status ?? "—"}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
