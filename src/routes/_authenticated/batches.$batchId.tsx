@@ -871,6 +871,16 @@ function BatchDetailPage() {
                     New Batch with ieee30
                   </Link>
                 </Button>
+                <Button asChild size="sm" variant="secondary" title="Pre-fill a new batch with both built-in simulator cases">
+                  <Link to="/batches/new" search={{ cases: "ieee14,ieee30" }}>
+                    Switch to built-in (ieee14, ieee30)
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="secondary" title="Pre-fill a new batch with both PyPSA service cases">
+                  <Link to="/batches/new" search={{ cases: "case14,case30" }}>
+                    Switch to PyPSA (case14, case30)
+                  </Link>
+                </Button>
                 <Button asChild size="sm" variant="outline">
                   <Link to="/new-run" search={{ case: "ieee14" }}>
                     New Run with ieee14
