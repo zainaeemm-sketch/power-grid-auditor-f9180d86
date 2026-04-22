@@ -39,6 +39,7 @@ function SimulationHealthPage() {
   const [history, setHistory] = useState<SimulationHealthHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   const loadHistory = async () => {
     try {
@@ -69,7 +70,22 @@ function SimulationHealthPage() {
   };
 
   useEffect(() => {
-    refresh();
+    let cancelled = false;
+    isCurrentUserAdmin()
+      .then((r) => {
+        if (cancelled) return;
+        setIsAdmin(r.isAdmin);
+        if (r.isAdmin) refresh();
+        else setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIsAdmin(false);
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
 
