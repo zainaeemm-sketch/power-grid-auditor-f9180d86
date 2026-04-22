@@ -1,43 +1,31 @@
 
 
 ## Goal
-Update the docs, methodology, and architecture to reflect: (1) PyPSA replacing pandapower, (2) the new admin-only Simulation Health page with history, alerts, and troubleshooting tips.
+Show an automatic in-page recommendation banner on a batch detail page when its charts have zero meaningful results, suggesting users switch to a supported case (`ieee14`/`ieee30` for the built-in simulator, or `case14`/`case30` for the external PyPSA service).
 
-## Files to update
+## Detection logic
+In `src/routes/_authenticated/batches.$batchId.tsx`, compute a `caseRecommendation` via `useMemo` from `data.runs`:
 
-### 1. `README.md`
-- Rename "Optional simulation service" section: pandapower → **PyPSA**.
-- Update description: "physics-accurate AC powerflow" → "physics-accurate power flow via PyPSA (pure Python, no native binaries)".
-- Mention `/simulation-health` (admin-only) for engine self-tests.
+1. **Trigger conditions** (all must hold for the banner to appear):
+   - At least 1 run exists and all runs have completed (`status` in `done`/`failed`).
+   - Aggregate signals are empty: every run has `violation_improvement` of 0/null AND no run has any successful sensitivity or counterfactual result (check `r.sensitivity?.length`, `r.counterfactuals?.length` for entries lacking simulator output, or evaluation-skip reasons mentioning `"No simulator available"`).
+2. **Case extraction**: Collect `r.run.case_name` across runs. Detect "unsupported" by matching against the known supported sets:
+   - Built-in simulator: `ieee9`, `ieee14`, `ieee30`
+   - External PyPSA: `case5`, `case14`, `case30`
+   - If every distinct case in the batch is outside both sets → unsupported.
+3. **Suggestion**: Recommend `ieee14` / `ieee30` (built-in) and `case14` / `case30` (PyPSA), with a one-line explanation referencing the unsupported case(s) actually used.
 
-### 2. `src/routes/docs.installation.tsx`
-- Replace all "pandapower" mentions with "PyPSA".
-- Section 5 ("Verifying the install"): add bullet for `/simulation-health` (admin) — runs `/version`, `/health`, and `/simulate` self-tests across case5/14/30 and stores history.
-
-### 3. `src/routes/docs.architecture.tsx`
-- Rewrite **Simulation Service** section: FastAPI + **PyPSA** (was pandapower); pure-Python, supports IEEE case5/14/30; same external HTTP contract (`/version`, `/health`, `/simulate`).
-- Add a new **Simulation Health (admin)** subsection describing the diagnostics layer: probes `/version` + `/health` + parallel `/simulate` for case5/14/30, persists results to `simulation_health_checks` (RLS-scoped), surfaces state-change alerts and contextual troubleshooting tips. Admin-gated server-side via `has_role`.
-
-### 4. `src/components/docs/ArchitectureDiagram.tsx`
-- Change "Simulation Service" subtitle from `pandapower (Python)` → `PyPSA (Python)`.
-- Add a small "Simulation Health (admin)" badge/box connected to Edge Worker + Postgres (writes to `simulation_health_checks`).
-
-### 5. `src/routes/docs.workflow.tsx`
-- Section "5. Simulation & Evaluation": pandapower → PyPSA.
-- Counterfactual caveats: unchanged (still in-Worker DC).
-
-### 6. `src/components/docs/MethodologyDiagram.tsx`
-- Update tier-1 label: `pandapower (external AC)` → `PyPSA (external power flow)`.
-
-### 7. `src/routes/docs.troubleshooting.tsx`
-- Rename section "Simulation engine 'unavailable'": pandapower → PyPSA.
-- Add new section **"Diagnose engine failures (admin)"** pointing to `/simulation-health` — explains the page surfaces actionable tips for missing `SIMULATION_SERVICE_URL`/`TOKEN`, DNS/connection errors, 401/403, 5xx, and per-case timeout hints; history table lets you review past failures.
-
-### 8. `src/components/docs/DocsLayout.tsx` + `src/routes/docs.index.tsx`
-- No nav change required (Simulation Health is an app route, not a docs page). Add a one-line callout in `docs.index.tsx` "Where to start" list pointing admins to `/simulation-health`.
+## UI
+A new dismissible amber `Card` rendered just above the charts section:
+- Icon: `Lightbulb` (from lucide-react, already in the dep tree).
+- Title: "No simulator results — try a supported case"
+- Body: "Runs in this batch used `<UNSUPPORTED>`, which neither the built-in simulator nor the PyPSA service can run. Create a new batch with `ieee14` or `ieee30` (built-in) or `case14` / `case30` (PyPSA) to populate charts."
+- Primary action: `<Link to="/batches/new">New Batch</Link>` button.
+- Secondary action: dismiss (`X`) — stored in `sessionStorage` keyed by `batch.id` so it stays hidden during the session but reappears in fresh sessions/other batches.
 
 ## Out of scope
-- No code/logic changes to the simulation engine, RBAC, or alert behavior.
-- No DB migrations.
-- No changes to citation, about page, or memory files.
+- No DB schema or server-function changes.
+- No changes to the new-batch form (case picker stays as-is).
+- No changes to the report page (`reports.batch.$batchId.tsx`) — recommendation is on the operational batch detail page only, where users decide whether to re-run.
+- Empty-state for batches with successful sims but legitimately zero improvement is not flagged (only triggers when simulator outputs are universally absent), avoiding false positives.
 
