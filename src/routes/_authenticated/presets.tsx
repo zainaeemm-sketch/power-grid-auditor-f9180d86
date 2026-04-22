@@ -556,6 +556,37 @@ function PresetsPage() {
         onDelete={() => setBulkConfirmOpen(true)}
         onClear={clearSelection}
       />
+
+      <AlertDialog open={showPresetDiffModal} onOpenChange={(o) => !o && cancelPresetApply()}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply AI suggestion?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Some fields already contain values. Review what will change before applying.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto text-sm">
+            {pendingPresetDiff.map((row) => (
+              <div key={row.key} className="rounded-md border border-border/60 p-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold">{row.label}</span>
+                  <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${row.isOverwrite ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"}`}>
+                    {row.isOverwrite ? "OVERWRITE" : "NEW"}
+                  </span>
+                </div>
+                {row.isOverwrite && row.current && (
+                  <div className="text-xs text-muted-foreground line-through mb-0.5 break-words whitespace-pre-wrap">{row.current}</div>
+                )}
+                <div className="text-xs text-foreground break-words whitespace-pre-wrap">{row.next || <em className="text-muted-foreground">(empty)</em>}</div>
+              </div>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelPresetApply}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPresetApply}>Apply to form</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
