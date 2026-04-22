@@ -345,13 +345,20 @@ function BatchDetailPage() {
       return;
     }
     try {
-      setRecommendationDismissed(sessionStorage.getItem(recommendationKey) === "1");
+      setRecommendationDismissed(localStorage.getItem(recommendationKey) === "1");
     } catch { /* ignore */ }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== recommendationKey) return;
+      // Reflect changes from other tabs (set, cleared, or removed).
+      setRecommendationDismissed(e.newValue === "1");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, [recommendationKey]);
   const dismissRecommendation = useCallback(() => {
     setRecommendationDismissed(true);
     if (recommendationKey) {
-      try { sessionStorage.setItem(recommendationKey, "1"); } catch { /* ignore */ }
+      try { localStorage.setItem(recommendationKey, "1"); } catch { /* ignore */ }
     }
   }, [recommendationKey]);
 
