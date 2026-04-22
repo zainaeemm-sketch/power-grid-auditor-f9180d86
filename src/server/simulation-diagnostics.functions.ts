@@ -191,74 +191,18 @@ export const getSimulationDiagnostics = createServerFn({ method: "POST" })
       health.latency_ms = Date.now() - healthStart;
     }
 
-    // /simulate — quick DC PF test on case5 with no-op action
-    const simStart = Date.now();
-    const simulate = {
-      status: null as number | null,
-      ok: false,
-      case_name: "case5",
-      feasibility: null as string | null,
-      baseline_violations: null as number | null,
-      post_action_violations: null as number | null,
-      line_loadings_count: null as number | null,
-      notes: null as string | null,
-      error: null as string | null,
-      raw_body: null as string | null,
-      latency_ms: null as number | null,
-    };
-    try {
-      const ctl = new AbortController();
-      const t = setTimeout(() => ctl.abort(), 10_000);
-      const res = await fetch(`${url}/simulate`, {
-        method: "POST",
-        redirect: "follow",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          case_name: "case5",
-          action: { action_type: "none", enabled: true },
-        }),
-        signal: ctl.signal,
-      });
-      clearTimeout(t);
-      simulate.status = res.status;
-      simulate.latency_ms = Date.now() - simStart;
-      const text = await res.text();
-      simulate.raw_body = text.slice(0, 600);
-      if (res.ok) {
-        try {
-          const j = JSON.parse(text) as {
-            feasibility?: string;
-            baseline_violations?: number;
-            post_action_violations?: number;
-            line_loadings?: unknown[];
-            notes?: string;
-          };
-          simulate.ok = true;
-          simulate.feasibility = j.feasibility ?? null;
-          simulate.baseline_violations = j.baseline_violations ?? null;
-          simulate.post_action_violations = j.post_action_violations ?? null;
-          simulate.line_loadings_count = Array.isArray(j.line_loadings) ? j.line_loadings.length : null;
-          simulate.notes = j.notes ?? null;
-        } catch (e: any) {
-          simulate.error = `Invalid JSON: ${e?.message ?? "parse error"}`;
-        }
-      } else {
-        simulate.error = `HTTP ${res.status}`;
-      }
-    } catch (e: any) {
-      simulate.error = e?.message ?? "fetch failed";
-      simulate.latency_ms = Date.now() - simStart;
-    }
+    // /simulate — quick DC PF self-test for each supported IEEE case (parallel)
+    const simulates = await Promise.all(
+      SIMULATE_CASES.map((c) => probeSimulate(url, token, c)),
+    );
 
     return {
       configured: true,
       url,
       version,
       health,
-      simulate,
+      simulates,
       timestamp,
     };
   });
+
