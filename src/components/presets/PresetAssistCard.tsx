@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -13,16 +13,64 @@ const EXAMPLES = [
   "creative high-temp explorer for case studies",
 ];
 
+const DRAFT_KEY = "gridarena.presetAssist.draft.v1";
+
+type PersistedDraft = {
+  prompt: string;
+  suggestion: PresetSuggestion | null;
+  model: string | null;
+};
+
+function loadDraft(): PersistedDraft {
+  if (typeof window === "undefined") return { prompt: "", suggestion: null, model: null };
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return { prompt: "", suggestion: null, model: null };
+    const parsed = JSON.parse(raw) as Partial<PersistedDraft>;
+    return {
+      prompt: typeof parsed.prompt === "string" ? parsed.prompt : "",
+      suggestion: parsed.suggestion ?? null,
+      model: typeof parsed.model === "string" ? parsed.model : null,
+    };
+  } catch {
+    return { prompt: "", suggestion: null, model: null };
+  }
+}
+
+function saveDraft(draft: PersistedDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+function clearDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 type Props = {
   onApply: (suggestion: PresetSuggestion) => void;
 };
 
 export function PresetAssistCard({ onApply }: Props) {
   const suggestFn = useServerFn(suggestPreset);
-  const [prompt, setPrompt] = useState("");
+  const initial = loadDraft();
+  const [prompt, setPrompt] = useState(initial.prompt);
   const [loading, setLoading] = useState(false);
-  const [suggestion, setSuggestion] = useState<PresetSuggestion | null>(null);
-  const [model, setModel] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<PresetSuggestion | null>(initial.suggestion);
+  const [model, setModel] = useState<string | null>(initial.model);
+
+  // Persist whenever prompt / suggestion / model change.
+  useEffect(() => {
+    saveDraft({ prompt, suggestion, model });
+  }, [prompt, suggestion, model]);
 
   const runSuggest = async () => {
     if (prompt.trim().length < 3) {
