@@ -3,6 +3,15 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
 import type { Json } from "@/integrations/supabase/types";
 
+async function assertAdmin(supabase: any, userId: string) {
+  const { data, error } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Forbidden: admin role required");
+}
+
 function normalizeServiceUrl(rawUrl: string | undefined): string | null {
   if (!rawUrl) return null;
   const trimmed = rawUrl.trim().replace(/\/+$/, "");
@@ -118,6 +127,7 @@ export const getSimulationDiagnostics = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }): Promise<SimulationDiagnostics> => {
     const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
     const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
     const token = process.env.SIMULATION_SERVICE_TOKEN;
     const timestamp = new Date().toISOString();
@@ -255,7 +265,8 @@ export interface SimulationHealthHistoryEntry {
 export const listSimulationHealthHistory = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .handler(async ({ context }): Promise<SimulationHealthHistoryEntry[]> => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
     const { data, error } = await supabase
       .from("simulation_health_checks")
       .select(
@@ -274,7 +285,8 @@ export const deleteSimulationHealthCheck = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data, context }): Promise<{ success: boolean }> => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
     const { error } = await supabase.from("simulation_health_checks").delete().eq("id", data.id);
     if (error) {
       console.error("[simulation-diagnostics] deleteSimulationHealthCheck failed", error);

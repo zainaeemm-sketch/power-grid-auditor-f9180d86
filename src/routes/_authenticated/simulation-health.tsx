@@ -11,6 +11,7 @@ import {
   type SimulationDiagnostics,
   type SimulationHealthHistoryEntry,
 } from "@/server/simulation-diagnostics.functions";
+import { isCurrentUserAdmin } from "@/server/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/simulation-health")({
   head: () => ({
@@ -38,6 +39,7 @@ function SimulationHealthPage() {
   const [history, setHistory] = useState<SimulationHealthHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   const loadHistory = async () => {
     try {
@@ -68,7 +70,22 @@ function SimulationHealthPage() {
   };
 
   useEffect(() => {
-    refresh();
+    let cancelled = false;
+    isCurrentUserAdmin()
+      .then((r) => {
+        if (cancelled) return;
+        setIsAdmin(r.isAdmin);
+        if (r.isAdmin) refresh();
+        else setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIsAdmin(false);
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
 
@@ -235,6 +252,38 @@ function SimulationHealthPage() {
 
   const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null);
   const showAlert = stateChangeAlert && stateChangeAlert.id !== dismissedAlertId;
+
+  if (isAdmin === false) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-8">
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              Admin access required
+            </CardTitle>
+            <CardDescription>
+              The simulation engine self-tests can only be run by administrators. Contact a workspace
+              admin if you need to verify the PyPSA microservice.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/health">General system health</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  if (isAdmin === null) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-8">
+        <p className="text-sm text-muted-foreground">Checking permissions…</p>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
