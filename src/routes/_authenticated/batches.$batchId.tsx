@@ -935,6 +935,22 @@ function BatchDetailPage() {
                 violation improvement, sensitivity, and counterfactual metrics are all zero or
                 missing.
               </p>
+              {caseRecommendation.skipSignal &&
+                (caseRecommendation.skipSignal.perturbationSkipped > 0 ||
+                  caseRecommendation.skipSignal.counterfactualSkipped > 0) && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Detected{" "}
+                    <span className="font-medium text-foreground">
+                      {caseRecommendation.skipSignal.perturbationSkipped}
+                    </span>
+                    /{caseRecommendation.skipSignal.perturbationTotal} sensitivity and{" "}
+                    <span className="font-medium text-foreground">
+                      {caseRecommendation.skipSignal.counterfactualSkipped}
+                    </span>
+                    /{caseRecommendation.skipSignal.counterfactualTotal} counterfactual evaluations
+                    skipped due to no available simulator.
+                  </p>
+                )}
               {caseRecommendation.reasons.length > 0 && (
                 <div className="mt-2">
                   <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
