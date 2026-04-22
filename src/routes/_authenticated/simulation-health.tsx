@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Activity, Zap, History, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Activity, Zap, History, Trash2, BellRing, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getSimulationDiagnostics,
   listSimulationHealthHistory,
@@ -78,6 +78,29 @@ function SimulationHealthPage() {
   const simAllOk = sims.length > 0 && sims.every((s) => s.ok);
   const overallOk = versionOk && healthOk && simAllOk;
 
+  // State-change detection: alert only when previous check passed and current failed.
+  const stateChangeAlert = useMemo(() => {
+    if (history.length < 2) return null;
+    const [current, previous] = history;
+    if (current.overall_ok) return null;
+    if (!previous.overall_ok) return null; // already failing — quiet
+    const reasons: string[] = [];
+    if (current.version_error || current.version_status !== 200) {
+      reasons.push(`version (${current.version_error ?? `HTTP ${current.version_status ?? "?"}`})`);
+    }
+    if (!current.sim_all_ok && current.sim_total_count > 0) {
+      const failed = current.simulates.filter((s) => !s.ok).map((s) => s.case_name);
+      reasons.push(`simulate (${failed.join(", ")})`);
+    }
+    if (current.health_error || (current.health_status !== null && current.health_status !== 200)) {
+      reasons.push(`health (${current.health_error ?? `HTTP ${current.health_status}`})`);
+    }
+    return { id: current.id, at: current.created_at, reasons };
+  }, [history]);
+
+  const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null);
+  const showAlert = stateChangeAlert && stateChangeAlert.id !== dismissedAlertId;
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -95,6 +118,36 @@ function SimulationHealthPage() {
           Re-run
         </Button>
       </div>
+
+      {showAlert && stateChangeAlert && (
+        <div
+          role="alert"
+          className="mb-6 flex items-start gap-3 rounded-lg border border-destructive/60 bg-destructive/10 p-4"
+        >
+          <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-destructive">
+              Simulation health just started failing
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              At {new Date(stateChangeAlert.at).toLocaleString()} — the previous check was passing.
+            </p>
+            {stateChangeAlert.reasons.length > 0 && (
+              <p className="mt-1 text-xs text-destructive">
+                Failing: {stateChangeAlert.reasons.join(" · ")}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDismissedAlertId(stateChangeAlert.id)}
+            aria-label="Dismiss alert"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
