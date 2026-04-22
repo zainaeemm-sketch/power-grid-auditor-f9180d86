@@ -251,6 +251,8 @@ function HealthPage() {
             </p>
           </details>
 
+          <SchemaValidationPanel payload={readiness?.request_payload ?? READINESS_PAYLOAD} />
+
           {readiness && <ReadinessPanel result={readiness} />}
 
           <ReadinessHistoryChart history={history} onClear={clearHistory} />
