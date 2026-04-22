@@ -78,6 +78,141 @@ function SimulationHealthPage() {
   const simAllOk = sims.length > 0 && sims.every((s) => s.ok);
   const overallOk = versionOk && healthOk && simAllOk;
 
+  // Contextual troubleshooting tips derived from the latest diagnostic
+  const tips = useMemo(() => {
+    if (!diag) return [] as { title: string; body: string }[];
+    const out: { title: string; body: string }[] = [];
+
+    if (!diag.configured) {
+      out.push({
+        title: "SIMULATION_SERVICE_URL is not set",
+        body: "The simulation microservice URL is missing from server secrets. Add SIMULATION_SERVICE_URL (e.g. https://your-pypsa-service.fly.dev) and, if your service requires auth, SIMULATION_SERVICE_TOKEN. Then re-run.",
+      });
+      return out;
+    }
+
+    // /version probe
+    if (diag.version.error || diag.version.status === null) {
+      const msg = diag.version.error ?? "no response";
+      if (/abort|timeout/i.test(msg)) {
+        out.push({
+          title: "/version timed out",
+          body: "The service didn't respond within 5s. It may be cold-starting (free Fly.io / Cloudflare Workers idle), or the host is unreachable. Retry once, then check the service is deployed and listening on the URL above.",
+        });
+      } else if (/ENOTFOUND|getaddrinfo|DNS|name not resolved/i.test(msg)) {
+        out.push({
+          title: "DNS resolution failed for the service URL",
+          body: `Hostname in SIMULATION_SERVICE_URL can't be resolved (${msg}). Verify the URL is correct and publicly reachable from the internet.`,
+        });
+      } else if (/ECONNREFUSED|ECONNRESET|fetch failed/i.test(msg)) {
+        out.push({
+          title: "/version connection refused or reset",
+          body: "The host responded but rejected the connection. Make sure the PyPSA microservice is running, exposes /version on HTTPS, and is not behind a firewall blocking outbound calls from this app.",
+        });
+      } else {
+        out.push({
+          title: "/version probe failed",
+          body: `Error: ${msg}. Confirm the service implements GET /version returning {"version": "...", "engine": "PyPSA"}.`,
+        });
+      }
+    } else if (diag.version.status && diag.version.status >= 400) {
+      out.push({
+        title: `/version returned HTTP ${diag.version.status}`,
+        body:
+          diag.version.status === 404
+            ? "The service is reachable but does not implement GET /version. Add the endpoint to your microservice — it should return JSON like {\"version\": \"0.1.0\", \"engine\": \"PyPSA\"}."
+            : `The service responded with HTTP ${diag.version.status}. Check the microservice logs for an unhandled error on GET /version.`,
+      });
+    } else if (!diag.version.version) {
+      out.push({
+        title: "/version response missing 'version' field",
+        body: "GET /version returned 200 but the JSON body is missing the 'version' key. The endpoint should return {\"version\": \"<semver>\", \"engine\": \"PyPSA\"}.",
+      });
+    }
+
+    // /health probe
+    if (diag.health.error || diag.health.status === null) {
+      const msg = diag.health.error ?? "no response";
+      if (/HTTP 401/i.test(msg) || diag.health.status === 401) {
+        out.push({
+          title: "/health rejected with 401 Unauthorized",
+          body: "The service requires a bearer token but SIMULATION_SERVICE_TOKEN is missing or wrong. Set it in server secrets to match the value the microservice expects.",
+        });
+      } else if (/HTTP 403/i.test(msg) || diag.health.status === 403) {
+        out.push({
+          title: "/health forbidden (403)",
+          body: "Token was sent but the service refused. Verify SIMULATION_SERVICE_TOKEN matches the microservice configuration and that the token has not been rotated.",
+        });
+      } else if (/abort|timeout/i.test(msg)) {
+        out.push({
+          title: "/health timed out",
+          body: "The /health endpoint didn't respond within 5s. The service may be overloaded or cold-starting — retry, and if it persists check service logs and resource limits.",
+        });
+      } else {
+        out.push({
+          title: "/health probe failed",
+          body: `Error: ${msg}. Make sure the microservice exposes GET /health and returns 200 when ready.`,
+        });
+      }
+    } else if (diag.health.status >= 500) {
+      out.push({
+        title: `/health returned HTTP ${diag.health.status}`,
+        body: "The service is reachable but reporting an internal error on /health. Check microservice logs — common causes are missing Python deps, bad PyPSA install, or a dead solver.",
+      });
+    }
+
+    // /simulate probes
+    const failedSims = diag.simulates.filter((s) => !s.ok);
+    if (failedSims.length > 0) {
+      const has401 = failedSims.some((s) => s.status === 401);
+      const has404 = failedSims.some((s) => s.status === 404);
+      const hasTimeout = failedSims.some((s) => /abort|timeout/i.test(s.error ?? ""));
+      const has5xx = failedSims.some((s) => (s.status ?? 0) >= 500);
+      const hasParseErr = failedSims.some((s) => /Invalid JSON/i.test(s.error ?? ""));
+      const cases = failedSims.map((s) => s.case_name).join(", ");
+
+      if (has401) {
+        out.push({
+          title: `/simulate rejected with 401 on ${cases}`,
+          body: "POST /simulate requires the bearer token. Set SIMULATION_SERVICE_TOKEN to match the microservice's expected value.",
+        });
+      }
+      if (has404) {
+        out.push({
+          title: `/simulate returned 404 on ${cases}`,
+          body: "The service does not implement POST /simulate. Add the endpoint accepting {case_name, action} and returning {feasibility, baseline_violations, post_action_violations, line_loadings}.",
+        });
+      }
+      if (hasTimeout) {
+        out.push({
+          title: `/simulate timed out on ${cases}`,
+          body: "PyPSA solve exceeded 10s. Larger cases (case30) under cold start may need more memory or a warmer instance. Consider bumping the service's compute tier or pre-warming the worker.",
+        });
+      }
+      if (has5xx) {
+        const sample = failedSims.find((s) => (s.status ?? 0) >= 500);
+        out.push({
+          title: `/simulate server error on ${cases}`,
+          body: `Service returned HTTP ${sample?.status}. Inspect microservice logs — common causes: missing PyPSA case data, NumPy/scipy import error, or solver crash. Response sample: ${(sample?.raw_body ?? "").slice(0, 160)}`,
+        });
+      }
+      if (hasParseErr) {
+        out.push({
+          title: `/simulate returned non-JSON on ${cases}`,
+          body: "The endpoint returned 200 but the body wasn't valid JSON (likely an HTML error page or proxy response). Verify Content-Type: application/json and that no reverse proxy is intercepting the response.",
+        });
+      }
+      if (!has401 && !has404 && !hasTimeout && !has5xx && !hasParseErr) {
+        out.push({
+          title: `/simulate failed on ${cases}`,
+          body: "Check the per-case raw response shown below for details. The endpoint must return {feasibility, baseline_violations, post_action_violations, line_loadings, notes}.",
+        });
+      }
+    }
+
+    return out;
+  }, [diag]);
+
   // State-change detection: alert only when previous check passed and current failed.
   const stateChangeAlert = useMemo(() => {
     if (history.length < 2) return null;
