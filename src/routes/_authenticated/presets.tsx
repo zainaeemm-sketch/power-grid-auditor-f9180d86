@@ -9,7 +9,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, FlaskConical, Pencil, Trash2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Plus, FlaskConical, Pencil, Trash2, Sparkles, ChevronDown, AlertTriangle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { listPresets, createPreset, deletePreset, updatePreset } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +20,9 @@ import { useState } from "react";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import type { ExperimentPreset } from "@/types/grid-arena";
+import { PresetAssistCard } from "@/components/presets/PresetAssistCard";
+import type { PresetSuggestion } from "@/server/preset-assist.functions";
+import { ALLOWED_EVALUATION_MODES, isAllowedEvaluationMode } from "@/lib/allowed-values";
 
 export const Route = createFileRoute("/_authenticated/presets")({
   head: () => ({
@@ -157,6 +162,89 @@ function PresetsPage() {
     setPromptTemplateVersion(""); setParserVersion(""); setEvalVersion(""); setEvaluationMode("rule_based");
   };
 
+  // ---- AI Assist state ----
+  type PFieldKey = "name" | "provider_name" | "model_name" | "system_prompt" | "default_prompt_text" | "temperature" | "top_p" | "max_tokens" | "evaluation_mode" | "notes";
+  type PDiffRow = { key: PFieldKey; label: string; current: string; next: string; isOverwrite: boolean };
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [pendingPresetSuggestion, setPendingPresetSuggestion] = useState<PresetSuggestion | null>(null);
+  const [pendingPresetDiff, setPendingPresetDiff] = useState<PDiffRow[]>([]);
+  const [presetValidationError, setPresetValidationError] = useState<string | null>(null);
+
+  const validatePresetSuggestion = (s: PresetSuggestion): string | null => {
+    if (!s.name.trim() || s.name.length > 80) return "Suggested name must be 1–80 characters.";
+    if (s.temperature < 0 || s.temperature > 2) return "Temperature must be between 0 and 2.";
+    if (s.top_p < 0 || s.top_p > 1) return "Top-p must be between 0 and 1.";
+    if (!Number.isInteger(s.max_tokens) || s.max_tokens < 1 || s.max_tokens > 8192) return "Max tokens must be an integer between 1 and 8192.";
+    if (!isAllowedEvaluationMode(s.evaluation_mode)) return `Evaluation mode must be one of: ${ALLOWED_EVALUATION_MODES.join(", ")}.`;
+    if (s.system_prompt.length > 4000) return "System prompt must be ≤ 4000 characters.";
+    return null;
+  };
+
+  const buildPresetDiff = (s: PresetSuggestion): PDiffRow[] => {
+    const rows: Array<{ key: PFieldKey; label: string; current: string; next: string }> = [
+      { key: "name", label: "Name", current: name, next: s.name },
+      { key: "provider_name", label: "Provider", current: providerName, next: s.provider_name },
+      { key: "model_name", label: "Model", current: modelName, next: s.model_name },
+      { key: "system_prompt", label: "System Prompt", current: systemPrompt, next: s.system_prompt },
+      { key: "default_prompt_text", label: "Default Prompt", current: defaultPrompt, next: s.default_prompt_text },
+      { key: "temperature", label: "Temperature", current: temperature, next: String(s.temperature) },
+      { key: "top_p", label: "Top-p", current: topP, next: String(s.top_p) },
+      { key: "max_tokens", label: "Max Tokens", current: maxTokens, next: String(s.max_tokens) },
+      { key: "evaluation_mode", label: "Evaluation Mode", current: evaluationMode, next: s.evaluation_mode },
+      { key: "notes", label: "Notes", current: notes, next: s.notes },
+    ];
+    return rows.map((r) => ({ ...r, isOverwrite: r.current.trim().length > 0 && r.current !== r.next }));
+  };
+
+  const applyPresetSuggestionDirect = (s: PresetSuggestion) => {
+    setName(s.name);
+    setProviderName(s.provider_name);
+    setModelName(s.model_name);
+    setSystemPrompt(s.system_prompt);
+    setDefaultPrompt(s.default_prompt_text);
+    setTemperature(String(s.temperature));
+    setTopP(String(s.top_p));
+    setMaxTokens(String(s.max_tokens));
+    setEvaluationMode(s.evaluation_mode);
+    setNotes(s.notes);
+    toast.success("Suggestion applied to form");
+  };
+
+  const handlePresetAssistApply = (s: PresetSuggestion) => {
+    const err = validatePresetSuggestion(s);
+    setPresetValidationError(err);
+    if (err) {
+      toast.error("Suggestion failed validation");
+      setPendingPresetSuggestion(s);
+      setPendingPresetDiff([]);
+      return;
+    }
+    const diff = buildPresetDiff(s);
+    const hasOverwrite = diff.some((d) => d.isOverwrite);
+    if (!hasOverwrite) {
+      applyPresetSuggestionDirect(s);
+      setPendingPresetSuggestion(null);
+      return;
+    }
+    setPendingPresetSuggestion(s);
+    setPendingPresetDiff(diff);
+  };
+
+  const confirmPresetApply = () => {
+    if (!pendingPresetSuggestion) return;
+    applyPresetSuggestionDirect(pendingPresetSuggestion);
+    setPendingPresetSuggestion(null);
+    setPendingPresetDiff([]);
+    setPresetValidationError(null);
+  };
+
+  const cancelPresetApply = () => {
+    setPendingPresetSuggestion(null);
+    setPendingPresetDiff([]);
+  };
+
+  const showPresetDiffModal = !!pendingPresetSuggestion && pendingPresetDiff.length > 0 && !presetValidationError;
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -207,6 +295,40 @@ function PresetsPage() {
             <DialogHeader>
               <DialogTitle>Create Preset</DialogTitle>
             </DialogHeader>
+
+            <Collapsible open={assistOpen} onOpenChange={setAssistOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-md border border-border/60 bg-card/40 px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Describe your preset with AI (optional)
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${assistOpen ? "rotate-180" : ""}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <PresetAssistCard onApply={handlePresetAssistApply} />
+                {presetValidationError && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Cannot apply suggestion</AlertTitle>
+                    <AlertDescription>
+                      {presetValidationError}{" "}
+                      <button
+                        className="ml-1 underline"
+                        onClick={() => { setPresetValidationError(null); setPendingPresetSuggestion(null); }}
+                      >
+                        Dismiss
+                      </button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
                 <Label>Name</Label>
@@ -434,6 +556,37 @@ function PresetsPage() {
         onDelete={() => setBulkConfirmOpen(true)}
         onClear={clearSelection}
       />
+
+      <AlertDialog open={showPresetDiffModal} onOpenChange={(o) => !o && cancelPresetApply()}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply AI suggestion?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Some fields already contain values. Review what will change before applying.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto text-sm">
+            {pendingPresetDiff.map((row) => (
+              <div key={row.key} className="rounded-md border border-border/60 p-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold">{row.label}</span>
+                  <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${row.isOverwrite ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"}`}>
+                    {row.isOverwrite ? "OVERWRITE" : "NEW"}
+                  </span>
+                </div>
+                {row.isOverwrite && row.current && (
+                  <div className="text-xs text-muted-foreground line-through mb-0.5 break-words whitespace-pre-wrap">{row.current}</div>
+                )}
+                <div className="text-xs text-foreground break-words whitespace-pre-wrap">{row.next || <em className="text-muted-foreground">(empty)</em>}</div>
+              </div>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelPresetApply}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPresetApply}>Apply to form</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
