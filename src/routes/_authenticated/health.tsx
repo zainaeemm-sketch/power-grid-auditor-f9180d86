@@ -172,9 +172,9 @@ function HealthPage() {
         <CardContent className="space-y-2">
           <CheckRow ok={status?.database === "ok"} label="Database connectivity" detail={status?.databaseError ?? undefined} />
           <CheckRow ok={!!user} label="Authenticated session" detail={user?.email ?? "Not signed in"} />
-          <CheckRow ok={!!status?.hasApiKey} label="LLM provider API key" detail={status?.hasApiKey ? "Configured" : "Missing OPENAI_API_KEY"} />
-          <CheckRow ok={!!status?.hasBaseUrl} label="LLM provider base URL" detail={status?.hasBaseUrl ? "Configured" : "Missing OPENAI_BASE_URL"} />
-          <CheckRow warn={!status?.hasModel} label="Default model name" detail={status?.hasModel ? "Configured" : "Optional — falls back to gpt-4o-mini"} />
+          <CheckRow ok={!!status?.hasApiKey} label="LLM provider API key" detail={status?.hasApiKey ? "Configured (OPENAI_API_KEY)" : "Missing OPENAI_API_KEY"} />
+          <CheckRow ok={!!status?.hasBaseUrl} label="LLM provider base URL" detail={status?.hasBaseUrl ? "Configured (OPENAI_BASE_URL)" : "Missing OPENAI_BASE_URL"} />
+          <CheckRow ok={!!status?.hasModel} warn={!status?.hasModel} label="Default model name" detail={status?.hasModel ? "Configured (OPENAI_MODEL)" : "Optional — OPENAI_MODEL not set, falls back to gpt-4o-mini"} />
           <CheckRow
             ok={status?.simulator.state === "active"}
             warn={status?.simulator.state === "fallback"}
