@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   getHealthStatus,
   runProductionReadinessCheck,
+  READINESS_PAYLOAD,
   type HealthStatus,
   type ReadinessResult,
 } from "@/server/health.functions";
@@ -55,6 +56,8 @@ function HealthPage() {
         notes: "Server function call failed",
         error: err?.message ?? "Unknown error",
         raw_body_preview: null,
+        request_url: null,
+        request_payload: READINESS_PAYLOAD,
         timestamp: new Date().toISOString(),
       });
     } finally {
@@ -149,19 +152,42 @@ function HealthPage() {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button onClick={runReadiness} disabled={readinessLoading} size="sm">
-            {readinessLoading ? (
-              <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Pinging case14…
-              </>
-            ) : (
-              <>
-                <Zap className="mr-1.5 h-3.5 w-3.5" />
-                Run live PyPSA test
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={runReadiness} disabled={readinessLoading} size="sm">
+              {readinessLoading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Pinging case14…
+                </>
+              ) : (
+                <>
+                  <Zap className="mr-1.5 h-3.5 w-3.5" />
+                  Run live PyPSA test
+                </>
+              )}
+            </Button>
+          </div>
+
+          <details className="rounded-md border border-border/30 bg-muted/10 px-3 py-2 text-xs" open={!readiness}>
+            <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
+              Request payload (matches simulator <code className="rounded bg-muted px-1">SimulateRequest</code> schema)
+            </summary>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              <span className="font-mono">POST</span> {readiness?.request_url ?? "{SIMULATION_SERVICE_URL}"}/simulate
+            </p>
+            <pre className="mt-2 max-h-56 overflow-auto rounded bg-background/60 p-2 font-mono text-[11px] leading-relaxed">
+{JSON.stringify(readiness?.request_payload ?? READINESS_PAYLOAD, null, 2)}
+            </pre>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              All <code className="rounded bg-muted px-1">action</code> fields are explicit (
+              <code className="rounded bg-muted px-1">action_type</code>,{" "}
+              <code className="rounded bg-muted px-1">target_index</code>,{" "}
+              <code className="rounded bg-muted px-1">value</code>,{" "}
+              <code className="rounded bg-muted px-1">enabled</code>) so the Pydantic validator passes.{" "}
+              <code className="rounded bg-muted px-1">action_type: "none"</code> +{" "}
+              <code className="rounded bg-muted px-1">enabled: true</code> triggers a real baseline solve with no mutation.
+            </p>
+          </details>
 
           {readiness && <ReadinessPanel result={readiness} />}
         </CardContent>
