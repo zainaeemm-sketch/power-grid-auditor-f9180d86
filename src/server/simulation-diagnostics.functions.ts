@@ -1,0 +1,192 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { withAuthHeaders } from "@/middleware/auth-headers";
+
+function normalizeServiceUrl(rawUrl: string | undefined): string | null {
+  if (!rawUrl) return null;
+  const trimmed = rawUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) return null;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+export interface SimulationDiagnostics {
+  configured: boolean;
+  url: string | null;
+  version: {
+    status: number | null;
+    version: string | null;
+    engine: string | null;
+    error: string | null;
+    latency_ms: number | null;
+  };
+  health: {
+    status: number | null;
+    body: string | null;
+    error: string | null;
+    latency_ms: number | null;
+  };
+  simulate: {
+    status: number | null;
+    ok: boolean;
+    case_name: string;
+    feasibility: string | null;
+    baseline_violations: number | null;
+    post_action_violations: number | null;
+    line_loadings_count: number | null;
+    notes: string | null;
+    error: string | null;
+    raw_body: string | null;
+    latency_ms: number | null;
+  };
+  timestamp: string;
+}
+
+export const getSimulationDiagnostics = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .handler(async (): Promise<SimulationDiagnostics> => {
+    const url = normalizeServiceUrl(process.env.SIMULATION_SERVICE_URL);
+    const token = process.env.SIMULATION_SERVICE_TOKEN;
+    const timestamp = new Date().toISOString();
+
+    if (!url) {
+      return {
+        configured: false,
+        url: null,
+        version: { status: null, version: null, engine: null, error: "Not configured", latency_ms: null },
+        health: { status: null, body: null, error: "Not configured", latency_ms: null },
+        simulate: {
+          status: null,
+          ok: false,
+          case_name: "case5",
+          feasibility: null,
+          baseline_violations: null,
+          post_action_violations: null,
+          line_loadings_count: null,
+          notes: null,
+          error: "Not configured",
+          raw_body: null,
+          latency_ms: null,
+        },
+        timestamp,
+      };
+    }
+
+    // /version (unauthenticated)
+    const versionStart = Date.now();
+    const version = { status: null as number | null, version: null as string | null, engine: null as string | null, error: null as string | null, latency_ms: null as number | null };
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 5000);
+      const res = await fetch(`${url}/version`, { method: "GET", redirect: "follow", signal: ctl.signal });
+      clearTimeout(t);
+      version.status = res.status;
+      version.latency_ms = Date.now() - versionStart;
+      if (res.ok) {
+        const j = (await res.json()) as { version?: string; engine?: string };
+        version.version = j.version ?? null;
+        version.engine = j.engine ?? null;
+      } else {
+        version.error = `HTTP ${res.status}`;
+      }
+    } catch (e: any) {
+      version.error = e?.message ?? "fetch failed";
+      version.latency_ms = Date.now() - versionStart;
+    }
+
+    // /health
+    const healthStart = Date.now();
+    const health = { status: null as number | null, body: null as string | null, error: null as string | null, latency_ms: null as number | null };
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 5000);
+      const res = await fetch(`${url}/health`, {
+        method: "GET",
+        redirect: "follow",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: ctl.signal,
+      });
+      clearTimeout(t);
+      health.status = res.status;
+      health.latency_ms = Date.now() - healthStart;
+      try {
+        health.body = (await res.text()).slice(0, 400);
+      } catch {
+        /* ignore */
+      }
+      if (!res.ok) health.error = `HTTP ${res.status}`;
+    } catch (e: any) {
+      health.error = e?.message ?? "fetch failed";
+      health.latency_ms = Date.now() - healthStart;
+    }
+
+    // /simulate — quick DC PF test on case5 with no-op action
+    const simStart = Date.now();
+    const simulate = {
+      status: null as number | null,
+      ok: false,
+      case_name: "case5",
+      feasibility: null as string | null,
+      baseline_violations: null as number | null,
+      post_action_violations: null as number | null,
+      line_loadings_count: null as number | null,
+      notes: null as string | null,
+      error: null as string | null,
+      raw_body: null as string | null,
+      latency_ms: null as number | null,
+    };
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 10_000);
+      const res = await fetch(`${url}/simulate`, {
+        method: "POST",
+        redirect: "follow",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          case_name: "case5",
+          action: { action_type: "none", enabled: true },
+        }),
+        signal: ctl.signal,
+      });
+      clearTimeout(t);
+      simulate.status = res.status;
+      simulate.latency_ms = Date.now() - simStart;
+      const text = await res.text();
+      simulate.raw_body = text.slice(0, 600);
+      if (res.ok) {
+        try {
+          const j = JSON.parse(text) as {
+            feasibility?: string;
+            baseline_violations?: number;
+            post_action_violations?: number;
+            line_loadings?: unknown[];
+            notes?: string;
+          };
+          simulate.ok = true;
+          simulate.feasibility = j.feasibility ?? null;
+          simulate.baseline_violations = j.baseline_violations ?? null;
+          simulate.post_action_violations = j.post_action_violations ?? null;
+          simulate.line_loadings_count = Array.isArray(j.line_loadings) ? j.line_loadings.length : null;
+          simulate.notes = j.notes ?? null;
+        } catch (e: any) {
+          simulate.error = `Invalid JSON: ${e?.message ?? "parse error"}`;
+        }
+      } else {
+        simulate.error = `HTTP ${res.status}`;
+      }
+    } catch (e: any) {
+      simulate.error = e?.message ?? "fetch failed";
+      simulate.latency_ms = Date.now() - simStart;
+    }
+
+    return {
+      configured: true,
+      url,
+      version,
+      health,
+      simulate,
+      timestamp,
+    };
+  });

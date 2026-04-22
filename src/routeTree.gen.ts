@@ -25,6 +25,7 @@ import { Route as DocsInstallationRouteImport } from './routes/docs.installation
 import { Route as DocsArchitectureRouteImport } from './routes/docs.architecture'
 import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
 import { Route as AuthenticatedSystemStatusRouteImport } from './routes/_authenticated/system-status'
+import { Route as AuthenticatedSimulationHealthRouteImport } from './routes/_authenticated/simulation-health'
 import { Route as AuthenticatedRunsRouteImport } from './routes/_authenticated/runs'
 import { Route as AuthenticatedPresetsRouteImport } from './routes/_authenticated/presets'
 import { Route as AuthenticatedNewRunRouteImport } from './routes/_authenticated/new-run'
@@ -123,6 +124,12 @@ const AuthenticatedSystemStatusRoute =
   AuthenticatedSystemStatusRouteImport.update({
     id: '/system-status',
     path: '/system-status',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSimulationHealthRoute =
+  AuthenticatedSimulationHealthRouteImport.update({
+    id: '/simulation-health',
+    path: '/simulation-health',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedRunsRoute = AuthenticatedRunsRouteImport.update({
@@ -243,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
   '/runs': typeof AuthenticatedRunsRouteWithChildren
+  '/simulation-health': typeof AuthenticatedSimulationHealthRoute
   '/system-status': typeof AuthenticatedSystemStatusRoute
   '/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
@@ -276,6 +284,7 @@ export interface FileRoutesByTo {
   '/health': typeof AuthenticatedHealthRoute
   '/new-run': typeof AuthenticatedNewRunRoute
   '/presets': typeof AuthenticatedPresetsRoute
+  '/simulation-health': typeof AuthenticatedSimulationHealthRoute
   '/system-status': typeof AuthenticatedSystemStatusRoute
   '/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
@@ -314,6 +323,7 @@ export interface FileRoutesById {
   '/_authenticated/new-run': typeof AuthenticatedNewRunRoute
   '/_authenticated/presets': typeof AuthenticatedPresetsRoute
   '/_authenticated/runs': typeof AuthenticatedRunsRouteWithChildren
+  '/_authenticated/simulation-health': typeof AuthenticatedSimulationHealthRoute
   '/_authenticated/system-status': typeof AuthenticatedSystemStatusRoute
   '/_authenticated/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
@@ -352,6 +362,7 @@ export interface FileRouteTypes {
     | '/new-run'
     | '/presets'
     | '/runs'
+    | '/simulation-health'
     | '/system-status'
     | '/validation'
     | '/docs/architecture'
@@ -385,6 +396,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/new-run'
     | '/presets'
+    | '/simulation-health'
     | '/system-status'
     | '/validation'
     | '/docs/architecture'
@@ -422,6 +434,7 @@ export interface FileRouteTypes {
     | '/_authenticated/new-run'
     | '/_authenticated/presets'
     | '/_authenticated/runs'
+    | '/_authenticated/simulation-health'
     | '/_authenticated/system-status'
     | '/_authenticated/validation'
     | '/docs/architecture'
@@ -568,6 +581,13 @@ declare module '@tanstack/react-router' {
       path: '/system-status'
       fullPath: '/system-status'
       preLoaderRoute: typeof AuthenticatedSystemStatusRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/simulation-health': {
+      id: '/_authenticated/simulation-health'
+      path: '/simulation-health'
+      fullPath: '/simulation-health'
+      preLoaderRoute: typeof AuthenticatedSimulationHealthRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/runs': {
@@ -742,6 +762,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedNewRunRoute: typeof AuthenticatedNewRunRoute
   AuthenticatedPresetsRoute: typeof AuthenticatedPresetsRoute
   AuthenticatedRunsRoute: typeof AuthenticatedRunsRouteWithChildren
+  AuthenticatedSimulationHealthRoute: typeof AuthenticatedSimulationHealthRoute
   AuthenticatedSystemStatusRoute: typeof AuthenticatedSystemStatusRoute
   AuthenticatedValidationRoute: typeof AuthenticatedValidationRoute
   AuthenticatedGroundTruthIdRoute: typeof AuthenticatedGroundTruthIdRoute
@@ -761,6 +782,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNewRunRoute: AuthenticatedNewRunRoute,
   AuthenticatedPresetsRoute: AuthenticatedPresetsRoute,
   AuthenticatedRunsRoute: AuthenticatedRunsRouteWithChildren,
+  AuthenticatedSimulationHealthRoute: AuthenticatedSimulationHealthRoute,
   AuthenticatedSystemStatusRoute: AuthenticatedSystemStatusRoute,
   AuthenticatedValidationRoute: AuthenticatedValidationRoute,
   AuthenticatedGroundTruthIdRoute: AuthenticatedGroundTruthIdRoute,
