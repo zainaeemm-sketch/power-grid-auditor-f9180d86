@@ -30,6 +30,38 @@ export const Route = createFileRoute("/_authenticated/health")({
   ),
 });
 
+interface ReadinessHistoryEntry {
+  timestamp: string;
+  status: "pass" | "warn" | "fail";
+  http_status: number | null;
+  latency_ms: number;
+  engine: string | null;
+}
+
+const HISTORY_KEY = "gridarena.readiness.history.v1";
+const HISTORY_MAX = 20;
+
+function loadHistory(): ReadinessHistoryEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(-HISTORY_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(entries: ReadinessHistoryEntry[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(-HISTORY_MAX)));
+  } catch {
+    /* quota or disabled — ignore */
+  }
+}
+
 function HealthPage() {
   const { user } = useAuth();
   const [status, setStatus] = useState<HealthStatus | null>(null);
@@ -37,14 +69,42 @@ function HealthPage() {
   const [error, setError] = useState<string | null>(null);
   const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
+  const [history, setHistory] = useState<ReadinessHistoryEntry[]>([]);
+
+  useEffect(() => {
+    setHistory(loadHistory());
+  }, []);
+
+  const recordHistory = (r: ReadinessResult) => {
+    setHistory((prev) => {
+      const next = [
+        ...prev,
+        {
+          timestamp: r.timestamp,
+          status: r.status,
+          http_status: r.http_status,
+          latency_ms: r.latency_ms,
+          engine: r.engine,
+        },
+      ].slice(-HISTORY_MAX);
+      saveHistory(next);
+      return next;
+    });
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    saveHistory([]);
+  };
 
   const runReadiness = async () => {
     setReadinessLoading(true);
     try {
       const r = await runProductionReadinessCheck();
       setReadiness(r);
+      recordHistory(r);
     } catch (err: any) {
-      setReadiness({
+      const fallback: ReadinessResult = {
         ok: false,
         status: "fail",
         http_status: null,
@@ -59,7 +119,9 @@ function HealthPage() {
         request_url: null,
         request_payload: READINESS_PAYLOAD,
         timestamp: new Date().toISOString(),
-      });
+      };
+      setReadiness(fallback);
+      recordHistory(fallback);
     } finally {
       setReadinessLoading(false);
     }
