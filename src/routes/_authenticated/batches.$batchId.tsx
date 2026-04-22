@@ -830,6 +830,20 @@ function BatchDetailPage() {
                 violation improvement, sensitivity, and counterfactual metrics are all zero or
                 missing.
               </p>
+              {caseRecommendation.reasons.length > 0 && (
+                <div className="mt-2">
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Evaluation reason{caseRecommendation.reasons.length === 1 ? "" : "s"} reported by runs
+                  </div>
+                  <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
+                    {caseRecommendation.reasons.map((reason) => (
+                      <li key={reason} className="break-words">
+                        <span className="font-mono text-xs text-foreground/80">{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p className="mt-2 text-sm text-muted-foreground">
                 Re-run with{" "}
                 <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">ieee14</code> or{" "}
