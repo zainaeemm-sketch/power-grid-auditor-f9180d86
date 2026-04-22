@@ -2,9 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withAuthHeaders } from "@/middleware/auth-headers";
-
-const ALLOWED_CASES = ["case5", "case14", "case30"] as const;
-const ALLOWED_MODES = ["rule_based", "simulation", "auto"] as const;
+import { ALLOWED_CASES, ALLOWED_EVALUATION_MODES as ALLOWED_MODES } from "@/lib/allowed-values";
 
 const inputSchema = z.object({
   prompt: z.string().trim().min(3).max(2000),
