@@ -9,7 +9,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, FlaskConical, Pencil, Trash2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Plus, FlaskConical, Pencil, Trash2, Sparkles, ChevronDown, AlertTriangle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { listPresets, createPreset, deletePreset, updatePreset } from "@/server/runs.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +20,9 @@ import { useState } from "react";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import type { ExperimentPreset } from "@/types/grid-arena";
+import { PresetAssistCard } from "@/components/presets/PresetAssistCard";
+import type { PresetSuggestion } from "@/server/preset-assist.functions";
+import { ALLOWED_EVALUATION_MODES, isAllowedEvaluationMode } from "@/lib/allowed-values";
 
 export const Route = createFileRoute("/_authenticated/presets")({
   head: () => ({
