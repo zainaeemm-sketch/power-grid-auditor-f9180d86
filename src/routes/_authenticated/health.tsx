@@ -470,3 +470,159 @@ function CheckRow({ ok, warn, label, detail }: { ok?: boolean; warn?: boolean; l
     </div>
   );
 }
+
+interface FieldSpec {
+  name: string;
+  expectedType: string;
+  description: string;
+  required: boolean;
+  validate: (v: unknown) => { ok: boolean; reason: string };
+}
+
+const ACTION_FIELD_SPECS: FieldSpec[] = [
+  {
+    name: "action_type",
+    expectedType: 'string | null',
+    description: 'Action verb. "none" runs a baseline solve with no mutation.',
+    required: true,
+    validate: (v) =>
+      v === null || typeof v === "string"
+        ? { ok: true, reason: typeof v === "string" ? `string("${v}")` : "null" }
+        : { ok: false, reason: `expected string|null, got ${typeof v}` },
+  },
+  {
+    name: "target_index",
+    expectedType: "number | null",
+    description: "0-based index of the target generator/branch/load.",
+    required: true,
+    validate: (v) =>
+      v === null || (typeof v === "number" && Number.isInteger(v) && v >= 0)
+        ? { ok: true, reason: typeof v === "number" ? `int(${v})` : "null" }
+        : { ok: false, reason: `expected non-negative int|null, got ${JSON.stringify(v)}` },
+  },
+  {
+    name: "value",
+    expectedType: "number | null",
+    description: "Numeric parameter (MW, p.u., or scale factor) — schema-dependent.",
+    required: true,
+    validate: (v) =>
+      v === null || (typeof v === "number" && Number.isFinite(v))
+        ? { ok: true, reason: typeof v === "number" ? `number(${v})` : "null" }
+        : { ok: false, reason: `expected finite number|null, got ${JSON.stringify(v)}` },
+  },
+  {
+    name: "enabled",
+    expectedType: "boolean",
+    description: "When false, pypsa_runner skips action application entirely.",
+    required: true,
+    validate: (v) =>
+      typeof v === "boolean"
+        ? { ok: true, reason: `bool(${v})` }
+        : { ok: false, reason: `expected boolean, got ${typeof v}` },
+  },
+];
+
+const ROOT_FIELD_SPECS: FieldSpec[] = [
+  {
+    name: "case_name",
+    expectedType: "string",
+    description: "Name of the registered PyPSA case (e.g. case14, case30).",
+    required: true,
+    validate: (v) =>
+      typeof v === "string" && v.length > 0
+        ? { ok: true, reason: `string("${v}")` }
+        : { ok: false, reason: `expected non-empty string, got ${JSON.stringify(v)}` },
+  },
+];
+
+function SchemaValidationPanel({ payload }: { payload: { case_name: string; action: Record<string, unknown> } }) {
+  const rootResults = ROOT_FIELD_SPECS.map((spec) => ({
+    spec,
+    result: spec.validate((payload as any)?.[spec.name]),
+    actual: (payload as any)?.[spec.name],
+  }));
+  const actionResults = ACTION_FIELD_SPECS.map((spec) => ({
+    spec,
+    result: spec.validate(payload?.action?.[spec.name]),
+    actual: payload?.action?.[spec.name],
+  }));
+  const all = [...rootResults, ...actionResults];
+  const failures = all.filter((r) => !r.result.ok).length;
+  const allValid = failures === 0;
+
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/10 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {allValid ? (
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-destructive" />
+          )}
+          <p className="text-xs font-semibold">
+            Schema check ({all.length - failures}/{all.length} fields valid)
+          </p>
+        </div>
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          Pydantic <code className="rounded bg-muted px-1">SimulateRequest</code>
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        <FieldGroup title="Root" rows={rootResults} />
+        <FieldGroup title="action" rows={actionResults} />
+      </div>
+
+      {!allValid && (
+        <p className="mt-2 text-[11px] text-destructive">
+          {failures} field(s) would be rejected by the simulator's Pydantic validator. Fix before sending.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FieldGroup({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { spec: FieldSpec; result: { ok: boolean; reason: string }; actual: unknown }[];
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      <ul className="space-y-1">
+        {rows.map(({ spec, result, actual }) => {
+          const Icon = result.ok ? CheckCircle2 : XCircle;
+          const color = result.ok ? "text-emerald-500" : "text-destructive";
+          return (
+            <li
+              key={spec.name}
+              className="flex items-start gap-2 rounded border border-border/30 bg-background/40 px-2 py-1.5"
+            >
+              <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${color}`} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <code className="font-mono text-xs font-medium">{spec.name}</code>
+                  <span className="text-[10px] text-muted-foreground">
+                    {spec.expectedType}
+                    {spec.required && (
+                      <span className="ml-1 rounded bg-muted px-1 text-[9px] uppercase">required</span>
+                    )}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{spec.description}</p>
+                <p className={`mt-0.5 font-mono text-[10px] ${color}`}>
+                  actual: {JSON.stringify(actual)} — {result.reason}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
