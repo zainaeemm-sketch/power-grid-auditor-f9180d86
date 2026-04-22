@@ -217,8 +217,8 @@ function NewBatchPage() {
       )}
 
       {softWarning && !validationError && (
-        <Alert className="mb-4 border-yellow-500/40 bg-yellow-500/10">
-          <AlertTriangle className="h-4 w-4 text-yellow-500" />
+        <Alert className="mb-4 border-primary/40 bg-primary/5">
+          <AlertTriangle className="h-4 w-4 text-primary" />
           <AlertTitle>Large sweep</AlertTitle>
           <AlertDescription>
             {softWarning}{" "}
