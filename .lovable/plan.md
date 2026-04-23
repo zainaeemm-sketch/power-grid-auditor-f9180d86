@@ -1,63 +1,67 @@
 
 
-## Switch AI Assist from Lovable AI → your OpenAI key
+## Report v3 — add diagrams + math equations
 
-You want the AI Assist features (scenario suggestions, batch suggestions, ask-AI panel, preset assist, the main agent in `src/server/llm.functions.ts`) to call **OpenAI directly with your own API key** instead of going through Lovable AI Gateway.
+I'll produce **`gridarena-report-v3.docx`** with three upgrades over v2.
 
-Good news: most of the code already uses `OPENAI_API_KEY` + `OPENAI_BASE_URL` (`https://api.openai.com/v1`) + `OPENAI_MODEL` env vars. The main work is auditing every call site, making sure none of them point at `ai.gateway.lovable.dev` or `LOVABLE_API_KEY`, and getting your key stored as a secret.
+### 1. Architecture diagram (JPG, embedded)
 
-### Step 1 — Add your OpenAI key as a secret
+Render a clean 5-layer system diagram and embed it as a JPG inside §6 Architecture.
 
-I'll request the secret `OPENAI_API_KEY` so it's available in the server runtime. You'll paste your `sk-...` key into a secure dialog (never written to the repo).
-
-Optional secrets I'll also wire up (with sensible defaults if you don't set them):
-- `OPENAI_BASE_URL` — defaults to `https://api.openai.com/v1`
-- `OPENAI_MODEL` — defaults to `gpt-4o-mini` (cheap + good for the assist features). Change to `gpt-4o`, `gpt-5`, etc. if you want.
-
-### Step 2 — Audit every AI call site and force OpenAI
-
-I'll grep the whole `src/server/` tree for `LOVABLE_API_KEY`, `ai.gateway.lovable.dev`, and any leftover provider-specific calls, then normalize all of them to the same pattern already used in `scenario-assist.functions.ts` and `batch-assist.functions.ts`:
-
-```ts
-const apiKey = process.env.OPENAI_API_KEY;
-const baseUrl = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, "");
-const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-fetch(`${baseUrl}/chat/completions`, { headers: { Authorization: `Bearer ${apiKey}` }, ... })
+```text
+Browser (React/Tailwind)
+        │
+        ▼
+Edge Worker (Cloudflare · TanStack server fns)
+   ├──► OpenAI API  (gpt-4o / gpt-5, structured tool-calls)
+   ├──► Postgres   (runs, traces, prompts · RLS)
+   └──► PyPSA Sim Service  (AC powerflow, optional)
+                │
+                ▼
+        DC fallback solver (in-Worker)
 ```
 
-Files I'll inspect and update if needed:
-- `src/server/llm.functions.ts` (the main agent — most important)
-- `src/server/assistant.functions.ts` (Ask-AI panel)
-- `src/server/preset-assist.functions.ts`
-- `src/server/judge.functions.ts` (LLM-as-judge)
-- `src/server/scenario-assist.functions.ts` (already correct — verify only)
-- `src/server/batch-assist.functions.ts` (already correct — verify only)
-- `src/server/health.functions.ts` (so the System Health page reports OpenAI status, not Lovable AI)
+Generated with matplotlib at 200 DPI → saved as `architecture.jpg` → embedded via `ImageRun({ type: "jpg", ... })` at ~6 inches wide, with caption *Figure 1 — GridArena system architecture*.
 
-### Step 3 — Update health/status surfaces
+### 2. Methodology diagram (JPG, embedded)
 
-- `HealthBadge` / `simulation-health` page: change the label from "Lovable AI" to "OpenAI" and probe `OPENAI_API_KEY` presence.
-- Error messages already say "Set OPENAI_API_KEY on the server" — keep that copy consistent across all assist functions.
+A horizontal 9-stage pipeline flowchart for §5 Methodology:
 
-### Step 4 — Docs touch-up (optional, small)
+```text
+Config → Prompt Build → LLM Call → Parse Action → Validate
+   → Simulate (DC/AC) → Evaluate Metrics → Counterfactual → Persist & Trace
+```
 
-- `src/routes/docs.installation.tsx` and `src/routes/docs.troubleshooting.tsx`: replace any mention of Lovable AI with a short note that GridArena uses your OpenAI key via the `OPENAI_API_KEY` secret. Skip if you'd rather leave docs alone.
+Same render path → `methodology.jpg` → embedded with caption *Figure 2 — Evaluation pipeline*.
 
-### What stays the same
+### 3. Mathematical model (real equation formatting)
 
-- Lovable Cloud (Supabase) for auth, DB, RLS — unchanged.
-- All UI, schema, RLS, edge functions — unchanged.
-- The structured-action / tool-calling contract — unchanged (OpenAI's `tools` API is what the code already uses).
+Add a new sub-section **§5.3 Mathematical formulation** with proper Word equation objects (OOXML `<m:oMath>`) so equations render as real math, not plain text. Covers:
 
-### Cost & safety notes
+- **DC power flow**: `B · θ = P`, with `P_ij = (θ_i − θ_j) / x_ij`
+- **Line-limit constraint**: `|P_ij| ≤ P_ij^max`
+- **Re-dispatch optimisation surrogate**: minimise `Σ c_g · ΔP_g` s.t. `Σ ΔP_g = ΔP_load` and `P_g^min ≤ P_g + ΔP_g ≤ P_g^max`
+- **Violation improvement**: `ν = (V_base − V_post) / max(V_base, ε)`
+- **Optimality gap**: `γ = (J_agent − J*) / |J*|`
+- **Decision regret**: `ρ = J_agent − min_{a ∈ A} J(a)`
 
-- Your OpenAI key is billed to **your** OpenAI account, not Lovable. Set a usage cap in OpenAI's dashboard.
-- Key is stored as a server-side secret — never sent to the browser, never logged.
-- If you later want to switch back, just remove the `OPENAI_API_KEY` secret and re-enable Lovable AI; one env-var swap.
+Each equation gets a number on the right (Eq. 1, Eq. 2, …) and a one-line variable legend underneath.
+
+### Generation approach
+
+- Node script using `docx` lib for the document body, tables, and embedded images.
+- Python + matplotlib for the two diagrams (rendered to JPG).
+- Equations: hand-built OOXML math fragments inserted via `Math` / `MathRun` from the `docx` package (which supports `<m:oMath>`). If the lib's math API is too limited for any equation, I'll fall back to unpacking the docx and injecting raw `<m:oMath>` XML directly — equations will render natively in Word, not as images.
+- Page-by-page PDF→JPG QA on every page before delivery; verify diagrams are sharp and equations render as math.
+
+### Deliverable
+
+- `/mnt/documents/gridarena-report-v3.docx` (v1 and v2 stay available).
+- Surfaced as a `<lov-artifact>` for one-click download.
 
 ### Out of scope
 
-- No model-routing UI (single global model via `OPENAI_MODEL`).
-- No per-user BYOK (one key, server-wide).
-- No streaming changes — current code is non-streaming JSON tool-calls, which works fine with OpenAI as-is.
+- No changes to the GridArena app or codebase.
+- No interactive/animated diagrams — static JPG only (Word requirement).
+- No LaTeX export — Word-native math only.
 
