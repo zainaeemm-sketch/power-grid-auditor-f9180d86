@@ -5,9 +5,9 @@ export const Route = createFileRoute("/docs/architecture")({
   head: () => ({
     meta: [
       { title: "Architecture — GridArena Docs" },
-      { name: "description", content: "GridArena system architecture: frontend, edge worker, Postgres, LLM gateway, and pandapower simulation service." },
+      { name: "description", content: "GridArena system architecture: frontend, edge worker, Postgres, LLM gateway, PyPSA simulation service, counterfactual and perturbation engines, and the LLM-as-judge / decision-trace audit layer." },
       { property: "og:title", content: "Architecture — GridArena Docs" },
-      { property: "og:description", content: "Frontend, edge worker, Postgres, LLM gateway, and pandapower simulation service." },
+      { property: "og:description", content: "Frontend, edge worker, Postgres, LLM gateway, PyPSA simulator, counterfactual + perturbation engines, and LLM-as-judge audit." },
     ],
   }),
   component: ArchitecturePage,
@@ -19,7 +19,12 @@ function ArchitecturePage() {
       <h1>Architecture</h1>
       <p>
         GridArena is a thin browser UI on top of edge-deployed server functions, a Postgres
-        database, an LLM gateway, and an optional Python simulation service.
+        database, an LLM gateway, an optional Python simulation service, and an{" "}
+        <strong>evaluation layer</strong> (counterfactual replays, perturbation jobs, decision-
+        trace recorder, and LLM-as-judge). Together these implement GridArena's role as an
+        evaluation harness for LLM agents — see the{" "}
+        <a href="/docs/landscape">LLM Tools Landscape</a> for how this differs from operational
+        agents like Grid-Agent, GridMind, GAIA, or PowerDAG.
       </p>
 
       <div className="my-6 rounded-lg border border-border bg-card p-6">
@@ -89,6 +94,30 @@ function ArchitecturePage() {
         <code>counterfactual_results</code>, and surfaces optimality gap and decision regret in the
         run and batch reports. See the{" "}
         <a href="/docs/workflow">workflow docs</a> for the formulas.
+      </p>
+
+      <h3 id="perturbation-engine">Perturbation Engine (robustness layer)</h3>
+      <p>
+        Where the counterfactual engine swaps the <em>action</em>, the perturbation engine swaps
+        the <em>environment</em>. It re-runs the agent against systematically modified versions of
+        the benchmark case — load scaled up or down, generators tripped, lines removed — and
+        records whether the recommendation degrades gracefully, switches modes, or breaks. Jobs
+        are enqueued from the batch detail page, executed through the same Edge-Worker pipeline as
+        normal runs, and persisted to <code>perturbation_jobs</code> /{" "}
+        <code>perturbation_results</code> for cross-run aggregation. This is GridArena's answer to
+        the robustness gap left open by single-shot benchmarks like PFBench and ProOPF.
+      </p>
+
+      <h3 id="judge-and-trace">Decision-trace recorder &amp; LLM-as-judge</h3>
+      <p>
+        Every run emits a structured <strong>decision trace</strong>: the prompt log, the raw LLM
+        response, the parser's per-field provenance (regex / JSON / fallback), each tool call with
+        arguments and result, and the final structured action. A separate <strong>LLM-as-judge</strong>{" "}
+        function scores the recommendation against domain rubrics (safety, feasibility,
+        actionability) and persists the score, the rubric used, and the judge model. Together the
+        trace and the judge let researchers attribute failures to a specific cause — wrong tool,
+        misparsed solver output, or flawed final reasoning — rather than reporting a single
+        opaque pass/fail.
       </p>
 
       <h3>Rule-based Fallback</h3>

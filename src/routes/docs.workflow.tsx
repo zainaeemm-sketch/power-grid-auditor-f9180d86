@@ -5,9 +5,9 @@ export const Route = createFileRoute("/docs/workflow")({
   head: () => ({
     meta: [
       { title: "Experiment Workflow — GridArena Docs" },
-      { name: "description", content: "End-to-end lifecycle of a GridArena experiment: prompt, LLM call, parsing, simulation, evaluation, persistence." },
+      { name: "description", content: "End-to-end lifecycle of a GridArena experiment: prompt, LLM call, parsing, PyPSA simulation, rule evaluation, counterfactual replay, perturbation jobs, LLM-as-judge, and persistence." },
       { property: "og:title", content: "Experiment Workflow — GridArena Docs" },
-      { property: "og:description", content: "End-to-end lifecycle of a GridArena experiment from prompt to evaluation." },
+      { property: "og:description", content: "Prompt → LLM → parse → simulate → evaluate → counterfactual → perturbation → judge → persist." },
     ],
   }),
   component: WorkflowPage,
@@ -19,15 +19,18 @@ function WorkflowPage() {
       <h1>Experiment Workflow</h1>
       <p>
         Every GridArena run follows the same deterministic pipeline. Each stage is logged
-        and inspectable from the run detail page so experiments are fully reproducible.
+        and inspectable from the run detail page so experiments are fully reproducible. The
+        pipeline is what makes GridArena an <strong>evaluation harness</strong> rather than an
+        operational agent — see the <a href="/docs/landscape">LLM Tools Landscape</a> for the
+        broader context.
       </p>
 
       <h2>Methodology at a glance</h2>
       <p>
         The diagram below summarises the end-to-end methodology: a benchmark case (optionally
         perturbed) and a templated prompt feed a seeded LLM agent, whose structured action is
-        validated, simulated, and rule-evaluated in parallel before metrics and full provenance
-        are persisted.
+        validated, simulated, and rule-evaluated in parallel before metrics, counterfactual
+        replays, perturbation outcomes, judge scores, and full provenance are persisted.
       </p>
       <div className="my-6 rounded-lg border border-border bg-card p-6">
         <MethodologyDiagram />
@@ -173,7 +176,30 @@ function WorkflowPage() {
         </li>
       </ul>
 
-      <h2>9. Curating your dashboards</h2>
+      <h2 id="perturbation-jobs">9. Perturbation jobs (robustness layer)</h2>
+      <p>
+        While counterfactuals vary the <em>action</em>, perturbation jobs vary the{" "}
+        <em>environment</em>. From any batch you can launch a perturbation sweep that scales loads,
+        trips generators, or removes lines, then re-queries the agent on each modified case. Each
+        perturbed re-run goes through the full pipeline above (LLM → parse → simulate → evaluate)
+        and is stored in <code>perturbation_jobs</code> and <code>perturbation_results</code>. The
+        batch report aggregates per-perturbation feasibility, violation deltas, and decision
+        stability so you can see whether the agent's recommendation degrades gracefully or breaks
+        under stress — the failure mode that single-shot benchmarks like PFBench and ProOPF do not
+        measure.
+      </p>
+
+      <h2 id="judge-scoring">10. LLM-as-judge scoring</h2>
+      <p>
+        After evaluation, an independent judge model scores the recommendation against domain
+        rubrics (safety, feasibility, actionability, clarity). The judge prompt, model, rubric
+        version, and per-criterion scores are persisted alongside the run so the audit trail
+        explains <em>why</em> a run passed or failed — not just whether it did. Combined with the
+        decision trace and parser provenance, this lets failures be attributed to the right cause:
+        wrong tool selection, misparsed solver output, or flawed final reasoning.
+      </p>
+
+      <h2>11. Curating your dashboards</h2>
       <p>
         Once experiments accumulate, the Runs, Presets, Batches, Ground Truth, and Validation
         pages all support inline <strong>Edit</strong> and <strong>Delete</strong> actions.
