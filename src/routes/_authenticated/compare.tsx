@@ -181,7 +181,7 @@ function ComparePage() {
       <div className="mb-8 grid grid-cols-2 gap-4 animate-fade-up" style={{ animationDelay: "100ms" }}>
         <div className="space-y-2">
           <Label className="font-semibold">Run A</Label>
-          <Select value={runAId} onValueChange={setRunAId}>
+          <Select value={runAId} onValueChange={updateRunA}>
             <SelectTrigger><SelectValue placeholder="Select run..." /></SelectTrigger>
             <SelectContent>
               {runs.map((r) => (
