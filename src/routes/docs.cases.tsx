@@ -1,6 +1,68 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { CASES } from "@/server/simulation/cases";
 import type { PowerSystemCase } from "@/server/simulation/types";
+
+function downloadBlob(filename: string, mime: string, content: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function toCsv(rows: Array<Record<string, string | number>>): string {
+  if (rows.length === 0) return "";
+  const headers = Object.keys(rows[0]);
+  const escape = (v: string | number) => {
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const body = rows.map((r) => headers.map((h) => escape(r[h])).join(","));
+  return [headers.join(","), ...body].join("\n");
+}
+
+function exportCaseJson(c: PowerSystemCase) {
+  downloadBlob(`${c.name}.json`, "application/json", JSON.stringify(c, null, 2));
+}
+
+function exportCaseCsv(c: PowerSystemCase) {
+  const sections = [
+    `# ${c.name} — base_mva=${c.base_mva}`,
+    "",
+    "## buses",
+    toCsv(c.buses.map((b) => ({ index: b.index, type: b.type, pd_mw: b.pd_mw, vm_pu: b.vm_pu }))),
+    "",
+    "## branches",
+    toCsv(
+      c.branches.map((br) => ({
+        index: br.index,
+        from_bus: br.from_bus,
+        to_bus: br.to_bus,
+        x_pu: br.x_pu,
+        rate_mw: br.rate_mw,
+      })),
+    ),
+    "",
+    "## generators",
+    toCsv(
+      c.generators.map((g) => ({
+        index: g.index,
+        bus: g.bus,
+        p_mw: g.p_mw,
+        p_min_mw: g.p_min_mw,
+        p_max_mw: g.p_max_mw,
+      })),
+    ),
+    "",
+  ];
+  downloadBlob(`${c.name}.csv`, "text/csv", sections.join("\n"));
+}
 
 export const Route = createFileRoute("/docs/cases")({
   head: () => ({
