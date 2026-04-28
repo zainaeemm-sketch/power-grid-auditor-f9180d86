@@ -86,6 +86,80 @@ function AboutPage() {
       </section>
 
       <section className="mb-10">
+        <h2 className="mb-3 text-xl font-semibold text-foreground">Landscape &amp; positioning</h2>
+        <p className="text-muted-foreground leading-relaxed">
+          The 2025–2026 literature describes a growing family of LLM tools for power-system
+          operations: multi-agent controllers like <strong className="text-foreground">Grid-Agent</strong>,
+          analysis co-pilots like <strong className="text-foreground">GridMind</strong>, dispatch
+          models like <strong className="text-foreground">GAIA</strong>, agentic executors like{" "}
+          <strong className="text-foreground">PowerDAG</strong>, retrieval-augmented compliance
+          systems like <strong className="text-foreground">GridCodex</strong>, and benchmarks such
+          as <strong className="text-foreground">ProOPF</strong>, <strong className="text-foreground">PFBench</strong>,
+          and the <strong className="text-foreground">EPRI</strong> electric-sector evaluation.
+        </p>
+        <p className="mt-3 text-muted-foreground leading-relaxed">
+          GridArena is deliberately one layer above these systems. It does not compete with them —
+          it <em>consumes</em> them. Any agent exposing an inference endpoint can be registered as
+          an engine in GridArena and put through the same{" "}
+          <strong className="text-foreground">physical-feasibility loop</strong> (PyPSA AC/DC
+          power flow), <strong className="text-foreground">robustness probes</strong>{" "}
+          (counterfactual replays and perturbation jobs), and{" "}
+          <strong className="text-foreground">reasoning audit</strong> (decision trace, parser
+          provenance, LLM-as-judge scoring). Where static benchmarks measure single-shot accuracy,
+          GridArena turns evaluation into a reproducible runtime experiment.
+        </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Full survey, comparison-at-a-glance table, and 24 references in the{" "}
+          <Link to="/docs/landscape" className="text-primary underline-offset-4 hover:underline">
+            LLM Tools Landscape
+          </Link>{" "}
+          docs page.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-xl font-semibold text-foreground">Selected references (2025–2026)</h2>
+        <ol className="list-decimal space-y-1.5 pl-6 text-sm text-muted-foreground">
+          <li>
+            Zhang et al., "Grid-Agent: An LLM-Powered Multi-Agent System for Power Grid Control,"
+            arXiv:2508.05702, 2025.{" "}
+            <a className="text-primary underline-offset-4 hover:underline" href="https://arxiv.org/abs/2508.05702" target="_blank" rel="noreferrer">link</a>
+          </li>
+          <li>
+            Jin, Kim &amp; Kwon, "GridMind: LLMs-Powered Agents for Power System Analysis and
+            Operations," Argonne National Laboratory, arXiv:2509.02494, 2025.{" "}
+            <a className="text-primary underline-offset-4 hover:underline" href="https://arxiv.org/abs/2509.02494" target="_blank" rel="noreferrer">link</a>
+          </li>
+          <li>
+            Cheng et al., "A large language model for advanced power dispatch (GAIA),"{" "}
+            <em>Scientific Reports</em> 15:91940, 2025.{" "}
+            <a className="text-primary underline-offset-4 hover:underline" href="https://doi.org/10.1038/s41598-025-91940-x" target="_blank" rel="noreferrer">doi</a>
+          </li>
+          <li>
+            Badmus &amp; Pandey, "PowerDAG: Reliable Agentic AI System for Automating Distribution
+            Grid Analysis," arXiv:2603.17418, 2026.{" "}
+            <a className="text-primary underline-offset-4 hover:underline" href="https://arxiv.org/abs/2603.17418" target="_blank" rel="noreferrer">link</a>
+          </li>
+          <li>
+            Shen et al., "ProOPF: Benchmarking and Improving LLMs for Professional-Grade Power
+            Systems Optimization Modeling," arXiv:2602.03070, 2026.{" "}
+            <a className="text-primary underline-offset-4 hover:underline" href="https://arxiv.org/abs/2602.03070" target="_blank" rel="noreferrer">link</a>
+          </li>
+          <li>
+            Electric Power Research Institute, "Benchmarking Large Language Models for the
+            Electric Power Sector," EPRI 3002034347, Feb. 2026.{" "}
+            <a className="text-primary underline-offset-4 hover:underline" href="https://eprijournal.com/benchmarking-large-language-models-for-the-electric-power-sector/" target="_blank" rel="noreferrer">link</a>
+          </li>
+        </ol>
+        <p className="mt-3 text-sm text-muted-foreground">
+          See all 24 references in the{" "}
+          <Link to="/docs/landscape" hash="references" className="text-primary underline-offset-4 hover:underline">
+            Landscape bibliography
+          </Link>.
+        </p>
+      </section>
+
+      <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-foreground">Authors &amp; affiliation</h2>
         <p className="text-muted-foreground">
           <strong className="text-foreground">{CITATION.authors.join(", ")}</strong>
