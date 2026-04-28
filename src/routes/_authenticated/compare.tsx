@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,21 @@ import { Label } from "@/components/ui/label";
 import { GitCompare, Download, FileText } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { listRuns, getRunDetails } from "@/server/runs.functions";
 import type { Run, RunDetails } from "@/types/grid-arena";
 import { exportComparisonCsv } from "@/lib/csv-export";
 import { MultiRunComparisonCharts } from "@/components/compare/MultiRunComparisonCharts";
 
+const compareSearchSchema = z.object({
+  runA: fallback(z.string(), "").default(""),
+  runB: fallback(z.string(), "").default(""),
+  extra: fallback(z.string().array(), []).default([]),
+});
+
 export const Route = createFileRoute("/_authenticated/compare")({
+  validateSearch: zodValidator(compareSearchSchema),
   head: () => ({
     meta: [
       { title: "Compare Runs — GridArena" },
