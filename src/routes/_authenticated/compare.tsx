@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,21 @@ import { Label } from "@/components/ui/label";
 import { GitCompare, Download, FileText } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { listRuns, getRunDetails } from "@/server/runs.functions";
 import type { Run, RunDetails } from "@/types/grid-arena";
 import { exportComparisonCsv } from "@/lib/csv-export";
 import { MultiRunComparisonCharts } from "@/components/compare/MultiRunComparisonCharts";
 
+const compareSearchSchema = z.object({
+  runA: fallback(z.string(), "").default(""),
+  runB: fallback(z.string(), "").default(""),
+  extra: fallback(z.string().array(), []).default([]),
+});
+
 export const Route = createFileRoute("/_authenticated/compare")({
+  validateSearch: zodValidator(compareSearchSchema),
   head: () => ({
     meta: [
       { title: "Compare Runs — GridArena" },
@@ -42,14 +51,44 @@ export const Route = createFileRoute("/_authenticated/compare")({
 
 function ComparePage() {
   const { runs } = Route.useLoaderData() as { runs: Run[] };
-  const [runAId, setRunAId] = useState<string>("");
-  const [runBId, setRunBId] = useState<string>("");
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const [runAId, setRunAId] = useState<string>(search.runA);
+  const [runBId, setRunBId] = useState<string>(search.runB);
   const [detailsA, setDetailsA] = useState<RunDetails | null>(null);
   const [detailsB, setDetailsB] = useState<RunDetails | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Sync state when URL search params change (e.g. deep-link or back/forward).
   useEffect(() => {
-    if (!runAId && !runBId) return;
+    setRunAId(search.runA);
+    setRunBId(search.runB);
+  }, [search.runA, search.runB]);
+
+  // Auto-pick first two runs when nothing is specified, so charts populate immediately.
+  useEffect(() => {
+    if (search.runA || search.runB) return;
+    if (runs.length === 0) return;
+    const a = runs[0]?.id ?? "";
+    const b = runs[1]?.id ?? "";
+    if (!a && !b) return;
+    navigate({ to: "/compare", search: { runA: a, runB: b, extra: search.extra }, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runs.length]);
+
+  const updateRunA = (id: string) => {
+    navigate({ to: "/compare", search: { runA: id, runB: search.runB, extra: search.extra }, replace: true });
+  };
+  const updateRunB = (id: string) => {
+    navigate({ to: "/compare", search: { runA: search.runA, runB: id, extra: search.extra }, replace: true });
+  };
+
+  useEffect(() => {
+    if (!runAId && !runBId) {
+      setDetailsA(null);
+      setDetailsB(null);
+      return;
+    }
     setLoading(true);
     Promise.all([
       runAId ? getRunDetails({ data: { runId: runAId } }).catch(() => null) : Promise.resolve(null),
@@ -142,7 +181,7 @@ function ComparePage() {
       <div className="mb-8 grid grid-cols-2 gap-4 animate-fade-up" style={{ animationDelay: "100ms" }}>
         <div className="space-y-2">
           <Label className="font-semibold">Run A</Label>
-          <Select value={runAId} onValueChange={setRunAId}>
+          <Select value={runAId} onValueChange={updateRunA}>
             <SelectTrigger><SelectValue placeholder="Select run..." /></SelectTrigger>
             <SelectContent>
               {runs.map((r) => (
@@ -153,7 +192,7 @@ function ComparePage() {
         </div>
         <div className="space-y-2">
           <Label className="font-semibold">Run B</Label>
-          <Select value={runBId} onValueChange={setRunBId}>
+          <Select value={runBId} onValueChange={updateRunB}>
             <SelectTrigger><SelectValue placeholder="Select run..." /></SelectTrigger>
             <SelectContent>
               {runs.map((r) => (
