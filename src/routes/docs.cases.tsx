@@ -162,6 +162,9 @@ function CaseSection({
         />
       </div>
 
+      <h3 className="mb-2 mt-5 text-base font-semibold text-foreground">Topology</h3>
+      <TopologyDiagram c={c} />
+
       <h3 className="mb-2 mt-5 text-base font-semibold text-foreground">Buses</h3>
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full text-xs tabular-nums">
