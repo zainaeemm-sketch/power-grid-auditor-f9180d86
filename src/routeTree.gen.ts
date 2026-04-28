@@ -23,6 +23,7 @@ import { Route as DocsTroubleshootingRouteImport } from './routes/docs.troublesh
 import { Route as DocsReproducibilityRouteImport } from './routes/docs.reproducibility'
 import { Route as DocsLandscapeRouteImport } from './routes/docs.landscape'
 import { Route as DocsInstallationRouteImport } from './routes/docs.installation'
+import { Route as DocsCasesRouteImport } from './routes/docs.cases'
 import { Route as DocsArchitectureRouteImport } from './routes/docs.architecture'
 import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
 import { Route as AuthenticatedSystemStatusRouteImport } from './routes/_authenticated/system-status'
@@ -114,6 +115,11 @@ const DocsLandscapeRoute = DocsLandscapeRouteImport.update({
 const DocsInstallationRoute = DocsInstallationRouteImport.update({
   id: '/installation',
   path: '/installation',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCasesRoute = DocsCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
   getParentRoute: () => DocsRoute,
 } as any)
 const DocsArchitectureRoute = DocsArchitectureRouteImport.update({
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/system-status': typeof AuthenticatedSystemStatusRoute
   '/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
+  '/docs/cases': typeof DocsCasesRoute
   '/docs/installation': typeof DocsInstallationRoute
   '/docs/landscape': typeof DocsLandscapeRoute
   '/docs/reproducibility': typeof DocsReproducibilityRoute
@@ -295,6 +302,7 @@ export interface FileRoutesByTo {
   '/system-status': typeof AuthenticatedSystemStatusRoute
   '/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
+  '/docs/cases': typeof DocsCasesRoute
   '/docs/installation': typeof DocsInstallationRoute
   '/docs/landscape': typeof DocsLandscapeRoute
   '/docs/reproducibility': typeof DocsReproducibilityRoute
@@ -335,6 +343,7 @@ export interface FileRoutesById {
   '/_authenticated/system-status': typeof AuthenticatedSystemStatusRoute
   '/_authenticated/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
+  '/docs/cases': typeof DocsCasesRoute
   '/docs/installation': typeof DocsInstallationRoute
   '/docs/landscape': typeof DocsLandscapeRoute
   '/docs/reproducibility': typeof DocsReproducibilityRoute
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/system-status'
     | '/validation'
     | '/docs/architecture'
+    | '/docs/cases'
     | '/docs/installation'
     | '/docs/landscape'
     | '/docs/reproducibility'
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/system-status'
     | '/validation'
     | '/docs/architecture'
+    | '/docs/cases'
     | '/docs/installation'
     | '/docs/landscape'
     | '/docs/reproducibility'
@@ -449,6 +460,7 @@ export interface FileRouteTypes {
     | '/_authenticated/system-status'
     | '/_authenticated/validation'
     | '/docs/architecture'
+    | '/docs/cases'
     | '/docs/installation'
     | '/docs/landscape'
     | '/docs/reproducibility'
@@ -579,6 +591,13 @@ declare module '@tanstack/react-router' {
       path: '/installation'
       fullPath: '/docs/installation'
       preLoaderRoute: typeof DocsInstallationRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cases': {
+      id: '/docs/cases'
+      path: '/cases'
+      fullPath: '/docs/cases'
+      preLoaderRoute: typeof DocsCasesRouteImport
       parentRoute: typeof DocsRoute
     }
     '/docs/architecture': {
@@ -819,6 +838,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 interface DocsRouteChildren {
   DocsArchitectureRoute: typeof DocsArchitectureRoute
+  DocsCasesRoute: typeof DocsCasesRoute
   DocsInstallationRoute: typeof DocsInstallationRoute
   DocsLandscapeRoute: typeof DocsLandscapeRoute
   DocsReproducibilityRoute: typeof DocsReproducibilityRoute
@@ -830,6 +850,7 @@ interface DocsRouteChildren {
 
 const DocsRouteChildren: DocsRouteChildren = {
   DocsArchitectureRoute: DocsArchitectureRoute,
+  DocsCasesRoute: DocsCasesRoute,
   DocsInstallationRoute: DocsInstallationRoute,
   DocsLandscapeRoute: DocsLandscapeRoute,
   DocsReproducibilityRoute: DocsReproducibilityRoute,
