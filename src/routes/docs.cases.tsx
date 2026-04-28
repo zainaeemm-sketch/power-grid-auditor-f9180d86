@@ -398,7 +398,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case5}
-        title="case5 — 5-bus system"
+        title="case5 — 5-bus system" meta={CASE_META.case5}
         origin={
           <>
             A small 5-bus system commonly used for teaching LMP and congestion. Roughly based on
@@ -410,7 +410,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case14}
-        title="case14 — IEEE 14-bus"
+        title="case14 — IEEE 14-bus" meta={CASE_META.case14}
         origin={
           <>
             Derived from the classic <strong>IEEE 14-bus test case</strong>, which represents a
@@ -422,7 +422,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case30}
-        title="case30 — IEEE 30-bus"
+        title="case30 — IEEE 30-bus" meta={CASE_META.case30}
         origin={
           <>
             Derived from the <strong>IEEE 30-bus test case</strong>, also based on the AEP
