@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getBatchDetails } from "@/server/batch.functions";
 import { executeRunLlm } from "@/server/llm.functions";
 import { judgeRun } from "@/server/judge.functions";
+import { backfillEvaluations } from "@/server/evaluation.functions";
 import type { BatchDetails, RunStatus, RunEvaluation } from "@/types/grid-arena";
 import { exportBatchCsv, exportComparisonCsv } from "@/lib/csv-export";
 import { requestNotificationPermission, notifyBatchComplete, isSoundEnabled, setSoundEnabled, isBrowserNotifEnabled, setBrowserNotifEnabled } from "@/lib/notifications";
