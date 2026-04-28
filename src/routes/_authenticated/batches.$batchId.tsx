@@ -38,6 +38,7 @@ import {
 } from "recharts";
 import { BatchSensitivitySection } from "@/components/batch/BatchSensitivitySection";
 import { BatchCounterfactualSection } from "@/components/batch/BatchCounterfactualSection";
+import { ChartReadinessCheck } from "@/components/charts/ChartReadinessCheck";
 import { normalizeCaseName } from "@/lib/case-normalize";
 import {
   classifyCounterfactual,
