@@ -256,3 +256,134 @@ export const reparseAndEvaluate = createServerFn({ method: "POST" })
     void maybeAutoJudge(supabase, context.userId, run_id);
     return { success: true, parseResult, evaluation: evalFields };
   });
+
+/**
+ * Backfill missing or incomplete evaluation metrics for existing completed runs.
+ * Targets the four readiness fields used by the dashboard charts:
+ *   - violation_improvement
+ *   - feasibility (excluding "unknown")
+ *   - confidence + grounding_quality
+ *   - case-level performance (requires runs.case_name + violation_improvement)
+ *
+ * A run is considered missing metrics when:
+ *   - it has no run_evaluations row, OR
+ *   - feasibility is null/"unknown", OR
+ *   - violation_improvement is null, OR
+ *   - confidence or grounding_quality is null
+ *
+ * Optionally scope to a single batch via batch_id. Returns per-run results so
+ * the caller can show exactly which runs were updated and which still cannot
+ * be evaluated (e.g. no parsed action).
+ */
+export const backfillEvaluations = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: { batch_id?: string; limit?: number; force?: boolean }) => ({
+    batch_id: input.batch_id,
+    limit: Math.min(Math.max(input.limit ?? 200, 1), 500),
+    force: !!input.force,
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // 1. Determine candidate run IDs (scoped to batch if requested).
+    let runIds: string[] = [];
+    if (data.batch_id) {
+      const { data: links } = await (supabase as any)
+        .from("batch_run_links")
+        .select("run_id")
+        .eq("batch_id", data.batch_id);
+      runIds = (links ?? []).map((l: { run_id: string }) => l.run_id);
+    } else {
+      const { data: runs } = await (supabase as any)
+        .from("runs")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(data.limit);
+      runIds = (runs ?? []).map((r: { id: string }) => r.id);
+    }
+
+    if (runIds.length === 0) {
+      return { scanned: 0, candidates: 0, updated: 0, skipped: 0, results: [] as Array<{
+        run_id: string; status: "updated" | "skipped" | "error"; reason?: string;
+      }> };
+    }
+
+    // 2. Pull run + metadata + parse_result + existing evaluation in bulk.
+    const [{ data: runs }, { data: metas }, { data: parses }, { data: evals }] = await Promise.all([
+      (supabase as any).from("runs").select("id,case_name,status").in("id", runIds),
+      (supabase as any).from("run_metadata").select("run_id,evaluation_mode").in("run_id", runIds),
+      (supabase as any).from("run_parse_results").select("*").in("run_id", runIds),
+      (supabase as any).from("run_evaluations").select("*").in("run_id", runIds),
+    ]);
+
+    const runMap = new Map<string, { case_name: string; status: string }>();
+    for (const r of runs ?? []) runMap.set(r.id, { case_name: r.case_name, status: r.status });
+    const metaMap = new Map<string, string>();
+    for (const m of metas ?? []) metaMap.set(m.run_id, m.evaluation_mode ?? "rule_based");
+    const parseMap = new Map<string, RunParseResult>();
+    for (const p of parses ?? []) parseMap.set(p.run_id, p as RunParseResult);
+    const evalMap = new Map<string, RunEvaluation>();
+    for (const e of evals ?? []) evalMap.set(e.run_id, e as RunEvaluation);
+
+    const isIncomplete = (e: RunEvaluation | undefined): boolean => {
+      if (!e) return true;
+      if (!e.feasibility || e.feasibility === "unknown") return true;
+      if (e.violation_improvement === null || e.violation_improvement === undefined) return true;
+      if (!e.confidence) return true;
+      if (!e.grounding_quality) return true;
+      return false;
+    };
+
+    const results: Array<{ run_id: string; status: "updated" | "skipped" | "error"; reason?: string }> = [];
+    let updated = 0;
+    let skipped = 0;
+
+    // 3. Recompute for each candidate (sequential to avoid hammering the simulator).
+    for (const runId of runIds) {
+      const run = runMap.get(runId);
+      if (!run) {
+        results.push({ run_id: runId, status: "skipped", reason: "run not found" });
+        skipped++;
+        continue;
+      }
+      if (run.status !== "completed") {
+        results.push({ run_id: runId, status: "skipped", reason: `status=${run.status}` });
+        skipped++;
+        continue;
+      }
+      const existing = evalMap.get(runId);
+      if (!data.force && !isIncomplete(existing)) {
+        results.push({ run_id: runId, status: "skipped", reason: "already complete" });
+        skipped++;
+        continue;
+      }
+
+      const parseResult = parseMap.get(runId) ?? null;
+      const mode = (metaMap.get(runId) as EvaluationMode) || "rule_based";
+
+      try {
+        const evalFields = await evaluateWithSimulation(parseResult, run.case_name ?? "", mode);
+
+        if (existing) {
+          await (supabase as any).from("run_evaluations").update(evalFields).eq("run_id", runId);
+        } else {
+          await (supabase as any).from("run_evaluations").insert({ run_id: runId, ...evalFields });
+        }
+        results.push({ run_id: runId, status: "updated" });
+        updated++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        results.push({ run_id: runId, status: "error", reason: msg });
+      }
+    }
+
+    return {
+      scanned: runIds.length,
+      candidates: runIds.filter((id) => data.force || isIncomplete(evalMap.get(id))).length,
+      updated,
+      skipped,
+      results,
+    };
+  });

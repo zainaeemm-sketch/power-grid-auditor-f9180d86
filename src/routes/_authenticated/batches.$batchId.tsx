@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getBatchDetails } from "@/server/batch.functions";
 import { executeRunLlm } from "@/server/llm.functions";
 import { judgeRun } from "@/server/judge.functions";
+import { backfillEvaluations } from "@/server/evaluation.functions";
 import type { BatchDetails, RunStatus, RunEvaluation } from "@/types/grid-arena";
 import { exportBatchCsv, exportComparisonCsv } from "@/lib/csv-export";
 import { requestNotificationPermission, notifyBatchComplete, isSoundEnabled, setSoundEnabled, isBrowserNotifEnabled, setBrowserNotifEnabled } from "@/lib/notifications";
@@ -39,6 +40,7 @@ import {
 import { BatchSensitivitySection } from "@/components/batch/BatchSensitivitySection";
 import { BatchCounterfactualSection } from "@/components/batch/BatchCounterfactualSection";
 import { ChartReadinessCheck } from "@/components/charts/ChartReadinessCheck";
+import { BackfillMetricsButton } from "@/components/charts/BackfillMetricsButton";
 import { normalizeCaseName } from "@/lib/case-normalize";
 import {
   classifyCounterfactual,
@@ -1018,6 +1020,8 @@ function BatchDetailPage() {
 
       {/* Charts */}
       <ChartReadinessCheck runs={runs} hideWhenAllReady />
+
+      <BackfillMetricsButton batchId={batch.id} onDone={() => router.invalidate()} />
 
       {agentStats.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-2">
