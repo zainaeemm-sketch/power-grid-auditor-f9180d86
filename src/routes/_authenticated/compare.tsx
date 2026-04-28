@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { listRuns, getRunDetails } from "@/server/runs.functions";
 import type { Run, RunDetails } from "@/types/grid-arena";
 import { exportComparisonCsv } from "@/lib/csv-export";
+import { MultiRunComparisonCharts } from "@/components/compare/MultiRunComparisonCharts";
 
 export const Route = createFileRoute("/_authenticated/compare")({
   head: () => ({
@@ -186,6 +187,13 @@ function ComparePage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="mt-6 animate-fade-up" style={{ animationDelay: "600ms" }}>
+        <MultiRunComparisonCharts
+          runs={runs}
+          initialRunIds={[runAId, runBId].filter(Boolean)}
+        />
       </div>
     </main>
   );
