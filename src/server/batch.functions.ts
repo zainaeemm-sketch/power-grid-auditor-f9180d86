@@ -88,6 +88,16 @@ export const getBatchDetails = createServerFn({ method: "GET" })
     return { batch: batch as Batch, runs: batchRuns };
   });
 
+const ACTION_FORMAT_INSTRUCTIONS = `You are recommending a corrective action for a power-grid case.
+
+Return EXACTLY ONE action sentence using one of these formats so it can be parsed:
+- scale all loads by 0.90
+- reduce all loads by 10%
+- set generator 1 to 80 MW
+- line outage 6
+
+You may add a brief justification, but the action sentence above must appear verbatim in your reply.`;
+
 export const createBatch = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: {
@@ -97,6 +107,7 @@ export const createBatch = createServerFn({ method: "POST" })
     agents: string[];
     cases: string[];
     preset_id?: string;
+    evaluation_mode?: "rule_based" | "simulation" | "auto";
   }) => input)
   .handler(async ({ data, context }): Promise<{ batch: Batch }> => {
     const { supabase, userId } = context;
