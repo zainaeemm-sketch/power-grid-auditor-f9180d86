@@ -192,7 +192,7 @@ function ComparePage() {
         </div>
         <div className="space-y-2">
           <Label className="font-semibold">Run B</Label>
-          <Select value={runBId} onValueChange={setRunBId}>
+          <Select value={runBId} onValueChange={updateRunB}>
             <SelectTrigger><SelectValue placeholder="Select run..." /></SelectTrigger>
             <SelectContent>
               {runs.map((r) => (
