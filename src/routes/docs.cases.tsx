@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TopologyDiagram } from "@/components/docs/TopologyDiagram";
 import { CASES } from "@/server/simulation/cases";
 import type { PowerSystemCase } from "@/server/simulation/types";
 
