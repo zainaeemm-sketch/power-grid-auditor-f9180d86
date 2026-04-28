@@ -121,14 +121,85 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-xs">{children}</div>
+    </div>
+  );
+}
+
+type CaseMeta = {
+  dataset_version: string;
+  source: string;
+  source_url?: string;
+  last_reviewed: string;
+  standardized: string[];
+  simplified: string[];
+};
+
+const CASE_META: Record<string, CaseMeta> = {
+  case5: {
+    dataset_version: "gridarena-case5@1.0.0",
+    source: "PJM 5-bus educational example (Li & Bo, 2010)",
+    source_url: "https://matpower.org/docs/ref/matpower5.0/case5.html",
+    last_reviewed: "2026-04-28",
+    standardized: [
+      "Topology (5 buses, 6 branches) matches the canonical PJM 5-bus.",
+      "Bus types (slack/PV/PQ) follow the original classification.",
+      "Line reactances (x_pu) preserved from the reference dataset.",
+    ],
+    simplified: [
+      "Resistances and shunts dropped — DC power flow only.",
+      "Generator cost curves replaced by a flat merit-order ranking.",
+      "Voltage limits not enforced (flat 1.0 pu assumption).",
+    ],
+  },
+  case14: {
+    dataset_version: "gridarena-case14@1.0.0",
+    source: "IEEE 14-bus (AEP, Feb 1962) via MATPOWER case14",
+    source_url: "https://icseg.iti.illinois.edu/ieee-14-bus-system/",
+    last_reviewed: "2026-04-28",
+    standardized: [
+      "14 buses, 20 branches, 5 generators per the IEEE reference.",
+      "Bus loads (Pd) match published values.",
+      "Per-line thermal ratings preserved (50–200 MW).",
+    ],
+    simplified: [
+      "Transformer tap ratios collapsed into plain reactances.",
+      "Reactive load (Qd) and bus shunts ignored under DC-PF.",
+      "Generator Q-limits and voltage setpoints omitted.",
+    ],
+  },
+  case30: {
+    dataset_version: "gridarena-case30@1.0.0",
+    source: "IEEE 30-bus (AEP, Dec 1961) via MATPOWER case30",
+    source_url: "https://icseg.iti.illinois.edu/ieee-30-bus-system/",
+    last_reviewed: "2026-04-28",
+    standardized: [
+      "30 buses, 41 branches, 6 generators per the IEEE reference.",
+      "Bus loads (Pd) match published values.",
+      "Branch reactances preserved from the standard dataset.",
+    ],
+    simplified: [
+      "Uniform 130 MW thermal rating applied to every branch.",
+      "Transformers, shunts, and reactive elements dropped.",
+      "Generator cost curves replaced by greedy merit order.",
+    ],
+  },
+};
+
 function CaseSection({
   c,
   title,
   origin,
+  meta,
 }: {
   c: PowerSystemCase;
   title: string;
   origin: React.ReactNode;
+  meta: CaseMeta;
 }) {
   const s = summarize(c);
   return (
@@ -147,6 +218,53 @@ function CaseSection({
         </div>
       </div>
       <p className="my-3 leading-relaxed text-muted-foreground">{origin}</p>
+
+      <div className="my-4 rounded-md border border-border bg-muted/20 px-4 py-3 text-xs">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <MetaField label="Dataset version">
+            <code className="text-foreground">{meta.dataset_version}</code>
+          </MetaField>
+          <MetaField label="Source">
+            {meta.source_url ? (
+              <a
+                href={meta.source_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                {meta.source}
+              </a>
+            ) : (
+              <span className="text-foreground">{meta.source}</span>
+            )}
+          </MetaField>
+          <MetaField label="Last reviewed">
+            <span className="text-foreground tabular-nums">{meta.last_reviewed}</span>
+          </MetaField>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400/90">
+              Standardized
+            </div>
+            <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
+              {meta.standardized.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400/90">
+              Simplified
+            </div>
+            <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
+              {meta.simplified.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
 
       <div className="my-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatCard label="Buses" value={`${c.buses.length} (slack ${s.slack} · PV ${s.pv} · PQ ${s.pq})`} />
@@ -280,7 +398,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case5}
-        title="case5 — 5-bus system"
+        title="case5 — 5-bus system" meta={CASE_META.case5}
         origin={
           <>
             A small 5-bus system commonly used for teaching LMP and congestion. Roughly based on
@@ -292,7 +410,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case14}
-        title="case14 — IEEE 14-bus"
+        title="case14 — IEEE 14-bus" meta={CASE_META.case14}
         origin={
           <>
             Derived from the classic <strong>IEEE 14-bus test case</strong>, which represents a
@@ -304,7 +422,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case30}
-        title="case30 — IEEE 30-bus"
+        title="case30 — IEEE 30-bus" meta={CASE_META.case30}
         origin={
           <>
             Derived from the <strong>IEEE 30-bus test case</strong>, also based on the AEP
