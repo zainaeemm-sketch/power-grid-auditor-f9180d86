@@ -15,12 +15,55 @@ interface Props {
   evaluation: RunEvaluation | null;
 }
 
+// Rubric version is fixed by the judge tool schema (submit_judgment v1).
+// Bump this when JUDGE_TOOL parameters change in src/server/judge.functions.ts.
+const RUBRIC_VERSION = "judge-rubric-v1";
+
 function verdictTone(v: string | null) {
   if (v === "agree") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
   if (v === "partial") return "bg-amber-500/15 text-amber-300 border-amber-500/30";
   if (v === "disagree") return "bg-red-500/15 text-red-300 border-red-500/30";
   return "bg-muted text-muted-foreground border-border";
 }
+
+/** Map a per-criterion enum value to a 1–3 score + tone. */
+function scoreFor(criterion: "verdict" | "confidence" | "reasoning_quality" | "action_alignment", value: string | null) {
+  if (!value) return { score: null as number | null, tone: "bg-muted text-muted-foreground border-border" };
+  const map: Record<string, Record<string, { score: number; tone: string }>> = {
+    verdict: {
+      agree:    { score: 3, tone: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+      partial:  { score: 2, tone: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+      disagree: { score: 1, tone: "bg-red-500/15 text-red-300 border-red-500/30" },
+    },
+    confidence: {
+      high:   { score: 3, tone: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+      medium: { score: 2, tone: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+      low:    { score: 1, tone: "bg-red-500/15 text-red-300 border-red-500/30" },
+    },
+    reasoning_quality: {
+      sound:       { score: 3, tone: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+      flawed:      { score: 2, tone: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+      unsupported: { score: 1, tone: "bg-red-500/15 text-red-300 border-red-500/30" },
+    },
+    action_alignment: {
+      aligned:     { score: 3, tone: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+      partial:     { score: 2, tone: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+      misaligned:  { score: 1, tone: "bg-red-500/15 text-red-300 border-red-500/30" },
+    },
+  };
+  return map[criterion][value] ?? { score: null, tone: "bg-muted text-muted-foreground border-border" };
+}
+
+const CRITERIA: Array<{
+  key: "verdict" | "confidence" | "reasoning_quality" | "action_alignment";
+  label: string;
+  description: string;
+}> = [
+  { key: "verdict",           label: "Verdict",            description: "Does the agent's recommendation match the simulator's verdict?" },
+  { key: "confidence",        label: "Confidence",         description: "How confident is the judge in this assessment?" },
+  { key: "reasoning_quality", label: "Reasoning quality",  description: "Is the agent's reasoning physically sound and well-supported?" },
+  { key: "action_alignment",  label: "Action alignment",   description: "Does the parsed action match what the recommendation describes?" },
+];
 
 function crossCheck(evaluation: RunEvaluation | null, j: RunLlmJudgment | null) {
   if (!evaluation || !j?.verdict) return null;
@@ -30,6 +73,16 @@ function crossCheck(evaluation: RunEvaluation | null, j: RunLlmJudgment | null) 
   if (feasible && !agree) return { label: "Simulator only", tone: "bg-amber-500/15 text-amber-300 border-amber-500/30" };
   if (!feasible && agree) return { label: "Judge only", tone: "bg-amber-500/15 text-amber-300 border-amber-500/30" };
   return { label: "Both reject", tone: "bg-red-500/15 text-red-300 border-red-500/30" };
+}
+
+function aggregateScore(j: RunLlmJudgment): { sum: number; max: number } {
+  let sum = 0;
+  let max = 0;
+  for (const c of CRITERIA) {
+    const s = scoreFor(c.key, (j as any)[c.key] ?? null).score;
+    if (s != null) { sum += s; max += 3; }
+  }
+  return { sum, max };
 }
 
 export function LlmJudgePanel({ runId, evaluation }: Props) {
