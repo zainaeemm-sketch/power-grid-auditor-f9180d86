@@ -1,113 +1,47 @@
-# Answer: no new API key is needed for these graphs
+# Add `/docs/cases` — Test System Reference
 
-The missing chart results are not caused by a missing API key. Your project already has:
+Add a new docs page that documents the three built-in power-system presets (case5, case14, case30) with topology summaries, full bus/branch/generator tables, ratings, and references — sourced directly from `src/server/simulation/cases.ts` so the docs match what the solver actually runs.
 
-- LLM configuration present
-- simulator configuration present
-- simulator health check passing
+## Files
 
-The current batch is empty-looking because the data it produced has no measurable values:
+### 1. New: `src/routes/docs.cases.tsx`
+TanStack route at `/docs/cases`. Renders inside `DocsLayout` (auto via file-based nesting under `docs.tsx`). Includes route-specific `head()` metadata (title, description, og:title, og:description).
 
-```text
-Batch: Test
-Runs: 1
-Agent: Power agent
-Case: IEEE4
-Evaluation: not_applicable
-Violation improvement: 0
-Action applied: No action applied
-Reason: No valid structured action was parsed from the recommendation
+Page structure:
+- **H1**: "Test Systems"
+- **Intro**: Explain these are simplified IEEE-style benchmarks used by the in-Worker DC solver and PyPSA service; note the DC-PF assumptions (lossless, flat 1.0 pu voltages, small-angle, greedy merit-order dispatch).
+- **One section per case** (case5, case14, case30), each with:
+  - Origin/background (PJM 5-bus / IEEE 14 from AEP 1962 / IEEE 30 from AEP 1961)
+  - Summary stats card (bus count by type, branch count, generator count, total load MW, total gen capacity MW) — computed at module scope from the imported `CASES` object so numbers stay accurate.
+  - **Buses table**: index, type (slack/PV/PQ), Pd (MW)
+  - **Branches table**: index, from, to, x (pu), rating (MW)
+  - **Generators table**: index, bus, P (MW), P_min, P_max
+- **Engine assumptions** section: bullet list of DC-PF caveats (no reactive, no losses, voltage violations always empty).
+- **Supported actions/perturbations** section: list from `simulation-service/README.md` (scale_all_loads, set_generator_p_mw, line_outage, shed_load; load_scale, line_rating_decrease, generator_outage).
+- **References** section: links to MATPOWER, PyPSA, Illinois ICSEG, plus in-repo pointers (`src/server/simulation/cases.ts`, `simulation-service/README.md`).
+
+Implementation notes:
+- Import `CASES` from `@/server/simulation/cases` (pure data, safe in client bundle — no server-only imports).
+- Build a small `<CaseSection case={CASES.case5} title="case5 — 5-bus" subtitle="..." />` component inside the file to avoid repetition across the three cases.
+- Tables: use plain `<table>` with Tailwind classes that fit the existing `prose prose-invert` styling in `DocsLayout` (small text, border, zebra rows via `even:bg-muted/30`). Wrap each in `<div className="overflow-x-auto">` for mobile.
+- Use `tabular-nums` for numeric columns.
+
+### 2. Edit: `src/components/docs/DocsLayout.tsx`
+Add nav entry for the new page in `docsNav`, between "Architecture" and "Reproducibility":
+```ts
+{ to: "/docs/cases" as const, label: "Test Systems", icon: Cpu, exact: false },
 ```
+Import `Cpu` from `lucide-react`.
 
-There are two practical reasons this produced no usable graph values:
+### 3. Optional cross-links
+Add a one-line "See [Test Systems](/docs/cases)" pointer in `docs.usage.tsx` where presets are first mentioned (low risk, improves discoverability). Skip if it complicates the diff.
 
-1. **`IEEE4` is not a supported simulator case.** The app supports `case5`, `case14`, and `case30` for built-in/simulation-backed results. Perturbation and counterfactual results for this batch also show: no simulator available for `IEEE4`.
-2. **The recommendation was not parsed into a structured action.** The evaluator only produces meaningful improvement/feasibility numbers when the LLM output contains a recognizable action such as:
-   - `scale all loads by 0.90`
-   - `reduce all loads by 10%`
-   - `set generator 1 to 80 MW`
-   - `line outage 6`
+## Verification
+- Visit `/docs/cases` — sidebar highlights "Test Systems", all three cases render with correct counts (5/14/30 buses; 6/20/41 branches; 3/5/6 generators).
+- Tables scroll horizontally on the 1050px viewport without breaking layout.
+- No TS errors from importing `CASES` (it's a const object with explicit `PowerSystemCase` typing).
 
-So the fastest way to get graph results today is:
-
-```text
-Create a new batch with:
-Agents: poweragent, powerfm, gridgpt
-Cases: case5, case14, case30
-Preset/evaluation: simulation
-Prompt/task: Ask each agent to return exactly one supported action, e.g. scale_all_loads or set_generator_p_mw.
-```
-
-That will create multiple completed runs with nonzero or at least measurable values, so the four charts can compare agents and cases.
-
-# Implementation plan to make this reliable
-
-## 1. Make batch runs use the simulator path, not only rule-based scoring
-
-Update run execution so after the LLM response is parsed, it calls the shared evaluator with the run’s configured `evaluation_mode`:
-
-```text
-LLM response → parser → evaluateWithSimulation(parseResult, caseName, evaluationMode)
-```
-
-This ensures batch graphs are based on real simulation-backed outputs when the batch/preset uses `simulation` or `auto`.
-
-## 2. Add batch form controls that guide users toward result-producing batches
-
-On **Create Batch Experiment**:
-
-- Add an **Evaluation Mode** selector with `simulation` as the default.
-- Keep `rule_based` available, but make it explicit that it is heuristic.
-- Validate manually typed benchmark cases before creating the batch.
-- Allow only supported cases for now: `case5`, `case14`, `case30`.
-
-This prevents new batches like `IEEE4` from being created and then producing unusable graph metrics.
-
-## 3. Improve the generated prompt for batch runs
-
-When creating each batch run, store a prompt that explicitly asks for one parser-compatible structured action, for example:
-
-```text
-Return exactly one corrective action using one of these formats:
-- scale all loads by 0.90
-- reduce all loads by 10%
-- set generator 1 to 80 MW
-- line outage 6
-
-Do not only explain; include the exact action sentence.
-```
-
-This directly fixes the current issue where the LLM response could not be parsed, causing `No action applied` and zero graph results.
-
-## 4. Add a “result-producing benchmark batch” helper
-
-Add a button or preset suggestion that creates a reliable demo/research batch:
-
-```text
-Agents: poweragent, powerfm, gridgpt
-Cases: case5, case14, case30
-Evaluation mode: simulation
-Task: robustness/load-scaling comparison
-```
-
-This gives you chart-ready data for debate without manually tuning all fields.
-
-## 5. Keep the charts as real-result charts
-
-Do not replace the charts with empty-state cards. The fix is to make upstream runs produce valid data. The charts will then show:
-
-- violation improvement by agent
-- feasibility rate by agent
-- confidence vs grounding
-- case-level performance
-
-# Expected result
-
-After these changes, creating and executing a supported multi-agent batch should populate the graphs with actual comparative values, instead of zero-height bars from unsupported/unparsed runs.
-
-# Files to update
-
-- `src/server/llm.functions.ts`
-- `src/server/batch.functions.ts`
-- `src/routes/_authenticated/batches.new.tsx`
-- possibly `src/lib/allowed-values.ts` if we want to expand supported cases later
+## Out of scope
+- One-line schematic SVG diagrams (could be added later; would need hand-authored SVG per case).
+- Editing `cases.ts` itself.
+- Adding new cases or changing solver behavior.

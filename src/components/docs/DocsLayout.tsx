@@ -8,6 +8,7 @@ import {
   Repeat,
   LifeBuoy,
   Compass,
+  Cpu,
 } from "lucide-react";
 
 const docsNav = [
@@ -17,6 +18,7 @@ const docsNav = [
   { to: "/docs/usage" as const, label: "Usage", icon: PlayCircle, exact: false },
   { to: "/docs/workflow" as const, label: "Experiment Workflow", icon: Workflow, exact: false },
   { to: "/docs/architecture" as const, label: "Architecture", icon: Network, exact: false },
+  { to: "/docs/cases" as const, label: "Test Systems", icon: Cpu, exact: false },
   { to: "/docs/reproducibility" as const, label: "Reproducibility", icon: Repeat, exact: false },
   { to: "/docs/troubleshooting" as const, label: "Troubleshooting", icon: LifeBuoy, exact: false },
 ];
