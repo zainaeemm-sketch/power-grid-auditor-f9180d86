@@ -12,6 +12,8 @@ import {
   type ReadinessResult,
   type EvaluationPipelineHealth,
 } from "@/server/health.functions";
+import { seedSampleData, type SeedSampleResult } from "@/server/seed-sample.functions";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/health")({
@@ -357,7 +359,77 @@ function HealthPage() {
           )}
         </CardContent>
       </Card>
+
+      <SampleDataCard />
     </main>
+  );
+}
+
+function SampleDataCard() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<SeedSampleResult | null>(null);
+
+  const seed = async () => {
+    setLoading(true);
+    try {
+      const r = await seedSampleData();
+      setResult(r);
+      if (r.ok) {
+        toast.success(r.created ? r.message : "Sample batch already exists.");
+      } else {
+        toast.error(r.message);
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to seed sample data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="mt-6 border-border/40 bg-card/60">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Zap className="h-4 w-4 text-primary" />
+          Sample Data for Dashboards
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Seeds one demo batch with five completed runs across <code className="rounded bg-muted px-1">case14</code> and{" "}
+          <code className="rounded bg-muted px-1">case30</code> so every chart on the Batch and Compare pages shows
+          non-empty results. Idempotent — safe to click multiple times.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={seed} disabled={loading} size="sm">
+            {loading ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Seeding…
+              </>
+            ) : (
+              <>
+                <Zap className="mr-1.5 h-3.5 w-3.5" />
+                Seed sample batch
+              </>
+            )}
+          </Button>
+          {result?.batchId && (
+            <Button asChild size="sm" variant="outline">
+              <Link to="/batches/$batchId" params={{ batchId: result.batchId }}>
+                Open sample batch
+              </Link>
+            </Button>
+          )}
+        </div>
+        {result && (
+          <p className="text-xs text-muted-foreground">
+            {result.message}
+            {result.runIds.length > 0 && ` Created ${result.runIds.length} runs.`}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
