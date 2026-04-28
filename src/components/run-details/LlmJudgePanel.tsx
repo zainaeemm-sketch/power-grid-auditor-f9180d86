@@ -147,33 +147,84 @@ export function LlmJudgePanel({ runId, evaluation }: Props) {
           </div>
         ) : (
           <>
+            {/* Header chips: rubric version + cross-check + aggregate */}
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className={verdictTone(j.verdict)}>
-                Verdict: {j.verdict ?? "—"}
+              <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/10 text-primary">
+                <ClipboardCheck className="h-3 w-3" />
+                Rubric: {RUBRIC_VERSION}
               </Badge>
-              {j.confidence && <Badge variant="outline">Confidence: {j.confidence}</Badge>}
-              {j.reasoning_quality && <Badge variant="outline">Reasoning: {j.reasoning_quality}</Badge>}
-              {j.action_alignment && <Badge variant="outline">Action: {j.action_alignment}</Badge>}
+              {(() => {
+                const { sum, max } = aggregateScore(j);
+                if (max === 0) return null;
+                return (
+                  <Badge variant="outline" className="font-mono">
+                    Score: {sum}/{max}
+                  </Badge>
+                );
+              })()}
               {cc && (
                 <Badge variant="outline" className={cc.tone}>
                   Cross-check: {cc.label}
                 </Badge>
               )}
             </div>
+
+            {/* Per-criterion scores */}
+            <div className="rounded-md border border-border/60 bg-muted/20">
+              <div className="border-b border-border/60 px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                Per-criterion scores
+              </div>
+              <ul className="divide-y divide-border/40">
+                {CRITERIA.map((c) => {
+                  const value = (j as any)[c.key] as string | null;
+                  const { score, tone } = scoreFor(c.key, value);
+                  return (
+                    <li key={c.key} className="flex items-start justify-between gap-3 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground/90">{c.label}</p>
+                        <p className="text-[11px] text-muted-foreground">{c.description}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="outline" className={tone}>
+                          {value ?? "—"}
+                        </Badge>
+                        <span className="w-10 text-right font-mono text-xs text-muted-foreground">
+                          {score != null ? `${score}/3` : "—/3"}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            {/* Rationale */}
             {j.critique && (
-              <p className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm text-foreground/90">
-                {j.critique}
-              </p>
+              <div>
+                <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Judge rationale
+                </p>
+                <p className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm text-foreground/90">
+                  {j.critique}
+                </p>
+              </div>
             )}
             {j.disagreement_reason && (
-              <p className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground/80">Why disagreement:</span>{" "}
-                {j.disagreement_reason}
-              </p>
+              <div>
+                <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Disagreement reason
+                </p>
+                <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-foreground/90">
+                  {j.disagreement_reason}
+                </p>
+              </div>
             )}
+
             <p className="text-[11px] text-muted-foreground">
+              {j.provider ? `Provider: ${j.provider}` : null}
+              {j.provider && j.model ? " · " : null}
               {j.model ? `Model: ${j.model}` : null}
-              {j.model && j.updated_at ? " · " : null}
+              {(j.provider || j.model) && j.updated_at ? " · " : null}
               {j.updated_at ? `Updated ${new Date(j.updated_at).toLocaleString()}` : null}
             </p>
           </>
