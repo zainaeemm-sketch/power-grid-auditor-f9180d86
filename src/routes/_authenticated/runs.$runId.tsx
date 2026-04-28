@@ -68,7 +68,13 @@ function RunDetailPage() {
   const { run, metadata, promptLog, recommendation, parseResult } = details ?? {};
   const navigate = useNavigate();
   const rerunFn = useServerFn(rerunWithSameConfig);
+  const tracesFn = useServerFn(getRunTraces);
+  const judgmentFn = useServerFn(getJudgment);
+  const cfFn = useServerFn(listCounterfactuals);
+  const ptFn = useServerFn(listPerturbationTests);
+  const listRunsFn = useServerFn(listRuns);
   const [rerunning, setRerunning] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   if (!run) {
     return (
