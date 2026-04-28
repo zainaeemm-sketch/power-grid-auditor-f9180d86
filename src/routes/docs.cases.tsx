@@ -190,17 +190,14 @@ const CASE_META: Record<string, CaseMeta> = {
   },
 };
 
-function CaseSection({
-  c,
-  title,
-  origin,
-  meta,
-}: {
-  c: PowerSystemCase;
-  title: string;
-  origin: React.ReactNode;
-  meta: CaseMeta;
-}) {
+type CaseSectionProps = {
+  readonly c: PowerSystemCase;
+  readonly title: string;
+  readonly origin: React.ReactNode;
+  readonly meta: CaseMeta;
+};
+
+function CaseSection({ c, title, origin, meta }: CaseSectionProps) {
   const s = summarize(c);
   return (
     <section className="not-prose mt-10 mb-6">
