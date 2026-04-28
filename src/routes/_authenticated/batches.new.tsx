@@ -71,6 +71,7 @@ function NewBatchPage() {
   const [agentsText, setAgentsText] = useState("");
   const [casesText, setCasesText] = useState(search.cases ?? "");
   const [presetId, setPresetId] = useState<string | undefined>(undefined);
+  const [evaluationMode, setEvaluationMode] = useState<"simulation" | "auto" | "rule_based">("simulation");
 
   const [pendingSuggestion, setPendingSuggestion] = useState<BatchSuggestion | null>(null);
   const [pendingDiff, setPendingDiff] = useState<DiffRow[]>([]);
@@ -79,6 +80,7 @@ function NewBatchPage() {
 
   const agents = agentsText.split(",").map((s) => s.trim()).filter(Boolean);
   const cases = casesText.split(",").map((s) => s.trim()).filter(Boolean);
+  const invalidCases = cases.filter((c) => !isAllowedCase(c));
   const totalRuns = agents.length * cases.length;
 
   const validateSuggestion = (s: BatchSuggestion): { hardError: string | null; softWarning: string | null } => {
