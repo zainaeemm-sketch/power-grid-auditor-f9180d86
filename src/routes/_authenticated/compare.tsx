@@ -51,14 +51,44 @@ export const Route = createFileRoute("/_authenticated/compare")({
 
 function ComparePage() {
   const { runs } = Route.useLoaderData() as { runs: Run[] };
-  const [runAId, setRunAId] = useState<string>("");
-  const [runBId, setRunBId] = useState<string>("");
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: "/_authenticated/compare" });
+  const [runAId, setRunAId] = useState<string>(search.runA);
+  const [runBId, setRunBId] = useState<string>(search.runB);
   const [detailsA, setDetailsA] = useState<RunDetails | null>(null);
   const [detailsB, setDetailsB] = useState<RunDetails | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Sync state when URL search params change (e.g. deep-link or back/forward).
   useEffect(() => {
-    if (!runAId && !runBId) return;
+    setRunAId(search.runA);
+    setRunBId(search.runB);
+  }, [search.runA, search.runB]);
+
+  // Auto-pick first two runs when nothing is specified, so charts populate immediately.
+  useEffect(() => {
+    if (search.runA || search.runB) return;
+    if (runs.length === 0) return;
+    const a = runs[0]?.id ?? "";
+    const b = runs[1]?.id ?? "";
+    if (!a && !b) return;
+    navigate({ search: (prev) => ({ ...prev, runA: a, runB: b }), replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runs.length]);
+
+  const updateRunA = (id: string) => {
+    navigate({ search: (prev) => ({ ...prev, runA: id }), replace: true });
+  };
+  const updateRunB = (id: string) => {
+    navigate({ search: (prev) => ({ ...prev, runB: id }), replace: true });
+  };
+
+  useEffect(() => {
+    if (!runAId && !runBId) {
+      setDetailsA(null);
+      setDetailsB(null);
+      return;
+    }
     setLoading(true);
     Promise.all([
       runAId ? getRunDetails({ data: { runId: runAId } }).catch(() => null) : Promise.resolve(null),
