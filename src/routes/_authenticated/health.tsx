@@ -12,6 +12,8 @@ import {
   type ReadinessResult,
   type EvaluationPipelineHealth,
 } from "@/server/health.functions";
+import { seedSampleData, type SeedSampleResult } from "@/server/seed-sample.functions";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/health")({
