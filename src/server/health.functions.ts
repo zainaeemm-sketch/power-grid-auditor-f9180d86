@@ -312,7 +312,6 @@ export const getEvaluationPipelineHealth = createServerFn({ method: "POST" })
           model,
           messages: [{ role: "user", content: "Reply with the single word: pong" }],
           max_completion_tokens: 256,
-          max_tokens: 256,
         }),
         signal: AbortSignal.timeout(45_000),
       });
