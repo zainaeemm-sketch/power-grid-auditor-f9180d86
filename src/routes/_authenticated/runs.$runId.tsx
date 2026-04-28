@@ -3,12 +3,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@tanstack/react-router";
-import { Download, RotateCw, FileText } from "lucide-react";
+import { Download, RotateCw, FileText, FileDown } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { getRunDetails, rerunWithSameConfig } from "@/server/runs.functions";
+import { getRunDetails, rerunWithSameConfig, listRuns } from "@/server/runs.functions";
+import { getRunTraces } from "@/server/trace.functions";
+import { getJudgment } from "@/server/judge.functions";
+import { listCounterfactuals } from "@/server/counterfactual.functions";
+import { listPerturbationTests } from "@/server/perturbation.functions";
 import type { RunDetails, RunStatus } from "@/types/grid-arena";
 import { exportRunCsv } from "@/lib/csv-export";
+import { exportAuditReportPdf } from "@/lib/pdf-export";
 
 import { RunHeader } from "@/components/run-details/RunHeader";
 import { RunStatusControls } from "@/components/run-details/RunStatusControls";
@@ -63,7 +68,13 @@ function RunDetailPage() {
   const { run, metadata, promptLog, recommendation, parseResult } = details ?? {};
   const navigate = useNavigate();
   const rerunFn = useServerFn(rerunWithSameConfig);
+  const tracesFn = useServerFn(getRunTraces);
+  const judgmentFn = useServerFn(getJudgment);
+  const cfFn = useServerFn(listCounterfactuals);
+  const ptFn = useServerFn(listPerturbationTests);
+  const listRunsFn = useServerFn(listRuns);
   const [rerunning, setRerunning] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   if (!run) {
     return (
@@ -95,6 +106,38 @@ function RunDetailPage() {
     }
   };
 
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    const t = toast.loading("Building audit report…");
+    try {
+      const [tracesRes, judgmentRes, cfRes, ptRes, runsRes] = await Promise.all([
+        tracesFn({ data: { runId: run.id } }).catch(() => ({ traces: [] })),
+        judgmentFn({ data: { runId: run.id } }).catch(() => ({ judgment: null })),
+        cfFn({ data: { runId: run.id } }).catch(() => ({ items: [] as any[] })),
+        ptFn({ data: { runId: run.id } }).catch(() => ({ items: [] as any[] })),
+        listRunsFn().catch(() => ({ runs: [] as any[] })),
+      ]);
+      const parentId = (run as any).parent_run_id as string | null;
+      const related = (runsRes.runs ?? []).filter(
+        (r: any) => r.id !== run.id && (r.id === parentId || r.parent_run_id === run.id || (parentId && r.parent_run_id === parentId)),
+      );
+      exportAuditReportPdf({
+        details,
+        traces: tracesRes.traces ?? [],
+        judgment: judgmentRes.judgment ?? null,
+        counterfactuals: (cfRes as any).items ?? [],
+        perturbations: (ptRes as any).items ?? [],
+        relatedRuns: related,
+        appOrigin: typeof window !== "undefined" ? window.location.origin : "",
+      });
+      toast.success("Audit report downloaded", { id: t });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to export PDF", { id: t });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <RunHeader run={run} />
@@ -114,6 +157,10 @@ function RunDetailPage() {
           <Button variant="outline" size="sm" onClick={() => exportRunCsv(details)}>
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Export Run CSV
+          </Button>
+          <Button variant="default" size="sm" onClick={handleExportPdf} disabled={exportingPdf}>
+            <FileDown className={`mr-1.5 h-3.5 w-3.5 ${exportingPdf ? "animate-pulse" : ""}`} />
+            {exportingPdf ? "Building PDF…" : "Export PDF Audit Report"}
           </Button>
         </div>
       </div>
