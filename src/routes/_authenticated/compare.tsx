@@ -52,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/compare")({
 function ComparePage() {
   const { runs } = Route.useLoaderData() as { runs: Run[] };
   const search = Route.useSearch();
-  const navigate = useNavigate({ from: "/_authenticated/compare" });
+  const navigate = useNavigate();
   const [runAId, setRunAId] = useState<string>(search.runA);
   const [runBId, setRunBId] = useState<string>(search.runB);
   const [detailsA, setDetailsA] = useState<RunDetails | null>(null);
