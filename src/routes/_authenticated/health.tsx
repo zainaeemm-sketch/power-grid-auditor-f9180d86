@@ -131,7 +131,25 @@ function HealthPage() {
     }
   };
 
-  const refresh = async () => {
+  const runEvalHealth = async () => {
+    setEvalHealthLoading(true);
+    try {
+      const r = await getEvaluationPipelineHealth();
+      setEvalHealth(r);
+    } catch (err: any) {
+      setEvalHealth({
+        ok: false,
+        status: "fail",
+        secrets: { hasApiKey: false, hasBaseUrl: false, hasModel: false },
+        llm_ping: { attempted: false, ok: false, http_status: null, latency_ms: null, model: null, error: err?.message ?? "Unknown error" },
+        simulator: { state: "fallback", url: null, latency_ms: null, error: err?.message ?? null, health_status: null, simulate_status: null, simulate_error: null, simulate_body: null },
+        notes: "Server function call failed",
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setEvalHealthLoading(false);
+    }
+  };
     setLoading(true);
     setError(null);
     try {
