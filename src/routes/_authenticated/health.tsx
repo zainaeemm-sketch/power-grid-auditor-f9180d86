@@ -72,6 +72,8 @@ function HealthPage() {
   const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [history, setHistory] = useState<ReadinessHistoryEntry[]>([]);
+  const [evalHealth, setEvalHealth] = useState<EvaluationPipelineHealth | null>(null);
+  const [evalHealthLoading, setEvalHealthLoading] = useState(false);
 
   useEffect(() => {
     setHistory(loadHistory());
