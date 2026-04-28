@@ -310,9 +310,9 @@ export const getEvaluationPipelineHealth = createServerFn({ method: "POST" })
         },
         body: JSON.stringify({
           model,
-          messages: [{ role: "user", content: "ping" }],
-          max_tokens: 1,
-          temperature: 0,
+          messages: [{ role: "user", content: "Reply with the single word: pong" }],
+          max_completion_tokens: 256,
+          max_tokens: 256,
         }),
         signal: AbortSignal.timeout(15_000),
       });
