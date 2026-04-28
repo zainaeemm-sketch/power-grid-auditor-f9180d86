@@ -158,6 +158,10 @@ function RunDetailPage() {
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Export Run CSV
           </Button>
+          <Button variant="default" size="sm" onClick={handleExportPdf} disabled={exportingPdf}>
+            <FileDown className={`mr-1.5 h-3.5 w-3.5 ${exportingPdf ? "animate-pulse" : ""}`} />
+            {exportingPdf ? "Building PDF…" : "Export PDF Audit Report"}
+          </Button>
         </div>
       </div>
 
