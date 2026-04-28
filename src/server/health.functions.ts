@@ -372,7 +372,7 @@ export const getEvaluationPipelineHealth = createServerFn({ method: "POST" })
           http_status,
           latency_ms,
           model,
-          error: isTimeout ? "LLM ping timed out after 15s" : err?.message ?? "Network error",
+          error: isTimeout ? "LLM ping timed out after 45s" : err?.message ?? "Network error",
         },
         simulator,
         notes: "Could not reach the LLM provider from the server.",
