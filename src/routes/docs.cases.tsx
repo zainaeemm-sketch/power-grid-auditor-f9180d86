@@ -190,6 +190,20 @@ const CASE_META: Record<string, CaseMeta> = {
   },
 };
 
+if (import.meta.env.DEV) {
+  for (const [key, meta] of Object.entries(CASE_META)) {
+    const issues: string[] = [];
+    if (!meta.dataset_version?.trim()) issues.push("dataset_version");
+    if (!meta.standardized?.length) issues.push("standardized notes");
+    if (!meta.simplified?.length) issues.push("simplified notes");
+    if (issues.length > 0) {
+      console.warn(
+        `[docs/cases] CASE_META.${key} is missing required fields: ${issues.join(", ")}`,
+      );
+    }
+  }
+}
+
 type CaseSectionProps = {
   readonly c: PowerSystemCase;
   readonly title: string;
