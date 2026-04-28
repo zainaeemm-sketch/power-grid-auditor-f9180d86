@@ -314,7 +314,7 @@ export const getEvaluationPipelineHealth = createServerFn({ method: "POST" })
           max_completion_tokens: 256,
           max_tokens: 256,
         }),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(45_000),
       });
       const latency_ms = Math.round(performance.now() - start);
       http_status = res.status;
