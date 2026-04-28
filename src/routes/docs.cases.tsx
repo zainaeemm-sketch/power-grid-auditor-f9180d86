@@ -132,7 +132,19 @@ function CaseSection({
   const s = summarize(c);
   return (
     <section className="not-prose mt-10 mb-6">
-      <h2 className="mb-2 text-xl font-semibold text-foreground">{title}</h2>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => exportCaseCsv(c)}>
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            CSV
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => exportCaseJson(c)}>
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            JSON
+          </Button>
+        </div>
+      </div>
       <p className="my-3 leading-relaxed text-muted-foreground">{origin}</p>
 
       <div className="my-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
