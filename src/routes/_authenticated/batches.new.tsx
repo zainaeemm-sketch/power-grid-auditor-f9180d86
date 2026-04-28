@@ -282,13 +282,44 @@ function NewBatchPage() {
               onChange={(e) => setCasesText(e.target.value)}
               placeholder="e.g. case5, case14, case30"
             />
+            <p className="text-xs text-muted-foreground">
+              Supported cases: {ALLOWED_CASES.join(", ")}. Other names will not produce simulator-backed results.
+            </p>
             {cases.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {cases.map((c) => (
-                  <span key={c} className="rounded-full bg-accent px-2 py-0.5 text-xs">{c}</span>
-                ))}
+                {cases.map((c) => {
+                  const ok = isAllowedCase(c);
+                  return (
+                    <span
+                      key={c}
+                      className={`rounded-full px-2 py-0.5 text-xs ${ok ? "bg-accent" : "bg-destructive/15 text-destructive"}`}
+                      title={ok ? "" : "Unsupported case"}
+                    >
+                      {c}{ok ? "" : " ⚠"}
+                    </span>
+                  );
+                })}
               </div>
             )}
+            {invalidCases.length > 0 && (
+              <p className="text-xs text-destructive">
+                Unsupported: {invalidCases.join(", ")}. Remove these to enable simulation results.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Evaluation mode</Label>
+            <Select value={evaluationMode} onValueChange={(v) => setEvaluationMode(v as typeof evaluationMode)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="simulation">Simulation (recommended — populates result charts)</SelectItem>
+                <SelectItem value="auto">Auto (simulator if available, else heuristic)</SelectItem>
+                <SelectItem value="rule_based">Rule-based (heuristic only — most charts will be empty)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
