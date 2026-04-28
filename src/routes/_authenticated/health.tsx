@@ -150,6 +150,8 @@ function HealthPage() {
       setEvalHealthLoading(false);
     }
   };
+
+  const refresh = async () => {
     setLoading(true);
     setError(null);
     try {
