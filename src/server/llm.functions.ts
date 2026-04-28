@@ -327,10 +327,10 @@ export const executeRunLlm = createServerFn({ method: "POST" })
     let evaluationResult = null;
     const evalStart = Date.now();
     try {
-      const { applyParsedAction, computeEvaluation } = await import("./evaluation.functions");
+      const { evaluateWithSimulation } = await import("./evaluation.functions");
       const fullParseResult = { ...parseResult, id: "", run_id: runId, created_at: "", updated_at: "" };
-      const actionResult = applyParsedAction(fullParseResult as any);
-      const evalFields: any = computeEvaluation(fullParseResult as any, actionResult);
+      const evalMode = (metadata?.evaluation_mode as "rule_based" | "simulation" | "auto") || "auto";
+      const evalFields: any = await evaluateWithSimulation(fullParseResult as any, run.case_name ?? "", evalMode);
 
       // Ground-truth comparison (optional — only when run has ground_truth_scenario_id)
       const gtScenarioId = (run as any).ground_truth_scenario_id as string | null | undefined;
