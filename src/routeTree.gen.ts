@@ -21,6 +21,7 @@ import { Route as DocsWorkflowRouteImport } from './routes/docs.workflow'
 import { Route as DocsUsageRouteImport } from './routes/docs.usage'
 import { Route as DocsTroubleshootingRouteImport } from './routes/docs.troubleshooting'
 import { Route as DocsReproducibilityRouteImport } from './routes/docs.reproducibility'
+import { Route as DocsLandscapeRouteImport } from './routes/docs.landscape'
 import { Route as DocsInstallationRouteImport } from './routes/docs.installation'
 import { Route as DocsArchitectureRouteImport } from './routes/docs.architecture'
 import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
@@ -103,6 +104,11 @@ const DocsTroubleshootingRoute = DocsTroubleshootingRouteImport.update({
 const DocsReproducibilityRoute = DocsReproducibilityRouteImport.update({
   id: '/reproducibility',
   path: '/reproducibility',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsLandscapeRoute = DocsLandscapeRouteImport.update({
+  id: '/landscape',
+  path: '/landscape',
   getParentRoute: () => DocsRoute,
 } as any)
 const DocsInstallationRoute = DocsInstallationRouteImport.update({
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
   '/docs/installation': typeof DocsInstallationRoute
+  '/docs/landscape': typeof DocsLandscapeRoute
   '/docs/reproducibility': typeof DocsReproducibilityRoute
   '/docs/troubleshooting': typeof DocsTroubleshootingRoute
   '/docs/usage': typeof DocsUsageRoute
@@ -289,6 +296,7 @@ export interface FileRoutesByTo {
   '/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
   '/docs/installation': typeof DocsInstallationRoute
+  '/docs/landscape': typeof DocsLandscapeRoute
   '/docs/reproducibility': typeof DocsReproducibilityRoute
   '/docs/troubleshooting': typeof DocsTroubleshootingRoute
   '/docs/usage': typeof DocsUsageRoute
@@ -328,6 +336,7 @@ export interface FileRoutesById {
   '/_authenticated/validation': typeof AuthenticatedValidationRoute
   '/docs/architecture': typeof DocsArchitectureRoute
   '/docs/installation': typeof DocsInstallationRoute
+  '/docs/landscape': typeof DocsLandscapeRoute
   '/docs/reproducibility': typeof DocsReproducibilityRoute
   '/docs/troubleshooting': typeof DocsTroubleshootingRoute
   '/docs/usage': typeof DocsUsageRoute
@@ -367,6 +376,7 @@ export interface FileRouteTypes {
     | '/validation'
     | '/docs/architecture'
     | '/docs/installation'
+    | '/docs/landscape'
     | '/docs/reproducibility'
     | '/docs/troubleshooting'
     | '/docs/usage'
@@ -401,6 +411,7 @@ export interface FileRouteTypes {
     | '/validation'
     | '/docs/architecture'
     | '/docs/installation'
+    | '/docs/landscape'
     | '/docs/reproducibility'
     | '/docs/troubleshooting'
     | '/docs/usage'
@@ -439,6 +450,7 @@ export interface FileRouteTypes {
     | '/_authenticated/validation'
     | '/docs/architecture'
     | '/docs/installation'
+    | '/docs/landscape'
     | '/docs/reproducibility'
     | '/docs/troubleshooting'
     | '/docs/usage'
@@ -553,6 +565,13 @@ declare module '@tanstack/react-router' {
       path: '/reproducibility'
       fullPath: '/docs/reproducibility'
       preLoaderRoute: typeof DocsReproducibilityRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/landscape': {
+      id: '/docs/landscape'
+      path: '/landscape'
+      fullPath: '/docs/landscape'
+      preLoaderRoute: typeof DocsLandscapeRouteImport
       parentRoute: typeof DocsRoute
     }
     '/docs/installation': {
@@ -801,6 +820,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 interface DocsRouteChildren {
   DocsArchitectureRoute: typeof DocsArchitectureRoute
   DocsInstallationRoute: typeof DocsInstallationRoute
+  DocsLandscapeRoute: typeof DocsLandscapeRoute
   DocsReproducibilityRoute: typeof DocsReproducibilityRoute
   DocsTroubleshootingRoute: typeof DocsTroubleshootingRoute
   DocsUsageRoute: typeof DocsUsageRoute
@@ -811,6 +831,7 @@ interface DocsRouteChildren {
 const DocsRouteChildren: DocsRouteChildren = {
   DocsArchitectureRoute: DocsArchitectureRoute,
   DocsInstallationRoute: DocsInstallationRoute,
+  DocsLandscapeRoute: DocsLandscapeRoute,
   DocsReproducibilityRoute: DocsReproducibilityRoute,
   DocsTroubleshootingRoute: DocsTroubleshootingRoute,
   DocsUsageRoute: DocsUsageRoute,
