@@ -359,6 +359,8 @@ function HealthPage() {
           )}
         </CardContent>
       </Card>
+
+      <SampleDataCard />
     </main>
   );
 }
