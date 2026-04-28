@@ -182,6 +182,13 @@ export const createBatch = createServerFn({ method: "POST" })
             case_name: caseName,
           });
         // Create metadata and prompt log (Phase 7 — full snapshot)
+        const evalMode = data.evaluation_mode ?? "simulation";
+        const presetPrompt = presetData?.system_prompt || presetData?.default_prompt_text || null;
+        const promptText = `${ACTION_FORMAT_INSTRUCTIONS}
+
+Case: ${caseName}
+Task: ${data.task}${data.research_question ? `\nResearch question: ${data.research_question}` : ""}${presetPrompt ? `\n\nAdditional guidance:\n${presetPrompt}` : ""}`;
+
         if (presetData) {
           await (supabase as any).from("run_metadata").insert({
             run_id: run.id,
@@ -200,19 +207,17 @@ export const createBatch = createServerFn({ method: "POST" })
             prompt_template_version: presetData.prompt_template_version ?? null,
             parser_version: presetData.parser_version ?? "v1",
             evaluation_logic_version: presetData.evaluation_logic_version ?? "v1",
-          });
-          await supabase.from("run_prompt_logs").insert({
-            run_id: run.id,
-            prompt_text: presetData.system_prompt || presetData.default_prompt_text || null,
+            evaluation_mode: evalMode,
           });
         } else {
           await (supabase as any).from("run_metadata").insert({
             run_id: run.id,
             parser_version: "v1",
             evaluation_logic_version: "v1",
+            evaluation_mode: evalMode,
           });
-          await supabase.from("run_prompt_logs").insert({ run_id: run.id });
         }
+        await supabase.from("run_prompt_logs").insert({ run_id: run.id, prompt_text: promptText });
 
         // Create empty recommendation
         await (supabase as any).from("run_recommendations").insert({ run_id: run.id });
