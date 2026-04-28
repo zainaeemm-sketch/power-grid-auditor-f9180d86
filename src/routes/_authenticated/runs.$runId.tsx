@@ -106,6 +106,38 @@ function RunDetailPage() {
     }
   };
 
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    const t = toast.loading("Building audit report…");
+    try {
+      const [tracesRes, judgmentRes, cfRes, ptRes, runsRes] = await Promise.all([
+        tracesFn({ data: { runId: run.id } }).catch(() => ({ traces: [] })),
+        judgmentFn({ data: { runId: run.id } }).catch(() => ({ judgment: null })),
+        cfFn({ data: { runId: run.id } }).catch(() => ({ items: [] as any[] })),
+        ptFn({ data: { runId: run.id } }).catch(() => ({ items: [] as any[] })),
+        listRunsFn().catch(() => ({ runs: [] as any[] })),
+      ]);
+      const parentId = (run as any).parent_run_id as string | null;
+      const related = (runsRes.runs ?? []).filter(
+        (r: any) => r.id !== run.id && (r.id === parentId || r.parent_run_id === run.id || (parentId && r.parent_run_id === parentId)),
+      );
+      exportAuditReportPdf({
+        details,
+        traces: tracesRes.traces ?? [],
+        judgment: judgmentRes.judgment ?? null,
+        counterfactuals: (cfRes as any).items ?? [],
+        perturbations: (ptRes as any).items ?? [],
+        relatedRuns: related,
+        appOrigin: typeof window !== "undefined" ? window.location.origin : "",
+      });
+      toast.success("Audit report downloaded", { id: t });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to export PDF", { id: t });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <RunHeader run={run} />
