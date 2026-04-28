@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TopologyDiagram } from "@/components/docs/TopologyDiagram";
 import { CASES } from "@/server/simulation/cases";
 import type { PowerSystemCase } from "@/server/simulation/types";
 
@@ -160,6 +161,9 @@ function CaseSection({
           value={`${fmt(((s.totalCap - s.totalLoad) / Math.max(s.totalLoad, 1)) * 100, 0)}%`}
         />
       </div>
+
+      <h3 className="mb-2 mt-5 text-base font-semibold text-foreground">Topology</h3>
+      <TopologyDiagram c={c} />
 
       <h3 className="mb-2 mt-5 text-base font-semibold text-foreground">Buses</h3>
       <div className="overflow-x-auto rounded-md border border-border">
