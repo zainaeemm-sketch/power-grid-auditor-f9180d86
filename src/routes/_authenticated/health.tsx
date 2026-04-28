@@ -166,6 +166,7 @@ function HealthPage() {
 
   useEffect(() => {
     refresh();
+    runEvalHealth();
   }, []);
 
   const exportAvailable = typeof Blob !== "undefined" && typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
