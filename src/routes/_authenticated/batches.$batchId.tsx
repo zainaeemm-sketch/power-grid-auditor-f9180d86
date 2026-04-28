@@ -38,6 +38,7 @@ import {
 } from "recharts";
 import { BatchSensitivitySection } from "@/components/batch/BatchSensitivitySection";
 import { BatchCounterfactualSection } from "@/components/batch/BatchCounterfactualSection";
+import { ChartReadinessCheck } from "@/components/charts/ChartReadinessCheck";
 import { normalizeCaseName } from "@/lib/case-normalize";
 import {
   classifyCounterfactual,
@@ -1016,6 +1017,8 @@ function BatchDetailPage() {
       )}
 
       {/* Charts */}
+      <ChartReadinessCheck runs={runs} hideWhenAllReady />
+
       {agentStats.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Violation Improvement by Agent */}
