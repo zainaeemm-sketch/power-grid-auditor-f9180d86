@@ -6,9 +6,11 @@ import { useEffect, useState } from "react";
 import {
   getHealthStatus,
   runProductionReadinessCheck,
+  getEvaluationPipelineHealth,
   READINESS_PAYLOAD,
   type HealthStatus,
   type ReadinessResult,
+  type EvaluationPipelineHealth,
 } from "@/server/health.functions";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -70,6 +72,8 @@ function HealthPage() {
   const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [history, setHistory] = useState<ReadinessHistoryEntry[]>([]);
+  const [evalHealth, setEvalHealth] = useState<EvaluationPipelineHealth | null>(null);
+  const [evalHealthLoading, setEvalHealthLoading] = useState(false);
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -127,6 +131,26 @@ function HealthPage() {
     }
   };
 
+  const runEvalHealth = async () => {
+    setEvalHealthLoading(true);
+    try {
+      const r = await getEvaluationPipelineHealth();
+      setEvalHealth(r);
+    } catch (err: any) {
+      setEvalHealth({
+        ok: false,
+        status: "fail",
+        secrets: { hasApiKey: false, hasBaseUrl: false, hasModel: false },
+        llm_ping: { attempted: false, ok: false, http_status: null, latency_ms: null, model: null, error: err?.message ?? "Unknown error" },
+        simulator: { state: "fallback", url: null, latency_ms: null, error: err?.message ?? null, health_status: null, simulate_status: null, simulate_error: null, simulate_body: null },
+        notes: "Server function call failed",
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setEvalHealthLoading(false);
+    }
+  };
+
   const refresh = async () => {
     setLoading(true);
     setError(null);
@@ -142,6 +166,7 @@ function HealthPage() {
 
   useEffect(() => {
     refresh();
+    runEvalHealth();
   }, []);
 
   const exportAvailable = typeof Blob !== "undefined" && typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
@@ -256,6 +281,80 @@ function HealthPage() {
           {readiness && <ReadinessPanel result={readiness} />}
 
           <ReadinessHistoryChart history={history} onClear={clearHistory} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6 border-border/40 bg-card/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Zap className="h-4 w-4 text-primary" />
+            Evaluation Pipeline Health
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Verifies that LLM calls used by evaluations run server-side with stored secrets
+            (<code className="rounded bg-muted px-1">OPENAI_API_KEY</code>,{" "}
+            <code className="rounded bg-muted px-1">OPENAI_BASE_URL</code>) — no frontend keys —
+            and pings the provider end-to-end.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Button onClick={runEvalHealth} disabled={evalHealthLoading} size="sm">
+              {evalHealthLoading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Pinging LLM…
+                </>
+              ) : (
+                <>
+                  <Zap className="mr-1.5 h-3.5 w-3.5" />
+                  Run live LLM ping
+                </>
+              )}
+            </Button>
+          </div>
+
+          {evalHealth && (
+            <div className="space-y-2">
+              <CheckRow
+                ok={evalHealth.secrets.hasApiKey}
+                label="Server-side OPENAI_API_KEY"
+                detail={evalHealth.secrets.hasApiKey ? "Stored as server secret (never exposed to frontend)" : "Missing — evaluations cannot call the LLM"}
+              />
+              <CheckRow
+                ok={evalHealth.secrets.hasBaseUrl}
+                warn={!evalHealth.secrets.hasBaseUrl}
+                label="Server-side OPENAI_BASE_URL"
+                detail={evalHealth.secrets.hasBaseUrl ? "Configured" : "Optional — defaults to https://api.openai.com/v1"}
+              />
+              <CheckRow
+                ok={evalHealth.llm_ping.ok}
+                warn={evalHealth.llm_ping.attempted && !evalHealth.llm_ping.ok}
+                label="Live LLM chat-completion ping"
+                detail={
+                  evalHealth.llm_ping.attempted
+                    ? evalHealth.llm_ping.ok
+                      ? `OK — ${evalHealth.llm_ping.model} responded in ${evalHealth.llm_ping.latency_ms} ms (HTTP ${evalHealth.llm_ping.http_status})`
+                      : `Failed — ${evalHealth.llm_ping.error ?? "unknown error"}`
+                    : "Skipped (missing secrets)"
+                }
+              />
+              <CheckRow
+                ok={evalHealth.simulator.state === "active"}
+                warn={evalHealth.simulator.state === "fallback"}
+                label="Evaluation simulator"
+                detail={
+                  evalHealth.simulator.state === "active"
+                    ? `Active (${evalHealth.simulator.latency_ms} ms)`
+                    : "Fallback → DC PF (reduced fidelity)"
+                }
+              />
+              <p className="pt-2 text-xs text-muted-foreground">{evalHealth.notes}</p>
+              <p className="text-[11px] text-muted-foreground">
+                Last checked: {new Date(evalHealth.timestamp).toLocaleString()}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </main>
