@@ -432,6 +432,8 @@ function SampleDataCard() {
     </Card>
   );
 }
+
+function ReadinessHistoryChart({
   history,
   onClear,
 }: {
