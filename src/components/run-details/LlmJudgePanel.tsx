@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Gavel, RefreshCw, AlertTriangle } from "lucide-react";
+import { Gavel, RefreshCw, AlertTriangle, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import { getJudgment, judgeRun, type RunLlmJudgment } from "@/server/judge.functions";
 import type { RunEvaluation } from "@/types/grid-arena";
