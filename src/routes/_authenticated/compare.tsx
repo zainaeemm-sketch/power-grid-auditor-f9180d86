@@ -72,15 +72,15 @@ function ComparePage() {
     const a = runs[0]?.id ?? "";
     const b = runs[1]?.id ?? "";
     if (!a && !b) return;
-    navigate({ search: (prev) => ({ ...prev, runA: a, runB: b }), replace: true });
+    navigate({ to: "/compare", search: { runA: a, runB: b, extra: search.extra }, replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runs.length]);
 
   const updateRunA = (id: string) => {
-    navigate({ search: (prev) => ({ ...prev, runA: id }), replace: true });
+    navigate({ to: "/compare", search: { runA: id, runB: search.runB, extra: search.extra }, replace: true });
   };
   const updateRunB = (id: string) => {
-    navigate({ search: (prev) => ({ ...prev, runB: id }), replace: true });
+    navigate({ to: "/compare", search: { runA: search.runA, runB: id, extra: search.extra }, replace: true });
   };
 
   useEffect(() => {
