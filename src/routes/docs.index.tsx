@@ -32,6 +32,7 @@ function DocsOverview() {
 
       <h2>Where to start</h2>
       <ul>
+        <li><Link to="/docs/landscape">LLM Tools Landscape (2025–2026)</Link> — survey of 24 LLM tools for power-system operations, comparison-at-a-glance table, and how GridArena fits in.</li>
         <li><Link to="/docs/installation">Installation</Link> — how the platform is wired and what to configure.</li>
         <li><Link to="/docs/usage">Usage</Link> — sign in, create runs, manage presets and batches.</li>
         <li><Link to="/docs/workflow">Experiment Workflow</Link> — the full lifecycle from prompt to evaluation.</li>

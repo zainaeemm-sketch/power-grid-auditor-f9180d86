@@ -7,10 +7,12 @@ import {
   Network,
   Repeat,
   LifeBuoy,
+  Compass,
 } from "lucide-react";
 
 const docsNav = [
   { to: "/docs" as const, label: "Overview", icon: BookOpen, exact: true },
+  { to: "/docs/landscape" as const, label: "LLM Tools Landscape", icon: Compass, exact: false },
   { to: "/docs/installation" as const, label: "Installation", icon: Download, exact: false },
   { to: "/docs/usage" as const, label: "Usage", icon: PlayCircle, exact: false },
   { to: "/docs/workflow" as const, label: "Experiment Workflow", icon: Workflow, exact: false },
