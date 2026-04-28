@@ -173,6 +173,10 @@ function NewBatchPage() {
       toast.error("Please fill in name, task, agents, and cases.");
       return;
     }
+    if (invalidCases.length > 0) {
+      toast.error(`Unsupported case(s): ${invalidCases.join(", ")}. Allowed: ${ALLOWED_CASES.join(", ")}.`);
+      return;
+    }
     setSubmitting(true);
     try {
       const { batch } = await createBatch({
@@ -183,6 +187,7 @@ function NewBatchPage() {
           agents,
           cases,
           preset_id: presetId,
+          evaluation_mode: evaluationMode,
         },
       });
       toast.success(`Batch created with ${totalRuns} runs`);
