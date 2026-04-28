@@ -1017,6 +1017,8 @@ function BatchDetailPage() {
       )}
 
       {/* Charts */}
+      <ChartReadinessCheck runs={runs} hideWhenAllReady />
+
       {agentStats.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Violation Improvement by Agent */}
