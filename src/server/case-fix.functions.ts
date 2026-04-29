@@ -32,6 +32,20 @@ export type CaseMetaOverrideRow = {
   updated_at: string;
 };
 
+export type CaseMetaOverrideAuditRow = {
+  id: string;
+  override_id: string | null;
+  case_key: string;
+  field: string;
+  action: "accept" | "revert";
+  source: "ai_suggested" | "manual" | null;
+  previous_value: JsonValue | null;
+  new_value: JsonValue | null;
+  ai_model: string | null;
+  ai_rationale: string | null;
+  created_at: string;
+};
+
 /* ------------------------------------------------------- in-memory rate limit
  * Per-user token bucket: 20 suggest calls per rolling 60 s window.
  * Server functions in this codebase run inside a long-lived Worker, so a
@@ -243,6 +257,17 @@ export const acceptCaseMetaFix = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => AcceptInput.parse(input))
   .handler(async ({ data, context }): Promise<CaseMetaOverrideRow> => {
+    // Read the previous override (if any) BEFORE the upsert so we can record
+    // the value transition in the audit log. RLS scopes this to the user.
+    const { data: prevRow } = await context.supabase
+      .from("case_meta_overrides")
+      .select("value")
+      .eq("user_id", context.userId)
+      .eq("case_key", data.caseKey)
+      .eq("field", data.field)
+      .maybeSingle();
+    const previousValue = (prevRow?.value ?? null) as JsonValue | null;
+
     const row = {
       user_id: context.userId,
       case_key: data.caseKey,
@@ -259,6 +284,25 @@ export const acceptCaseMetaFix = createServerFn({ method: "POST" })
       .select("id, case_key, field, value, source, ai_rationale, ai_model, created_at, updated_at")
       .single();
     if (error) throw new Error(error.message);
+
+    // Append-only audit entry. Best-effort: a failed audit insert must not
+    // mask a successful override write. We surface to server logs only.
+    const { error: auditErr } = await context.supabase
+      .from("case_meta_override_audit")
+      .insert({
+        user_id: context.userId,
+        override_id: (result as CaseMetaOverrideRow).id,
+        case_key: data.caseKey,
+        field: data.field,
+        action: "accept",
+        source: data.source,
+        previous_value: previousValue as never,
+        new_value: data.value as never,
+        ai_model: data.model ?? null,
+        ai_rationale: data.rationale ?? null,
+      } as never);
+    if (auditErr) console.warn("audit insert (accept) failed:", auditErr.message);
+
     return result as CaseMetaOverrideRow;
   });
 
@@ -280,11 +324,66 @@ export const revertCaseMetaOverride = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders, requireSupabaseAuth])
   .inputValidator((input: unknown) => RevertInput.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    // Capture the row's snapshot for the audit trail before deletion.
+    const { data: prevRow } = await context.supabase
+      .from("case_meta_overrides")
+      .select("id, case_key, field, value, source, ai_rationale, ai_model")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
     const { error } = await context.supabase
       .from("case_meta_overrides")
       .delete()
       .eq("id", data.id)
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
+
+    if (prevRow) {
+      const { error: auditErr } = await context.supabase
+        .from("case_meta_override_audit")
+        .insert({
+          user_id: context.userId,
+          override_id: null, // row no longer exists
+          case_key: prevRow.case_key,
+          field: prevRow.field,
+          action: "revert",
+          source: prevRow.source,
+          previous_value: prevRow.value as never,
+          new_value: null,
+          ai_model: prevRow.ai_model,
+          ai_rationale: prevRow.ai_rationale,
+        } as never);
+      if (auditErr) console.warn("audit insert (revert) failed:", auditErr.message);
+    }
+
     return { ok: true };
   });
+
+const ListAuditInput = z
+  .object({
+    caseKey: z.string().min(1).max(64).optional(),
+    field: z.string().min(1).max(64).optional(),
+    limit: z.number().int().min(1).max(200).default(50),
+  })
+  .default({ limit: 50 });
+
+export const listCaseMetaOverrideAudit = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: unknown) => ListAuditInput.parse(input ?? {}))
+  .handler(async ({ data, context }): Promise<CaseMetaOverrideAuditRow[]> => {
+    let q = context.supabase
+      .from("case_meta_override_audit")
+      .select(
+        "id, override_id, case_key, field, action, source, previous_value, new_value, ai_model, ai_rationale, created_at",
+      )
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+    if (data.caseKey) q = q.eq("case_key", data.caseKey);
+    if (data.field) q = q.eq("field", data.field);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as CaseMetaOverrideAuditRow[];
+  });
+

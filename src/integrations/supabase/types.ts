@@ -151,6 +151,51 @@ export type Database = {
         }
         Relationships: []
       }
+      case_meta_override_audit: {
+        Row: {
+          action: string
+          ai_model: string | null
+          ai_rationale: string | null
+          case_key: string
+          created_at: string
+          field: string
+          id: string
+          new_value: Json | null
+          override_id: string | null
+          previous_value: Json | null
+          source: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          ai_model?: string | null
+          ai_rationale?: string | null
+          case_key: string
+          created_at?: string
+          field: string
+          id?: string
+          new_value?: Json | null
+          override_id?: string | null
+          previous_value?: Json | null
+          source?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          ai_model?: string | null
+          ai_rationale?: string | null
+          case_key?: string
+          created_at?: string
+          field?: string
+          id?: string
+          new_value?: Json | null
+          override_id?: string | null
+          previous_value?: Json | null
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       case_meta_overrides: {
         Row: {
           ai_model: string | null
