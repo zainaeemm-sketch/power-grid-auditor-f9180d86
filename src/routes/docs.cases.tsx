@@ -1525,7 +1525,7 @@ function CasesPage() {
   return (
     <>
       <h1>Test Systems</h1>
-      <CaseMetaDevPanel />
+      {import.meta.env.DEV && <CaseMetaDevPanel />}
 
       <h2 id="exporting-invalid-items">Exporting invalid items</h2>
       <p>
