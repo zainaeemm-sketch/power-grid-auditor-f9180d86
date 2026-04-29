@@ -1133,15 +1133,37 @@ function CaseMetaDevPanel() {
           </button>
         </span>
         <div className="ml-auto flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => exportIssues(filtered, filter, "json")}
-            disabled={filtered.length === 0}
-            className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Download filtered issues as JSON"
+          <label
+            className="flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40"
+            title="Download a JSON file of the filtered issues, choosing whether to include all rows, only errors, or only warnings"
           >
-            Export JSON
-          </button>
+            <span>Export JSON:</span>
+            <select
+              aria-label="Export JSON scope"
+              disabled={filtered.length === 0}
+              value=""
+              onChange={(e) => {
+                const v = e.target.value as ExportScope | "";
+                if (v === "") return;
+                setPreview({ scope: v, format: "json" });
+                e.target.value = "";
+              }}
+              className="cursor-pointer rounded border border-amber-500/30 bg-amber-500/10 px-1 py-px text-[11px] font-medium text-amber-100 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed"
+            >
+              <option value="" disabled>
+                Choose scope…
+              </option>
+              <option value="all" disabled={filtered.length === 0}>
+                All ({viewTotals.errors + viewTotals.warnings})
+              </option>
+              <option value="errors" disabled={viewTotals.errors === 0}>
+                Errors only ({viewTotals.errors})
+              </option>
+              <option value="warnings" disabled={viewTotals.warnings === 0}>
+                Warnings only ({viewTotals.warnings})
+              </option>
+            </select>
+          </label>
           <label
             className="flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40"
             title="Download a CSV of the filtered issues, choosing whether to include all rows, only errors, or only warnings"
