@@ -199,7 +199,64 @@ function WorkflowPage() {
         wrong tool selection, misparsed solver output, or flawed final reasoning.
       </p>
 
-      <h2>11. Curating your dashboards</h2>
+      <h2 id="ai-assisted-fixes">12. AI-assisted fixes (metadata loop)</h2>
+      <p>
+        The pipeline above operates on <em>curated</em> benchmark metadata —{" "}
+        <code>dataset_version</code>, <code>source_url</code>, <code>last_reviewed</code>,{" "}
+        <code>prompt_version</code>, <code>random_seed</code>, and the standardized/simplified
+        notes documented per case. To keep that metadata trustworthy as the dataset evolves,
+        GridArena runs a parallel <strong>AI-assisted fix loop</strong> outside the run pipeline,
+        rendered on <a href="/docs/cases#ai-suggestions">/docs/cases</a> and diagrammed in the{" "}
+        <a href="/docs/architecture#validation-feedback">validation feedback loop</a>.
+      </p>
+
+      <h3>Stages</h3>
+      <ol>
+        <li>
+          <strong>Validate</strong> — <code>findCaseMetaIssues</code> scans <code>CASE_META</code>{" "}
+          on every render and flags missing required fields (errors) or malformed optional fields
+          (warnings).
+        </li>
+        <li>
+          <strong>Suggest</strong> — clicking <em>Suggest fix</em> on an issue calls{" "}
+          <code>suggestCaseMetaFix</code>, a server function that prompts the configured LLM with
+          the case key, field name, and current value, and returns a structured proposal{" "}
+          (<code>{"{ value, model, rationale }"}</code>).
+        </li>
+        <li>
+          <strong>Review</strong> — the drawer renders a previous-vs-proposed diff. Nothing is
+          persisted until the user explicitly accepts.
+        </li>
+        <li>
+          <strong>Accept / Revert</strong> — accept writes a row to <code>case_meta_overrides</code>;
+          revert deletes it. Both operations update the UI optimistically and roll back on
+          server error. Bulk revert collapses many deletes into a single round-trip.
+        </li>
+        <li>
+          <strong>Re-merge &amp; re-validate</strong> — <code>mergeOverrides</code> applies the
+          overrides on top of <code>CASE_META</code>, the validator re-runs, and the issue
+          disappears from the dev panel (or stays, with a clear message, if the suggestion was
+          itself invalid).
+        </li>
+        <li>
+          <strong>Audit</strong> — every accept and revert is appended to{" "}
+          <code>case_meta_override_audit</code> with the actor, timestamp, action, previous value,
+          new value, and the AI model + rationale (when applicable). Audit rows are user-scoped via
+          RLS and cannot be edited or deleted, so the metadata history is a tamper-evident log.
+        </li>
+      </ol>
+
+      <h3>Why this is separate from the run pipeline</h3>
+      <p>
+        The run pipeline (steps 1–11) evaluates an <em>agent</em> against a fixed benchmark. The
+        AI-assisted fix loop evaluates the <em>benchmark itself</em> — its provenance,
+        reproducibility metadata, and curation notes. Keeping the two loops independent means a
+        flaky LLM suggestion on a metadata field can never silently change a run&apos;s scientific
+        inputs: overrides are explicit, reversible, and audited, while the run pipeline always
+        consumes the merged-and-validated <code>CASE_META</code> at execution time.
+      </p>
+
+      <h2>13. Curating your dashboards</h2>
       <p>
         Once experiments accumulate, the Runs, Presets, Batches, Ground Truth, and Validation
         pages all support inline <strong>Edit</strong> and <strong>Delete</strong> actions.

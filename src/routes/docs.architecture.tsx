@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArchitectureDiagram } from "@/components/docs/ArchitectureDiagram";
+import { ValidationFeedbackDiagram } from "@/components/docs/ValidationFeedbackDiagram";
 
 export const Route = createFileRoute("/docs/architecture")({
   head: () => ({
@@ -124,6 +125,30 @@ function ArchitecturePage() {
       <p>
         A deterministic, dependency-free evaluator that always works. Used when both simulation
         engines are unavailable or when an experiment explicitly opts out of simulation.
+      </p>
+
+      <h2 id="validation-feedback">Validation feedback loop</h2>
+      <p>
+        Beyond the runtime evaluation pipeline, GridArena also closes the loop on its{" "}
+        <strong>curated metadata</strong>. The case-meta validator scans <code>CASE_META</code>{" "}
+        for missing or malformed fields, surfaces them in the dev panel on{" "}
+        <a href="/docs/cases#ai-suggestions">/docs/cases</a>, and offers an{" "}
+        <strong>AI-assisted fix</strong> for each issue. Suggestions are reviewed in a drawer,
+        accepted into <code>case_meta_overrides</code>, merged back into the validator on the next
+        render, and recorded in an append-only <code>case_meta_override_audit</code> trail. The
+        diagram below shows the full cycle — from a flagged issue to a re-validated dataset with a
+        signed history of who changed what and when.
+      </p>
+
+      <div className="my-6 rounded-lg border border-border bg-card p-6">
+        <ValidationFeedbackDiagram />
+      </div>
+
+      <p className="text-sm text-muted-foreground">
+        For the matching how-to (drawer, accept/revert, bulk actions, audit panel), see the{" "}
+        <a href="/docs/cases#ai-suggestions">Reviewing AI suggestions</a> section. For how this
+        fits into the experiment lifecycle, see the{" "}
+        <a href="/docs/workflow#ai-assisted-fixes">AI-assisted fixes methodology</a>.
       </p>
     </>
   );

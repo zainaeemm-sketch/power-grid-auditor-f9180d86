@@ -1539,6 +1539,61 @@ function CasesPage() {
       <h1>Test Systems</h1>
       {import.meta.env.DEV && <CaseMetaDevPanel />}
 
+      <h2 id="ai-suggestions">Reviewing AI suggestions</h2>
+      <p>
+        When the dev panel finds a missing or invalid case-meta field, you can ask GridArena
+        to draft a fix. The suggestion flow is read-only by default — nothing is written to the
+        merged <code>CASE_META</code> until you explicitly accept it — and every accept or revert
+        is recorded in an append-only audit trail (see the{" "}
+        <a href="/docs/architecture#validation-feedback">validation feedback loop</a> for the
+        end-to-end picture).
+      </p>
+
+      <h3>1. Open the suggestion drawer</h3>
+      <p>
+        Click <strong>Suggest fix</strong> on any issue row. The right-hand drawer calls{" "}
+        <code>suggestCaseMetaFix</code>, which sends the case key, field, and current value to the
+        configured LLM and returns a structured proposal: the new value, the model that produced it,
+        and a short rationale. A spinner appears while the request is in flight; failures show an
+        inline toast and leave the panel unchanged.
+      </p>
+
+      <h3>2. Inspect the diff</h3>
+      <p>
+        The drawer renders the previous value next to the proposed value so you can eyeball the
+        change before committing. Use this to catch hallucinated <code>source_url</code> values,
+        wrong <code>last_reviewed</code> dates, or rationales that don&apos;t match the field type.
+        If the suggestion is wrong, just close the drawer — nothing is persisted.
+      </p>
+
+      <h3>3. Accept or revert</h3>
+      <p>
+        <strong>Accept</strong> writes a row to <code>case_meta_overrides</code> and immediately
+        re-merges the override into <code>CASE_META</code> so the validator re-runs. Accepted
+        overrides appear in the <strong>Overrides</strong> table directly under the dev panel.
+        Each row has a <strong>Revert</strong> action that deletes the override and restores the
+        original value — the UI updates optimistically and rolls back if the server rejects the
+        request.
+      </p>
+
+      <h3>4. Bulk actions</h3>
+      <p>
+        For sweeps across many cases, tick the row checkboxes in the Overrides table and use{" "}
+        <strong>Bulk revert</strong> to remove a batch in a single database round-trip. The audit
+        trail records one entry per affected override so the history stays granular even when the
+        action was bulk.
+      </p>
+
+      <h3>5. Audit trail</h3>
+      <p>
+        Every accept and revert is appended to <code>case_meta_override_audit</code> with the
+        actor, timestamp, action, previous value, new value, and the AI model + rationale (when
+        the action originated from a suggestion). The <strong>Audit history</strong> panel below
+        the Overrides table renders the chronological log so you can answer{" "}
+        <em>"who changed this field, when, and why"</em> long after the fact. Audit rows are
+        user-scoped via RLS and cannot be edited or deleted.
+      </p>
+
       <h2 id="exporting-invalid-items">Exporting invalid items</h2>
       <p>
         The dev panel above lists every case-meta validation issue detected at build time.
