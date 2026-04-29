@@ -419,6 +419,34 @@ type SeverityFilter = "any" | "errors" | "warnings";
 
 type ExportableIssue = { key: string; missing: string[]; invalid: string[] };
 
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const onClick = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // clipboard may be unavailable in some sandboxes; silently ignore
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={copied ? "Copied!" : label}
+      className={`shrink-0 rounded border px-1 py-px text-[10px] font-medium uppercase tracking-wider transition-colors ${
+        copied
+          ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-100"
+          : "border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+      }`}
+    >
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
 function exportIssues(
   issues: ExportableIssue[],
   filter: IssueFilter,
