@@ -24,7 +24,28 @@ export function OverridesSection({
   );
 
   // Drop ids from the optimistic-remove set once the parent confirms they're
-  // gone from the canonical `overrides` list (avoids stale entries).
+  // gone from the canonical `overrides` list (avoids stale entries when the
+  // server-side revert succeeds and the parent refetches).
+  const presentIds = overrides.map((o) => o.id).join("|");
+  useEffect(() => {
+    setOptimisticallyRemoved((prev) => {
+      if (prev.size === 0) return prev;
+      const present = new Set(overrides.map((o) => o.id));
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of prev) {
+        if (!present.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // We intentionally key the effect on the joined id list so it re-runs
+    // whenever the parent swaps in a new overrides snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presentIds]);
+
   const visibleOverrides = overrides.filter((o) => !optimisticallyRemoved.has(o.id));
 
   // Loading skeleton — only shown the first time we load (no rows yet) so
