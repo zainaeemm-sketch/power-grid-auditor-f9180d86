@@ -497,6 +497,18 @@ function CaseMetaDevPanel() {
 
   if (allIssues.length === 0) return null;
 
+  const totals = useMemo(() => {
+    let errors = 0;
+    let warnings = 0;
+    for (const i of allIssues) {
+      errors += i.missing.length;
+      warnings += i.invalid.length;
+    }
+    return { errors, warnings };
+  }, [allIssues]);
+
+  const hasErrors = totals.errors > 0;
+
   const filterOptions: Array<{ id: IssueFilter; label: string; count: number }> = [
     { id: "all", label: "All", count: counts.all },
     { id: "missing", label: "Missing fields", count: counts.missing },
@@ -507,13 +519,27 @@ function CaseMetaDevPanel() {
   return (
     <aside
       role="alert"
-      className="not-prose my-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100"
+      className={`not-prose my-4 rounded-md border px-4 py-3 text-xs ${
+        hasErrors
+          ? "border-red-500/50 bg-red-500/10 text-red-100"
+          : "border-amber-500/40 bg-amber-500/10 text-amber-100"
+      }`}
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-200">
+        <span
+          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+            hasErrors
+              ? "bg-red-500/25 text-red-100"
+              : "bg-amber-500/20 text-amber-200"
+          }`}
+        >
           Dev only
         </span>
         <span className="font-semibold">CASE_META validation issues ({allIssues.length})</span>
+        <span className="flex items-center gap-1">
+          <SeverityBadge severity="error" count={totals.errors} />
+          <SeverityBadge severity="warning" count={totals.warnings} />
+        </span>
         <div className="ml-auto flex gap-1.5">
           <button
             type="button"
