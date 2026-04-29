@@ -740,7 +740,7 @@ function ExportPreviewModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="CSV export preview"
+      aria-label={`${format.toUpperCase()} export preview`}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={onCancel}
     >
@@ -750,7 +750,7 @@ function ExportPreviewModal({
       >
         <div className="flex items-center justify-between border-b border-amber-500/30 px-4 py-2">
           <div>
-            <div className="text-sm font-semibold">CSV export preview</div>
+            <div className="text-sm font-semibold">{format.toUpperCase()} export preview</div>
             <div className="text-[11px] text-amber-100/70">
               Scope: <span className="font-mono">{scopeLabel}</span> · Field filter:{" "}
               <span className="font-mono">{filter}</span> · {rows.length} row
