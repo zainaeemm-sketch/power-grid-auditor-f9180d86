@@ -193,11 +193,12 @@ export const CASE_META: Record<string, CaseMeta> = {
 };
 
 if (import.meta.env.DEV) {
-  // Set VITE_STRICT_CASE_META=1 to throw on missing metadata instead of warn.
-  const strict =
-    import.meta.env.VITE_STRICT_CASE_META === "1" ||
-    import.meta.env.VITE_STRICT_CASE_META === "true";
-  validateCaseMeta(CASE_META, { context: "docs/cases", strict });
+  // Browser DEV: warn-only. We deliberately never throw here, even when
+  // VITE_STRICT_CASE_META=1, so a CASE_META problem cannot crash the docs
+  // page or block unrelated flows like saving experiment presets.
+  // Strict enforcement (throwing) is the job of the CI test in
+  // `src/lib/case-meta.test.ts` — see `validateCaseMeta(..., { strict: true })`.
+  validateCaseMeta(CASE_META, { context: "docs/cases", strict: false });
 }
 
 type CaseSectionProps = {
