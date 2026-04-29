@@ -122,9 +122,17 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
+function MetaField({
+  label,
+  children,
+  anchorId,
+}: {
+  label: string;
+  children: React.ReactNode;
+  anchorId?: string;
+}) {
   return (
-    <div>
+    <div id={anchorId} className={anchorId ? "scroll-mt-24" : undefined}>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-xs">{children}</div>
     </div>
@@ -221,7 +229,7 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
 
       <div className="my-4 rounded-md border border-border bg-muted/20 px-4 py-3 text-xs">
         <div className="grid gap-2 sm:grid-cols-3">
-          <MetaField label="Dataset version">
+          <MetaField label="Dataset version" anchorId={`case-${id.replace(/^case-/, "")}-dataset_version`}>
             <code className="text-foreground">{meta.dataset_version}</code>
           </MetaField>
           <MetaField label="Source">
@@ -242,8 +250,33 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
             <span className="text-foreground tabular-nums">{meta.last_reviewed}</span>
           </MetaField>
         </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <MetaField
+            label="Prompt version"
+            anchorId={`case-${id.replace(/^case-/, "")}-prompt_version`}
+          >
+            {meta.prompt_version ? (
+              <code className="text-foreground">{meta.prompt_version}</code>
+            ) : (
+              <span className="text-muted-foreground italic">— not set</span>
+            )}
+          </MetaField>
+          <MetaField
+            label="Random seed"
+            anchorId={`case-${id.replace(/^case-/, "")}-random_seed`}
+          >
+            {meta.random_seed !== undefined ? (
+              <code className="text-foreground tabular-nums">{meta.random_seed}</code>
+            ) : (
+              <span className="text-muted-foreground italic">— not set</span>
+            )}
+          </MetaField>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div>
+          <div
+            id={`case-${id.replace(/^case-/, "")}-standardized`}
+            className="scroll-mt-24"
+          >
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400/90">
               Standardized
             </div>
@@ -253,7 +286,10 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
               ))}
             </ul>
           </div>
-          <div>
+          <div
+            id={`case-${id.replace(/^case-/, "")}-simplified`}
+            className="scroll-mt-24"
+          >
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400/90">
               Simplified
             </div>
@@ -502,7 +538,7 @@ function CaseMetaDevPanel() {
       {filtered.length === 0 ? (
         <p className="italic text-amber-100/70">No issues match the current filter.</p>
       ) : (
-        <ul className="list-disc space-y-1 pl-5">
+        <ul className="list-disc space-y-1.5 pl-5">
           {filtered.map(({ key, missing, invalid }) => (
             <li key={key}>
               <a
@@ -512,10 +548,44 @@ function CaseMetaDevPanel() {
                 {key}
               </a>
               {missing.length > 0 && (
-                <span className="text-amber-100/80"> — missing: {missing.join(", ")}</span>
+                <div className="ml-1 mt-0.5 text-amber-100/80">
+                  <span className="font-semibold text-amber-100">missing:</span>{" "}
+                  {missing.map((m, idx) => {
+                    const slug = fieldSlug(m);
+                    return (
+                      <span key={m}>
+                        <a
+                          href={`#case-${key}-${slug}`}
+                          className="font-mono text-amber-200 underline-offset-4 hover:underline"
+                          title={`Jump to ${slug} in ${key}`}
+                        >
+                          {m}
+                        </a>
+                        {idx < missing.length - 1 ? ", " : ""}
+                      </span>
+                    );
+                  })}
+                </div>
               )}
               {invalid.length > 0 && (
-                <span className="text-amber-100/80"> — invalid: {invalid.join(", ")}</span>
+                <ul className="ml-1 mt-0.5 list-none space-y-0.5">
+                  {invalid.map((msg) => {
+                    const slug = fieldSlug(msg);
+                    return (
+                      <li key={msg} className="text-amber-100/80">
+                        <span className="font-semibold text-amber-100">invalid:</span>{" "}
+                        <a
+                          href={`#case-${key}-${slug}`}
+                          className="font-mono text-amber-200 underline-offset-4 hover:underline"
+                          title={`Jump to ${slug} in ${key}`}
+                        >
+                          {slug}
+                        </a>{" "}
+                        <span className="text-amber-100/70">— {msg}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </li>
           ))}
@@ -523,6 +593,20 @@ function CaseMetaDevPanel() {
       )}
     </aside>
   );
+}
+
+/**
+ * Map a missing-field label or invalid-field message to the anchor slug used
+ * by `MetaField` and the standardized/simplified blocks in `CaseSection`.
+ */
+function fieldSlug(message: string): string {
+  const head = message.split(/[=\s(]/, 1)[0]?.trim() ?? "";
+  if (head === "standardized") return "standardized";
+  if (head === "simplified") return "simplified";
+  if (head === "dataset_version") return "dataset_version";
+  if (head === "prompt_version") return "prompt_version";
+  if (head === "random_seed") return "random_seed";
+  return head || "dataset_version";
 }
 
 function CasesPage() {
