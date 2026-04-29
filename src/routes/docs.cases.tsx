@@ -865,7 +865,28 @@ function ExportPreviewModal({
 
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
-  const allIssues = findCaseMetaIssues(CASE_META);
+  const [overrides, setOverrides] = useState<CaseMetaOverrideRow[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const refreshOverrides = async () => {
+    try {
+      const rows = await listCaseMetaOverrides();
+      setOverrides(rows);
+    } catch {
+      // best-effort
+    }
+  };
+  useEffect(() => {
+    refreshOverrides();
+  }, []);
+  const mergedMeta = useMemo(
+    () =>
+      mergeOverrides(
+        CASE_META,
+        overrides.map((o) => ({ case_key: o.case_key, field: o.field, value: o.value })),
+      ),
+    [overrides],
+  );
+  const allIssues = findCaseMetaIssues(mergedMeta);
   const { filter, details, q, severity } = casesRouteApi.useSearch();
   const navigate = useNavigate({ from: "/docs/cases" });
 
