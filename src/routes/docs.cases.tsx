@@ -68,7 +68,17 @@ function exportCaseCsv(c: PowerSystemCase) {
   downloadBlob(`${c.name}.csv`, "text/csv", sections.join("\n"));
 }
 
+const casesSearchSchema = z.object({
+  filter: fallback(
+    z.enum(["all", "missing", "prompt_version", "random_seed"]),
+    "all",
+  ).default("all"),
+});
+
+const casesRouteApi = getRouteApi("/docs/cases");
+
 export const Route = createFileRoute("/docs/cases")({
+  validateSearch: zodValidator(casesSearchSchema),
   head: () => ({
     meta: [
       { title: "Test Systems — GridArena Docs" },
