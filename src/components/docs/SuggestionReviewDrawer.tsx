@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import {
   suggestCaseMetaFix,
   acceptCaseMetaFix,
@@ -21,6 +22,9 @@ type RowState = {
   suggestion?: CaseFixSuggestion;
   editedValue?: string; // raw text the user can edit before accept
   error?: string;
+  /** True while an Accept call is in flight. Independent of `status` so the
+   *  user still sees their edits while we save. */
+  accepting?: boolean;
 };
 
 function valueToText(value: JsonValue | undefined): string {
@@ -107,6 +111,7 @@ export function SuggestionReviewDrawer({
     const row = rows[idx];
     if (!row || !row.suggestion) return;
     const value = textToJsonValue(row.editedValue ?? "");
+    updateRow(idx, { accepting: true });
     try {
       await acceptCaseMetaFix({
         data: {
@@ -118,12 +123,13 @@ export function SuggestionReviewDrawer({
           model: row.suggestion.model,
         },
       });
-      updateRow(idx, { status: "applied" });
+      updateRow(idx, { status: "applied", accepting: false });
       toast.success(`Override saved for ${row.target.caseKey}.${row.target.field}`);
       onApplied();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save override";
       toast.error(msg);
+      updateRow(idx, { accepting: false });
     }
   }
 
