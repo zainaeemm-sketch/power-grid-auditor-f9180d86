@@ -73,6 +73,7 @@ const casesSearchSchema = z.object({
     z.enum(["all", "missing", "prompt_version", "random_seed"]),
     "all",
   ).default("all"),
+  details: fallback(z.boolean(), false).default(false),
 });
 
 const casesRouteApi = getRouteApi("/docs/cases");
@@ -503,13 +504,21 @@ function SeverityBadge({
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
-  const { filter } = casesRouteApi.useSearch();
+  const { filter, details } = casesRouteApi.useSearch();
   const navigate = useNavigate({ from: "/docs/cases" });
   const setFilter = (next: IssueFilter) =>
     navigate({
-      search: (prev: { filter?: IssueFilter }) => ({
+      search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
         ...prev,
         filter: next === "all" ? undefined : next,
+      }),
+      replace: true,
+    });
+  const toggleDetails = () =>
+    navigate({
+      search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
+        ...prev,
+        details: prev.details ? undefined : true,
       }),
       replace: true,
     });
@@ -605,6 +614,19 @@ function CaseMetaDevPanel() {
           >
             Export CSV
           </button>
+          <label
+            className="flex cursor-pointer items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
+            title="Show or hide the full validation message under each invalid field"
+          >
+            <input
+              type="checkbox"
+              checked={!!details}
+              onChange={toggleDetails}
+              className="h-3 w-3 cursor-pointer accent-amber-400"
+              aria-label="Show full invalid messages"
+            />
+            Show details
+          </label>
         </div>
       </div>
       <p className="mb-3 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[11px] leading-relaxed text-amber-100/80">
@@ -685,8 +707,14 @@ function CaseMetaDevPanel() {
                           title={`Jump to ${slug} in ${key}`}
                         >
                           {slug}
-                        </a>{" "}
-                        <span className="text-amber-100/70">— {msg}</span>
+                        </a>
+                        {details ? (
+                          <div className="ml-5 mt-0.5 break-words font-mono text-[11px] leading-snug text-amber-100/75">
+                            {msg}
+                          </div>
+                        ) : (
+                          <span className="sr-only"> — {msg}</span>
+                        )}
                       </li>
                     );
                   })}
