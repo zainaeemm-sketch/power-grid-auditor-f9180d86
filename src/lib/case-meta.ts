@@ -73,11 +73,21 @@ export function findCaseMetaIssues(
         typeof meta.prompt_version !== "string" ||
         !PROMPT_VERSION_RE.test(meta.prompt_version.trim())
       ) {
-        invalid.push("prompt_version (expected `<slug>@<semver>`)");
+        const got = JSON.stringify(meta.prompt_version);
+        invalid.push(
+          `prompt_version=${got} — expected format \`<slug>@<major>.<minor>.<patch>\` ` +
+            "(slug = letters/digits/`.`/`_`/`-`; optional `-prerelease` or `+build` suffix). " +
+            "Examples: `case5-baseline@1.2.0`, `case14_v2@0.1.0-rc.1`, `case30.alt@2.0.0+exp.42`",
+        );
       }
     }
     if (meta.random_seed !== undefined && !isValidRandomSeed(meta.random_seed)) {
-      invalid.push("random_seed (expected non-negative safe integer)");
+      const got = JSON.stringify(meta.random_seed);
+      invalid.push(
+        `random_seed=${got} — expected a non-negative safe integer ` +
+          "(number, 0 .. 2^53-1; no strings, no negatives, no decimals). " +
+          "Examples: `0`, `42`, `2025`, `1234567890`",
+      );
     }
 
     if (missing.length > 0 || invalid.length > 0) {
