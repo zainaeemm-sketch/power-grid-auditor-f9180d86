@@ -450,24 +450,30 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+type ExportScope = "all" | "errors" | "warnings";
+
 function exportIssues(
   issues: ExportableIssue[],
   filter: IssueFilter,
   format: "json" | "csv",
-  options: { errorsOnly?: boolean } = {},
+  options: { scope?: ExportScope } = {},
 ) {
-  const { errorsOnly = false } = options;
+  const { scope = "all" } = options;
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
-  const scope = errorsOnly ? "errors" : "all";
   const base = `case-meta-issues_${filter}_${scope}_${ts}`;
 
-  // When errorsOnly, drop invalid-format warnings entirely (and any entries
-  // that have no remaining missing-field errors).
-  const scoped: ExportableIssue[] = errorsOnly
-    ? issues
-        .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
-        .filter((i) => i.missing.length > 0)
-    : issues;
+  // Narrow the issue set to the requested scope. "errors" keeps only
+  // missing-required-field rows; "warnings" keeps only invalid-format rows.
+  const scoped: ExportableIssue[] =
+    scope === "errors"
+      ? issues
+          .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
+          .filter((i) => i.missing.length > 0)
+      : scope === "warnings"
+        ? issues
+            .map((i) => ({ key: i.key, missing: [] as string[], invalid: i.invalid }))
+            .filter((i) => i.invalid.length > 0)
+        : issues;
 
   if (format === "json") {
     const payload = {
@@ -973,12 +979,21 @@ function CaseMetaDevPanel() {
           </button>
           <button
             type="button"
-            onClick={() => exportIssues(filtered, filter, "csv", { errorsOnly: true })}
-            disabled={totals.errors === 0}
+            onClick={() => exportIssues(filtered, filter, "csv", { scope: "errors" })}
+            disabled={viewTotals.errors === 0}
             className="rounded border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Download CSV containing only missing-required-field errors (excludes warnings)"
+            title="Download CSV of only missing-required-field errors in the current view (excludes warnings)"
           >
             Export Errors CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => exportIssues(filtered, filter, "csv", { scope: "warnings" })}
+            disabled={viewTotals.warnings === 0}
+            className="rounded border border-amber-300/50 bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-100 hover:bg-amber-400/25 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Download CSV of only invalid-format warnings in the current view, including the exact validation message text"
+          >
+            Export Warnings CSV
           </button>
           <label
             className="flex cursor-pointer items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
