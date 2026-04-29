@@ -43,15 +43,27 @@ export function OverridesSection({
     );
   }
 
-  if (overrides.length === 0) return null;
+  if (visibleOverrides.length === 0) return null;
 
   async function revert(id: string) {
     setPendingId(id);
+    // Optimistically hide the row immediately.
+    setOptimisticallyRemoved((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
     try {
       await revertCaseMetaOverride({ data: { id } });
       toast.success("Override reverted");
       onChanged();
     } catch (e) {
+      // Roll back: re-show the row so the user can retry.
+      setOptimisticallyRemoved((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       toast.error(e instanceof Error ? e.message : "Failed to revert override");
     } finally {
       setPendingId(null);
