@@ -196,12 +196,13 @@ type CaseSectionProps = {
   readonly title: string;
   readonly origin: React.ReactNode;
   readonly meta: CaseMeta;
+  readonly id: string;
 };
 
-function CaseSection({ c, title, origin, meta }: CaseSectionProps) {
+function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
   const s = summarize(c);
   return (
-    <section className="not-prose mt-10 mb-6">
+    <section id={id} className="not-prose mt-10 mb-6 scroll-mt-20">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-semibold text-foreground">{title}</h2>
         <div className="flex gap-2">
