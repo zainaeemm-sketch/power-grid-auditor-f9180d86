@@ -73,6 +73,7 @@ const casesSearchSchema = z.object({
     z.enum(["all", "missing", "prompt_version", "random_seed"]),
     "all",
   ).default("all"),
+  details: fallback(z.boolean(), false).default(false),
 });
 
 const casesRouteApi = getRouteApi("/docs/cases");
