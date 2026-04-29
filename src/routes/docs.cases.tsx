@@ -555,7 +555,9 @@ function CaseMetaDevPanel() {
   }, [allIssues]);
 
   const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
     return allIssues
+      .filter((i) => (needle === "" ? true : i.key.toLowerCase().includes(needle)))
       .map(({ key, missing, invalid }) => {
         if (filter === "all") return { key, missing, invalid };
         if (filter === "missing") return { key, missing, invalid: [] as string[] };
@@ -567,7 +569,7 @@ function CaseMetaDevPanel() {
         };
       })
       .filter((i) => i.missing.length > 0 || i.invalid.length > 0);
-  }, [allIssues, filter]);
+  }, [allIssues, filter, q]);
 
   if (allIssues.length === 0) return null;
 
