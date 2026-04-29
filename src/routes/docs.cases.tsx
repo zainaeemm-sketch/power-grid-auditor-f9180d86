@@ -538,7 +538,7 @@ function CaseMetaDevPanel() {
       {filtered.length === 0 ? (
         <p className="italic text-amber-100/70">No issues match the current filter.</p>
       ) : (
-        <ul className="list-disc space-y-1 pl-5">
+        <ul className="list-disc space-y-1.5 pl-5">
           {filtered.map(({ key, missing, invalid }) => (
             <li key={key}>
               <a
@@ -548,10 +548,44 @@ function CaseMetaDevPanel() {
                 {key}
               </a>
               {missing.length > 0 && (
-                <span className="text-amber-100/80"> — missing: {missing.join(", ")}</span>
+                <div className="ml-1 mt-0.5 text-amber-100/80">
+                  <span className="font-semibold text-amber-100">missing:</span>{" "}
+                  {missing.map((m, idx) => {
+                    const slug = fieldSlug(m);
+                    return (
+                      <span key={m}>
+                        <a
+                          href={`#case-${key}-${slug}`}
+                          className="font-mono text-amber-200 underline-offset-4 hover:underline"
+                          title={`Jump to ${slug} in ${key}`}
+                        >
+                          {m}
+                        </a>
+                        {idx < missing.length - 1 ? ", " : ""}
+                      </span>
+                    );
+                  })}
+                </div>
               )}
               {invalid.length > 0 && (
-                <span className="text-amber-100/80"> — invalid: {invalid.join(", ")}</span>
+                <ul className="ml-1 mt-0.5 list-none space-y-0.5">
+                  {invalid.map((msg) => {
+                    const slug = fieldSlug(msg);
+                    return (
+                      <li key={msg} className="text-amber-100/80">
+                        <span className="font-semibold text-amber-100">invalid:</span>{" "}
+                        <a
+                          href={`#case-${key}-${slug}`}
+                          className="font-mono text-amber-200 underline-offset-4 hover:underline"
+                          title={`Jump to ${slug} in ${key}`}
+                        >
+                          {slug}
+                        </a>{" "}
+                        <span className="text-amber-100/70">— {msg}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </li>
           ))}
@@ -559,6 +593,20 @@ function CaseMetaDevPanel() {
       )}
     </aside>
   );
+}
+
+/**
+ * Map a missing-field label or invalid-field message to the anchor slug used
+ * by `MetaField` and the standardized/simplified blocks in `CaseSection`.
+ */
+function fieldSlug(message: string): string {
+  const head = message.split(/[=\s(]/, 1)[0]?.trim() ?? "";
+  if (head === "standardized") return "standardized";
+  if (head === "simplified") return "simplified";
+  if (head === "dataset_version") return "dataset_version";
+  if (head === "prompt_version") return "prompt_version";
+  if (head === "random_seed") return "random_seed";
+  return head || "dataset_version";
 }
 
 function CasesPage() {
