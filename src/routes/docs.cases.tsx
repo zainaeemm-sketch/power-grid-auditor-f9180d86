@@ -1460,6 +1460,120 @@ function CasesPage() {
     <>
       <h1>Test Systems</h1>
       <CaseMetaDevPanel />
+
+      <h2 id="exporting-invalid-items">Exporting invalid items</h2>
+      <p>
+        The dev panel above lists every case-meta validation issue detected at build time.
+        Two scope-aware dropdowns at the top of the panel — <strong>Export CSV</strong> and{" "}
+        <strong>Export JSON</strong> — let you download the currently filtered list of invalid
+        items for offline review or for attaching to a bug report.
+      </p>
+
+      <h3>Filter and sort awareness</h3>
+      <p>
+        Exports follow the panel&apos;s active filter and the on-screen sort order exactly. A{" "}
+        <code>display_order</code> column is included in every row so you can trace any line
+        in the export back to its position in the panel, even after re-sorting or re-filtering.
+      </p>
+
+      <h3>Choosing a scope</h3>
+      <p>
+        Each dropdown offers three scopes. Counts shown next to each option are live, and an
+        option is disabled when its bucket is empty:
+      </p>
+      <ul>
+        <li><strong>All</strong> — every issue in the current filter.</li>
+        <li><strong>Errors only</strong> — rows where a required field is <strong>missing</strong>.</li>
+        <li><strong>Warnings only</strong> — rows where a field is present but its <strong>format is invalid</strong>.</li>
+      </ul>
+      <p>
+        The <code>severity</code> column reflects this distinction: <code>error</code> for
+        missing fields, <code>warning</code> for invalid formats.
+      </p>
+
+      <h3>Preview before download</h3>
+      <p>
+        Choosing a scope opens a preview modal instead of downloading immediately:
+      </p>
+      <ul>
+        <li>
+          <strong>CSV preview</strong> — a table of up to the first 50 rows showing{" "}
+          <code>case_key</code>, <code>severity</code>, <code>field</code>, and{" "}
+          <code>message</code>, plus the total row count and the active filter.
+        </li>
+        <li>
+          <strong>JSON preview</strong> — the full payload rendered in a code block so you can
+          inspect the exact structure before saving.
+        </li>
+      </ul>
+      <p>
+        Both modals expose <strong>Download</strong> and <strong>Cancel</strong> buttons, and{" "}
+        <kbd>Esc</kbd> dismisses the preview without downloading.
+      </p>
+
+      <h3>CSV column schema</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Column</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>display_order</code></td>
+            <td>integer</td>
+            <td>Position in the on-screen list (preserves the current sort).</td>
+          </tr>
+          <tr>
+            <td><code>case_key</code></td>
+            <td>string</td>
+            <td>Identifier of the case the issue belongs to.</td>
+          </tr>
+          <tr>
+            <td><code>severity</code></td>
+            <td><code>error</code> | <code>warning</code></td>
+            <td><code>error</code> = missing field, <code>warning</code> = invalid format.</td>
+          </tr>
+          <tr>
+            <td><code>problem_type</code></td>
+            <td><code>missing</code> | <code>invalid</code></td>
+            <td>Same distinction in machine-friendly form.</td>
+          </tr>
+          <tr>
+            <td><code>field</code></td>
+            <td>string</td>
+            <td>Name of the offending meta field.</td>
+          </tr>
+          <tr>
+            <td><code>message</code></td>
+            <td>string</td>
+            <td>Human-readable validation message (empty for <code>missing</code>).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>JSON shape</h3>
+      <p>
+        The JSON export mirrors the CSV: an array of objects with the same six keys per row,
+        in the same order as the on-screen list.
+      </p>
+
+      <h3>Worked examples</h3>
+      <p>CSV:</p>
+      <pre><code>{`display_order,case_key,severity,problem_type,field,message
+1,case14,error,missing,prompt_version,
+2,case14,warning,invalid,random_seed,"random_seed must be an integer"`}</code></pre>
+      <p>JSON:</p>
+      <pre><code>{`[
+  { "display_order": 1, "case_key": "case14", "severity": "error",
+    "problem_type": "missing", "field": "prompt_version", "message": "" },
+  { "display_order": 2, "case_key": "case14", "severity": "warning",
+    "problem_type": "invalid", "field": "random_seed",
+    "message": "random_seed must be an integer" }
+]`}</code></pre>
+
       <p>
         GridArena ships three built-in <strong>IEEE-style transmission benchmarks</strong> —{" "}
         <code>case5</code>, <code>case14</code>, and <code>case30</code>. They are simplified,
