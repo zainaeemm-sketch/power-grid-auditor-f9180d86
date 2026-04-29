@@ -536,9 +536,17 @@ function CaseMetaDevPanel() {
     });
   const setQuery = (next: string) =>
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string }) => ({
+      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
         ...prev,
         q: next.trim() === "" ? undefined : next,
+      }),
+      replace: true,
+    });
+  const setSeverity = (next: SeverityFilter) =>
+    navigate({
+      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
+        ...prev,
+        severity: next === "any" ? undefined : next,
       }),
       replace: true,
     });
