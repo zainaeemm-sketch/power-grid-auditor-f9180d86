@@ -2,7 +2,7 @@ import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-route
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { Download } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TopologyDiagram } from "@/components/docs/TopologyDiagram";
 import { CASES } from "@/server/simulation/cases";
@@ -418,6 +418,34 @@ type IssueFilter = "all" | "missing" | "prompt_version" | "random_seed";
 type SeverityFilter = "any" | "errors" | "warnings";
 
 type ExportableIssue = { key: string; missing: string[]; invalid: string[] };
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const onClick = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // clipboard may be unavailable in some sandboxes; silently ignore
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={copied ? "Copied!" : label}
+      className={`shrink-0 rounded border px-1 py-px text-[10px] font-medium uppercase tracking-wider transition-colors ${
+        copied
+          ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-100"
+          : "border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+      }`}
+    >
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
 
 function exportIssues(
   issues: ExportableIssue[],
@@ -977,8 +1005,11 @@ function CaseMetaDevPanel() {
                           {slug}
                         </a>
                         {details ? (
-                          <div className="ml-5 mt-0.5 break-words font-mono text-[11px] leading-snug text-amber-100/75">
-                            {msg}
+                          <div className="ml-5 mt-0.5 flex items-start gap-1.5">
+                            <div className="break-words font-mono text-[11px] leading-snug text-amber-100/75">
+                              {msg}
+                            </div>
+                            <CopyButton value={msg} label={`Copy ${slug} validation message`} />
                           </div>
                         ) : (
                           <span className="sr-only"> — {msg}</span>
