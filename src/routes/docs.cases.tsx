@@ -978,33 +978,37 @@ function CaseMetaDevPanel() {
           >
             Export JSON
           </button>
-          <button
-            type="button"
-            onClick={() => exportIssues(filtered, filter, "csv")}
-            disabled={filtered.length === 0}
-            className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Download filtered issues as CSV"
+          <label
+            className="flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40"
+            title="Download a CSV of the filtered issues, choosing whether to include all rows, only errors, or only warnings"
           >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => exportIssues(filtered, filter, "csv", { scope: "errors" })}
-            disabled={viewTotals.errors === 0}
-            className="rounded border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Download CSV of only missing-required-field errors in the current view (excludes warnings)"
-          >
-            Export Errors CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => exportIssues(filtered, filter, "csv", { scope: "warnings" })}
-            disabled={viewTotals.warnings === 0}
-            className="rounded border border-amber-300/50 bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-100 hover:bg-amber-400/25 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Download CSV of only invalid-format warnings in the current view, including the exact validation message text"
-          >
-            Export Warnings CSV
-          </button>
+            <span>Export CSV:</span>
+            <select
+              aria-label="Export CSV scope"
+              disabled={filtered.length === 0}
+              value=""
+              onChange={(e) => {
+                const v = e.target.value as ExportScope | "";
+                if (v === "") return;
+                exportIssues(filtered, filter, "csv", { scope: v });
+                e.target.value = "";
+              }}
+              className="cursor-pointer rounded border border-amber-500/30 bg-amber-500/10 px-1 py-px text-[11px] font-medium text-amber-100 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed"
+            >
+              <option value="" disabled>
+                Choose scope…
+              </option>
+              <option value="all" disabled={filtered.length === 0}>
+                All ({viewTotals.errors + viewTotals.warnings})
+              </option>
+              <option value="errors" disabled={viewTotals.errors === 0}>
+                Errors only ({viewTotals.errors})
+              </option>
+              <option value="warnings" disabled={viewTotals.warnings === 0}>
+                Warnings only ({viewTotals.warnings})
+              </option>
+            </select>
+          </label>
           <label
             className="flex cursor-pointer items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
             title={`Show or hide the full validation message under each invalid field (saved per filter — currently "${filter}")`}
