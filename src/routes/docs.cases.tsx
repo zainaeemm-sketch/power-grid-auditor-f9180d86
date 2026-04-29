@@ -415,6 +415,7 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
 }
 
 type IssueFilter = "all" | "missing" | "prompt_version" | "random_seed";
+type SeverityFilter = "any" | "errors" | "warnings";
 
 type ExportableIssue = { key: string; missing: string[]; invalid: string[] };
 
