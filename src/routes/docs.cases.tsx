@@ -470,18 +470,23 @@ function exportIssues(
 function SeverityBadge({
   severity,
   count,
+  title: titleOverride,
 }: {
   severity: "error" | "warning";
   count?: number;
+  /** Optional explicit tooltip; defaults to the generic CI explanation. */
+  title?: string;
 }) {
   const isError = severity === "error";
   const label = isError ? "error" : "warning";
   const cls = isError
     ? "border-red-400/50 bg-red-500/25 text-red-50"
     : "border-amber-400/50 bg-amber-500/25 text-amber-50";
-  const title = isError
-    ? "Required field missing — fails strict CI validation"
-    : "Optional field has invalid format — warns only, does not fail CI";
+  const title =
+    titleOverride ??
+    (isError
+      ? "Required field missing — fails strict CI validation"
+      : "Optional field has invalid format — warns only, does not fail CI");
   if (count === undefined) {
     return (
       <span
@@ -502,6 +507,36 @@ function SeverityBadge({
       {label}s <span className="tabular-nums">{count}</span>
     </span>
   );
+}
+
+/**
+ * Map a missing-field label or invalid-field message to a precise tooltip
+ * naming the strict CI check that will fail. The check is implemented by
+ * `validateCaseMeta(..., { strict: true })` in `src/lib/case-meta.ts` and
+ * is enforced by the "strict validation passes for the live CASE_META"
+ * test in `src/lib/case-meta.test.ts`.
+ */
+function ciCheckTitle(severity: "error" | "warning", message: string): string {
+  const slug = fieldSlug(message);
+  const test = "validateCaseMeta strict-mode test (src/lib/case-meta.test.ts)";
+  if (severity === "error") {
+    const requirement: Record<string, string> = {
+      dataset_version: "must be a non-empty string",
+      standardized: "`standardized` notes array must be non-empty",
+      simplified: "`simplified` notes array must be non-empty",
+    };
+    const detail = requirement[slug] ?? "required field is missing or empty";
+    return `Strict CI failure: CASE_META.<key>.${slug} — ${detail}.\nFails: ${test}`;
+  }
+  // warning — only invalid optional formats, currently prompt_version / random_seed
+  const requirement: Record<string, string> = {
+    prompt_version:
+      "must match `<slug>@<major>.<minor>.<patch>` (e.g. `case5-baseline@1.2.0`)",
+    random_seed:
+      "must be a non-negative safe integer (0 .. 2^53-1; no strings, negatives, or decimals)",
+  };
+  const detail = requirement[slug] ?? "value does not match the expected format";
+  return `Non-blocking warning (does not fail CI): CASE_META.<key>.${slug} — ${detail}.`;
 }
 
 function CaseMetaDevPanel() {
@@ -779,12 +814,15 @@ function CaseMetaDevPanel() {
                 {key}
               </a>
               {missing.length > 0 && (
-                <div className="ml-1 mt-0.5 text-amber-100/80">
-                  <SeverityBadge severity="error" />{" "}
-                  {missing.map((m, idx) => {
+                <ul className="ml-1 mt-0.5 list-none space-y-0.5">
+                  {missing.map((m) => {
                     const slug = fieldSlug(m);
                     return (
-                      <span key={m}>
+                      <li key={m} className="text-amber-100/80">
+                        <SeverityBadge
+                          severity="error"
+                          title={ciCheckTitle("error", m)}
+                        />{" "}
                         <a
                           href={`#case-${key}-${slug}`}
                           className="font-mono text-amber-200 underline-offset-4 hover:underline"
@@ -792,11 +830,10 @@ function CaseMetaDevPanel() {
                         >
                           {m}
                         </a>
-                        {idx < missing.length - 1 ? ", " : ""}
-                      </span>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               )}
               {invalid.length > 0 && (
                 <ul className="ml-1 mt-0.5 list-none space-y-0.5">
@@ -804,7 +841,10 @@ function CaseMetaDevPanel() {
                     const slug = fieldSlug(msg);
                     return (
                       <li key={msg} className="text-amber-100/80">
-                        <SeverityBadge severity="warning" />{" "}
+                        <SeverityBadge
+                          severity="warning"
+                          title={ciCheckTitle("warning", msg)}
+                        />{" "}
                         <a
                           href={`#case-${key}-${slug}`}
                           className="font-mono text-amber-200 underline-offset-4 hover:underline"
