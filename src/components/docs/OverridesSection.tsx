@@ -82,7 +82,7 @@ export function OverridesSection({
           Overrides
         </span>
         <span className="font-semibold">
-          Active case-meta overrides ({overrides.length})
+          Active case-meta overrides ({visibleOverrides.length})
         </span>
         {loading && (
           <span
@@ -95,7 +95,7 @@ export function OverridesSection({
         )}
       </div>
       <ul className="space-y-1">
-        {overrides.map((o) => {
+        {visibleOverrides.map((o) => {
           const isReverting = pendingId === o.id;
           return (
             <li
