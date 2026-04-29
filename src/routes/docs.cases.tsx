@@ -130,7 +130,7 @@ function MetaField({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-import { type CaseMeta, validateCaseMeta } from "@/lib/case-meta";
+import { type CaseMeta, findCaseMetaIssues, validateCaseMeta } from "@/lib/case-meta";
 
 const CASE_META: Record<string, CaseMeta> = {
   case5: {
@@ -196,12 +196,13 @@ type CaseSectionProps = {
   readonly title: string;
   readonly origin: React.ReactNode;
   readonly meta: CaseMeta;
+  readonly id: string;
 };
 
-function CaseSection({ c, title, origin, meta }: CaseSectionProps) {
+function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
   const s = summarize(c);
   return (
-    <section className="not-prose mt-10 mb-6">
+    <section id={id} className="not-prose mt-10 mb-6 scroll-mt-20">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-semibold text-foreground">{title}</h2>
         <div className="flex gap-2">
@@ -360,10 +361,43 @@ function CaseSection({ c, title, origin, meta }: CaseSectionProps) {
   );
 }
 
+function CaseMetaDevPanel() {
+  if (!import.meta.env.DEV) return null;
+  const issues = findCaseMetaIssues(CASE_META);
+  if (issues.length === 0) return null;
+  return (
+    <aside
+      role="alert"
+      className="not-prose my-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100"
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-200">
+          Dev only
+        </span>
+        <span className="font-semibold">CASE_META validation issues ({issues.length})</span>
+      </div>
+      <ul className="list-disc space-y-1 pl-5">
+        {issues.map(({ key, missing }) => (
+          <li key={key}>
+            <a
+              href={`#case-${key}`}
+              className="font-mono text-amber-200 underline-offset-4 hover:underline"
+            >
+              {key}
+            </a>{" "}
+            <span className="text-amber-100/80">— missing: {missing.join(", ")}</span>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
 function CasesPage() {
   return (
     <>
       <h1>Test Systems</h1>
+      <CaseMetaDevPanel />
       <p>
         GridArena ships three built-in <strong>IEEE-style transmission benchmarks</strong> —{" "}
         <code>case5</code>, <code>case14</code>, and <code>case30</code>. They are simplified,
@@ -396,6 +430,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case5}
+        id="case-case5"
         title="case5 — 5-bus system" meta={CASE_META.case5}
         origin={
           <>
@@ -408,6 +443,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case14}
+        id="case-case14"
         title="case14 — IEEE 14-bus" meta={CASE_META.case14}
         origin={
           <>
@@ -420,6 +456,7 @@ function CasesPage() {
 
       <CaseSection
         c={CASES.case30}
+        id="case-case30"
         title="case30 — IEEE 30-bus" meta={CASE_META.case30}
         origin={
           <>
