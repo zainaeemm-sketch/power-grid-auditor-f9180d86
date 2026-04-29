@@ -506,7 +506,7 @@ function CaseMetaDevPanel() {
   const allIssues = findCaseMetaIssues(CASE_META);
   const { filter, details } = casesRouteApi.useSearch();
   const navigate = useNavigate({ from: "/docs/cases" });
-  const setFilter = (next: IssueFilter) =>
+  const setFilter = (next: IssueFilter) => {
     navigate({
       search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
         ...prev,
@@ -514,6 +514,16 @@ function CaseMetaDevPanel() {
       }),
       replace: true,
     });
+    // After updating the URL, scroll to the first case section that matches
+    // the newly chosen filter. Use rAF so the DOM (and any newly-rendered
+    // anchors) reflect the navigation before we look up the target.
+    requestAnimationFrame(() => {
+      const anchorId = firstMatchingAnchorId(allIssues, next);
+      if (!anchorId) return;
+      const el = document.getElementById(anchorId);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
   const toggleDetails = () =>
     navigate({
       search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
