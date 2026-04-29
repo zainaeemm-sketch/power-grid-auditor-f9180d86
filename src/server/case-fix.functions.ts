@@ -92,7 +92,7 @@ async function callOpenAi({
 }: {
   prompt: string;
   systemPrompt: string;
-}): Promise<{ value: unknown; rationale: string; confidence: "low" | "medium" | "high"; model: string }> {
+}): Promise<CaseFixSuggestion> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
   const baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
@@ -137,7 +137,7 @@ async function callOpenAi({
   const confidence: "low" | "medium" | "high" =
     parsed.confidence === "high" || parsed.confidence === "medium" ? parsed.confidence : "low";
   return {
-    value: parsed.value,
+    value: (parsed.value ?? null) as JsonValue,
     rationale: typeof parsed.rationale === "string" ? parsed.rationale : "",
     confidence,
     model,
