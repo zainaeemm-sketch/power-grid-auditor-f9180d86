@@ -1097,6 +1097,17 @@ function CaseMetaDevPanel() {
           ))}
         </ul>
       )}
+      <p className="mt-2 border-t border-amber-500/20 pt-1.5 text-[10px] text-amber-100/60">
+        Shortcuts:{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">/</kbd> search ·{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">d</kbd> details ·{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">1</kbd>–
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">4</kbd> field filter ·{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">a</kbd>/
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">e</kbd>/
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">w</kbd> any/errors/warnings ·{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">Esc</kbd> clear search
+      </p>
     </aside>
   );
 }
