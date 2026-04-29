@@ -193,11 +193,12 @@ export const CASE_META: Record<string, CaseMeta> = {
 };
 
 if (import.meta.env.DEV) {
-  // Set VITE_STRICT_CASE_META=1 to throw on missing metadata instead of warn.
-  const strict =
-    import.meta.env.VITE_STRICT_CASE_META === "1" ||
-    import.meta.env.VITE_STRICT_CASE_META === "true";
-  validateCaseMeta(CASE_META, { context: "docs/cases", strict });
+  // Browser DEV: warn-only. We deliberately never throw here, even when
+  // VITE_STRICT_CASE_META=1, so a CASE_META problem cannot crash the docs
+  // page or block unrelated flows like saving experiment presets.
+  // Strict enforcement (throwing) is the job of the CI test in
+  // `src/lib/case-meta.test.ts` — see `validateCaseMeta(..., { strict: true })`.
+  validateCaseMeta(CASE_META, { context: "docs/cases", strict: false });
 }
 
 type CaseSectionProps = {
@@ -513,6 +514,17 @@ function CaseMetaDevPanel() {
           </button>
         </div>
       </div>
+      <p className="mb-3 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[11px] leading-relaxed text-amber-100/80">
+        <span className="font-semibold text-amber-100">Non-blocking in dev:</span> these
+        warnings never fail the page or block flows like saving experiment presets.{" "}
+        <span className="font-semibold text-amber-100">CI is strict:</span> the{" "}
+        <code className="rounded bg-amber-500/15 px-1 py-px font-mono">case-meta</code>{" "}
+        test runs{" "}
+        <code className="rounded bg-amber-500/15 px-1 py-px font-mono">
+          validateCaseMeta(…, &#123; strict: true &#125;)
+        </code>{" "}
+        and fails the build on any of the issues listed below.
+      </p>
       <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues">
         {filterOptions.map((opt) => {
           const active = filter === opt.id;
