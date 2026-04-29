@@ -489,21 +489,31 @@ function exportIssues(
     return;
   }
 
-  // CSV: one row per individual problem (missing field or invalid message)
+  // CSV: one row per individual problem (missing field or invalid message).
+  // Rows are emitted in the SAME order they appear in the dev panel:
+  //   1. Outer order = order of `scoped` (which is `filtered` from the panel,
+  //      so search/field/severity filtering is already baked in and the
+  //      original case discovery order is preserved by `.map`/`.filter`).
+  //   2. Within each case, missing-field rows come first (rendered above
+  //      invalid-format rows in the UI), each in the order produced by
+  //      `findCaseMetaIssues`.
+  // A `display_order` column is added so re-imports keep this exact ordering
+  // even if a tool re-sorts the rows (e.g. spreadsheet auto-sort).
   const rows: Array<Record<string, string | number>> = [];
+  let order = 0;
   for (const { key, missing, invalid } of scoped) {
     for (const field of missing) {
-      rows.push({ case_key: key, problem_type: "missing", field, message: "" });
+      rows.push({ display_order: order++, case_key: key, problem_type: "missing", field, message: "" });
     }
     for (const message of invalid) {
       const field = message.split(/[=\s(]/, 1)[0] ?? "";
-      rows.push({ case_key: key, problem_type: "invalid", field, message });
+      rows.push({ display_order: order++, case_key: key, problem_type: "invalid", field, message });
     }
   }
   const csv =
     rows.length > 0
       ? toCsv(rows)
-      : "case_key,problem_type,field,message\n";
+      : "display_order,case_key,problem_type,field,message\n";
   downloadBlob(`${base}.csv`, "text/csv", csv);
 }
 
