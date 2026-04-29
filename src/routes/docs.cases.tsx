@@ -3,6 +3,7 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { Download } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TopologyDiagram } from "@/components/docs/TopologyDiagram";
 import { CASES } from "@/server/simulation/cases";
@@ -865,13 +866,19 @@ function ExportPreviewModal({
 
 function CaseMetaDevPanel() {
   const [overrides, setOverrides] = useState<CaseMetaOverrideRow[]>([]);
+  const [overridesLoading, setOverridesLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const refreshOverrides = async () => {
+    setOverridesLoading(true);
     try {
       const rows = await listCaseMetaOverrides();
       setOverrides(rows);
-    } catch {
-      // best-effort
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Failed to load overrides",
+      );
+    } finally {
+      setOverridesLoading(false);
     }
   };
   useEffect(() => {
@@ -1397,7 +1404,7 @@ function CaseMetaDevPanel() {
         <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">Esc</kbd> clear search
       </p>
     </aside>
-    <OverridesSection overrides={overrides} onChanged={refreshOverrides} />
+    <OverridesSection overrides={overrides} onChanged={refreshOverrides} loading={overridesLoading} />
     {filtered.length > 0 && (
       <div className="not-prose my-2 flex justify-end">
         <button
