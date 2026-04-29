@@ -705,18 +705,21 @@ function ViewStatusBar({
 
 function ExportPreviewModal({
   scope,
+  format,
   filter,
   issues,
   onCancel,
   onConfirm,
 }: {
   scope: ExportScope;
+  format: "csv" | "json";
   filter: IssueFilter;
   issues: ExportableIssue[];
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const rows = useMemo(() => buildIssueRows(scopeIssues(issues, scope)), [issues, scope]);
+  const scoped = useMemo(() => scopeIssues(issues, scope), [issues, scope]);
+  const rows = useMemo(() => buildIssueRows(scoped), [scoped]);
   const PREVIEW_LIMIT = 50;
   const shown = rows.slice(0, PREVIEW_LIMIT);
   const hidden = Math.max(0, rows.length - shown.length);
