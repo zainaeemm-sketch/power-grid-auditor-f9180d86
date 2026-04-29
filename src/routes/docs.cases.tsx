@@ -707,8 +707,14 @@ function CaseMetaDevPanel() {
                           title={`Jump to ${slug} in ${key}`}
                         >
                           {slug}
-                        </a>{" "}
-                        <span className="text-amber-100/70">— {msg}</span>
+                        </a>
+                        {details ? (
+                          <div className="ml-5 mt-0.5 break-words font-mono text-[11px] leading-snug text-amber-100/75">
+                            {msg}
+                          </div>
+                        ) : (
+                          <span className="sr-only"> — {msg}</span>
+                        )}
                       </li>
                     );
                   })}
