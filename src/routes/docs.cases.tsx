@@ -1104,7 +1104,7 @@ function CaseMetaDevPanel() {
                         >
                           {slug}
                         </a>
-                        {details ? (
+                        {detailsForCurrent ? (
                           <div className="ml-5 mt-0.5 flex items-start gap-1.5">
                             <div className="break-words font-mono text-[11px] leading-snug text-amber-100/75">
                               {msg}
