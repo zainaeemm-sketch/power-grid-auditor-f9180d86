@@ -130,7 +130,7 @@ function MetaField({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-import { type CaseMeta, validateCaseMeta } from "@/lib/case-meta";
+import { type CaseMeta, findCaseMetaIssues, validateCaseMeta } from "@/lib/case-meta";
 
 const CASE_META: Record<string, CaseMeta> = {
   case5: {
