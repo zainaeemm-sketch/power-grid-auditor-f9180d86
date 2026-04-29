@@ -774,6 +774,7 @@ function firstMatchingAnchorId(
   const first = issues.find((i) => i.invalid.some((m) => m.startsWith(filter)));
   if (!first) return null;
   return `case-${first.key}-${filter}`;
+}
 
 function CasesPage() {
   return (
