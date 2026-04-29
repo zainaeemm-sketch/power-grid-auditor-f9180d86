@@ -360,6 +360,89 @@ export const revertCaseMetaOverride = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* ---------------------------------------------------- bulk revert (batch) */
+
+const BulkRevertInput = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(100),
+});
+
+export type BulkRevertResult = {
+  reverted_ids: string[];
+  /** ids the caller asked to revert that did not exist or weren't owned by them. */
+  skipped_ids: string[];
+};
+
+/**
+ * Revert many overrides in a single request. Implemented as one bulk DELETE
+ * (RLS-scoped to the caller) plus one bulk audit INSERT, so the database
+ * round-trips are O(1) regardless of selection size.
+ */
+export const bulkRevertCaseMetaOverrides = createServerFn({ method: "POST" })
+  .middleware([withAuthHeaders, requireSupabaseAuth])
+  .inputValidator((input: unknown) => BulkRevertInput.parse(input))
+  .handler(async ({ data, context }): Promise<BulkRevertResult> => {
+    // De-dupe ids defensively — DELETE ... IN (...) tolerates duplicates,
+    // but the audit insert should not write duplicate rows.
+    const requestedIds = Array.from(new Set(data.ids));
+
+    // Snapshot the rows we're about to delete so we can write the audit
+    // trail with previous_value for each. RLS scopes to the caller.
+    const { data: prevRows, error: snapErr } = await context.supabase
+      .from("case_meta_overrides")
+      .select("id, case_key, field, value, source, ai_rationale, ai_model")
+      .eq("user_id", context.userId)
+      .in("id", requestedIds);
+    if (snapErr) throw new Error(snapErr.message);
+
+    const snapshotById = new Map(
+      ((prevRows ?? []) as Array<{
+        id: string;
+        case_key: string;
+        field: string;
+        value: JsonValue;
+        source: "ai_suggested" | "manual";
+        ai_rationale: string | null;
+        ai_model: string | null;
+      }>).map((r) => [r.id, r] as const),
+    );
+
+    const presentIds = Array.from(snapshotById.keys());
+    const skippedIds = requestedIds.filter((id) => !snapshotById.has(id));
+
+    if (presentIds.length === 0) {
+      return { reverted_ids: [], skipped_ids: skippedIds };
+    }
+
+    const { error: delErr } = await context.supabase
+      .from("case_meta_overrides")
+      .delete()
+      .eq("user_id", context.userId)
+      .in("id", presentIds);
+    if (delErr) throw new Error(delErr.message);
+
+    const auditRows = presentIds.map((id) => {
+      const r = snapshotById.get(id)!;
+      return {
+        user_id: context.userId,
+        override_id: null, // row no longer exists
+        case_key: r.case_key,
+        field: r.field,
+        action: "revert" as const,
+        source: r.source,
+        previous_value: r.value as never,
+        new_value: null,
+        ai_model: r.ai_model,
+        ai_rationale: r.ai_rationale,
+      };
+    });
+    const { error: auditErr } = await context.supabase
+      .from("case_meta_override_audit")
+      .insert(auditRows as never);
+    if (auditErr) console.warn("audit insert (bulk revert) failed:", auditErr.message);
+
+    return { reverted_ids: presentIds, skipped_ids: skippedIds };
+  });
+
 const ListAuditInput = z
   .object({
     caseKey: z.string().min(1).max(64).optional(),
