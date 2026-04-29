@@ -106,4 +106,43 @@ describe("OverridesSection", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("delete forbidden"));
     expect(onChanged).not.toHaveBeenCalled();
   });
+
+  it("bulk-reverts the selected overrides in a single request", async () => {
+    const user = userEvent.setup();
+    const onChanged = vi.fn();
+    bulkRevertCaseMetaOverrides.mockResolvedValueOnce({
+      reverted_ids: ["o1", "o2"],
+      skipped_ids: [],
+    });
+
+    render(<OverridesSection overrides={overrides} onChanged={onChanged} />);
+
+    await user.click(screen.getByRole("checkbox", { name: /Select all overrides/i }));
+    await user.click(screen.getByRole("button", { name: /^Revert selected/ }));
+
+    await waitFor(() => expect(bulkRevertCaseMetaOverrides).toHaveBeenCalledTimes(1));
+    expect(bulkRevertCaseMetaOverrides).toHaveBeenCalledWith({
+      data: { ids: ["o1", "o2"] },
+    });
+    expect(toastSuccess).toHaveBeenCalledWith("Reverted 2 overrides");
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("rolls back optimistic removal and shows error when bulk revert fails", async () => {
+    const user = userEvent.setup();
+    const onChanged = vi.fn();
+    bulkRevertCaseMetaOverrides.mockRejectedValueOnce(new Error("network down"));
+
+    render(<OverridesSection overrides={overrides} onChanged={onChanged} />);
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /Select override case14 dataset_version/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /^Revert selected/ }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("network down"));
+    expect(onChanged).not.toHaveBeenCalled();
+    // Row remains visible after rollback.
+    expect(screen.getByText("case14")).toBeInTheDocument();
+  });
 });
