@@ -74,6 +74,7 @@ const casesSearchSchema = z.object({
     "all",
   ).default("all"),
   details: fallback(z.boolean(), false).default(false),
+  q: fallback(z.string(), "").default(""),
 });
 
 const casesRouteApi = getRouteApi("/docs/cases");
@@ -504,7 +505,7 @@ function SeverityBadge({
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
-  const { filter, details } = casesRouteApi.useSearch();
+  const { filter, details, q } = casesRouteApi.useSearch();
   const navigate = useNavigate({ from: "/docs/cases" });
   const setFilter = (next: IssueFilter) => {
     navigate({
@@ -526,9 +527,17 @@ function CaseMetaDevPanel() {
   };
   const toggleDetails = () =>
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
+      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string }) => ({
         ...prev,
         details: prev.details ? undefined : true,
+      }),
+      replace: true,
+    });
+  const setQuery = (next: string) =>
+    navigate({
+      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string }) => ({
+        ...prev,
+        q: next.trim() === "" ? undefined : next,
       }),
       replace: true,
     });
@@ -546,7 +555,9 @@ function CaseMetaDevPanel() {
   }, [allIssues]);
 
   const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
     return allIssues
+      .filter((i) => (needle === "" ? true : i.key.toLowerCase().includes(needle)))
       .map(({ key, missing, invalid }) => {
         if (filter === "all") return { key, missing, invalid };
         if (filter === "missing") return { key, missing, invalid: [] as string[] };
@@ -558,7 +569,7 @@ function CaseMetaDevPanel() {
         };
       })
       .filter((i) => i.missing.length > 0 || i.invalid.length > 0);
-  }, [allIssues, filter]);
+  }, [allIssues, filter, q]);
 
   if (allIssues.length === 0) return null;
 
@@ -650,6 +661,29 @@ function CaseMetaDevPanel() {
         </code>{" "}
         and fails the build on any of the issues listed below.
       </p>
+      <div className="mb-2">
+        <label className="flex items-center gap-2">
+          <span className="sr-only">Filter case IDs</span>
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter case IDs (e.g. case14)"
+            aria-label="Filter case IDs"
+            className="w-full rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-50 placeholder:text-amber-100/40 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300"
+          />
+          {q !== "" && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="shrink-0 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
+              title="Clear search"
+            >
+              Clear
+            </button>
+          )}
+        </label>
+      </div>
       <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues">
         {filterOptions.map((opt) => {
           const active = filter === opt.id;
