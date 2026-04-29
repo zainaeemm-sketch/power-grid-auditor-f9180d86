@@ -629,9 +629,52 @@ function CaseMetaDevPanel() {
           Dev only
         </span>
         <span className="font-semibold">CASE_META validation issues ({allIssues.length})</span>
-        <span className="flex items-center gap-1">
-          <SeverityBadge severity="error" count={totals.errors} />
-          <SeverityBadge severity="warning" count={totals.warnings} />
+        <span
+          className="flex items-center gap-1"
+          role="group"
+          aria-label="Filter by severity"
+        >
+          <button
+            type="button"
+            onClick={() => setSeverity("any")}
+            aria-pressed={severity === "any"}
+            title="Show errors and warnings"
+            className={`rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              severity === "any"
+                ? "border-amber-200 bg-amber-400/30 text-amber-50"
+                : "border-amber-500/30 bg-amber-500/5 text-amber-200 hover:bg-amber-500/15"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setSeverity("errors")}
+            aria-pressed={severity === "errors"}
+            disabled={totals.errors === 0}
+            title="Show only required-field errors (these fail strict CI)"
+            className={`rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              severity === "errors"
+                ? "border-red-300 bg-red-500/40 text-red-50"
+                : "border-red-400/50 bg-red-500/15 text-red-100 hover:bg-red-500/25"
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            Errors <span className="tabular-nums">{totals.errors}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSeverity("warnings")}
+            aria-pressed={severity === "warnings"}
+            disabled={totals.warnings === 0}
+            title="Show only invalid-format warnings (non-blocking)"
+            className={`rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              severity === "warnings"
+                ? "border-amber-200 bg-amber-400/40 text-amber-50"
+                : "border-amber-400/50 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25"
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            Warnings <span className="tabular-nums">{totals.warnings}</span>
+          </button>
         </span>
         <div className="ml-auto flex gap-1.5">
           <button
