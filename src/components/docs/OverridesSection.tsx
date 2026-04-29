@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import {
@@ -17,10 +17,40 @@ export function OverridesSection({
   loading?: boolean;
 }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // Optimistically-removed override ids. Hidden from the rendered list
+  // immediately on click; restored if the server action fails.
+  const [optimisticallyRemoved, setOptimisticallyRemoved] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  // Drop ids from the optimistic-remove set once the parent confirms they're
+  // gone from the canonical `overrides` list (avoids stale entries when the
+  // server-side revert succeeds and the parent refetches).
+  const presentIds = overrides.map((o) => o.id).join("|");
+  useEffect(() => {
+    setOptimisticallyRemoved((prev) => {
+      if (prev.size === 0) return prev;
+      const present = new Set(overrides.map((o) => o.id));
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of prev) {
+        if (!present.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // We intentionally key the effect on the joined id list so it re-runs
+    // whenever the parent swaps in a new overrides snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presentIds]);
+
+  const visibleOverrides = overrides.filter((o) => !optimisticallyRemoved.has(o.id));
 
   // Loading skeleton — only shown the first time we load (no rows yet) so
   // that subsequent refreshes don't make the visible list flicker.
-  if (loading && overrides.length === 0) {
+  if (loading && visibleOverrides.length === 0 && overrides.length === 0) {
     return (
       <aside
         role="status"
@@ -34,15 +64,27 @@ export function OverridesSection({
     );
   }
 
-  if (overrides.length === 0) return null;
+  if (visibleOverrides.length === 0) return null;
 
   async function revert(id: string) {
     setPendingId(id);
+    // Optimistically hide the row immediately.
+    setOptimisticallyRemoved((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
     try {
       await revertCaseMetaOverride({ data: { id } });
       toast.success("Override reverted");
       onChanged();
     } catch (e) {
+      // Roll back: re-show the row so the user can retry.
+      setOptimisticallyRemoved((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       toast.error(e instanceof Error ? e.message : "Failed to revert override");
     } finally {
       setPendingId(null);
@@ -61,7 +103,7 @@ export function OverridesSection({
           Overrides
         </span>
         <span className="font-semibold">
-          Active case-meta overrides ({overrides.length})
+          Active case-meta overrides ({visibleOverrides.length})
         </span>
         {loading && (
           <span
@@ -74,7 +116,7 @@ export function OverridesSection({
         )}
       </div>
       <ul className="space-y-1">
-        {overrides.map((o) => {
+        {visibleOverrides.map((o) => {
           const isReverting = pendingId === o.id;
           return (
             <li
