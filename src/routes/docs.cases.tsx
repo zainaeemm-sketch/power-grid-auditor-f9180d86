@@ -415,6 +415,26 @@ function CaseMetaDevPanel() {
           Dev only
         </span>
         <span className="font-semibold">CASE_META validation issues ({allIssues.length})</span>
+        <div className="ml-auto flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => exportIssues(filtered, filter, "json")}
+            disabled={filtered.length === 0}
+            className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Download filtered issues as JSON"
+          >
+            Export JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => exportIssues(filtered, filter, "csv")}
+            disabled={filtered.length === 0}
+            className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Download filtered issues as CSV"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
       <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues">
         {filterOptions.map((opt) => {
