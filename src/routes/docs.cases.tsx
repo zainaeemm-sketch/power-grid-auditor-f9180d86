@@ -75,6 +75,7 @@ const casesSearchSchema = z.object({
   ).default("all"),
   details: fallback(z.boolean(), false).default(false),
   q: fallback(z.string(), "").default(""),
+  severity: fallback(z.enum(["any", "errors", "warnings"]), "any").default("any"),
 });
 
 const casesRouteApi = getRouteApi("/docs/cases");
