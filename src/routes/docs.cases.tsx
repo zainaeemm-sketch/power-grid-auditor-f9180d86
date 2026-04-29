@@ -527,9 +527,17 @@ function CaseMetaDevPanel() {
   };
   const toggleDetails = () =>
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
+      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string }) => ({
         ...prev,
         details: prev.details ? undefined : true,
+      }),
+      replace: true,
+    });
+  const setQuery = (next: string) =>
+    navigate({
+      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string }) => ({
+        ...prev,
+        q: next.trim() === "" ? undefined : next,
       }),
       replace: true,
     });
