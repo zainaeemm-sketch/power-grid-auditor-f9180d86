@@ -73,7 +73,10 @@ const casesSearchSchema = z.object({
     z.enum(["all", "missing", "prompt_version", "random_seed"]),
     "all",
   ).default("all"),
-  details: fallback(z.boolean(), false).default(false),
+  // Per-filter "show details" persistence: comma-separated list of filter ids
+  // that currently have details enabled (e.g. "missing,prompt_version").
+  // Stored as a string for URL compactness; parsed/serialized in the panel.
+  details: fallback(z.string(), "").default(""),
   q: fallback(z.string(), "").default(""),
   severity: fallback(z.enum(["any", "errors", "warnings"]), "any").default("any"),
 });
@@ -666,9 +669,27 @@ function CaseMetaDevPanel() {
   const allIssues = findCaseMetaIssues(CASE_META);
   const { filter, details, q, severity } = casesRouteApi.useSearch();
   const navigate = useNavigate({ from: "/docs/cases" });
+
+  // Parse the URL `details` token list into a Set of filter ids that have
+  // "Show details" turned on. Each field filter (all/missing/prompt_version/
+  // random_seed) keeps its own independent visibility choice.
+  const detailsSet = useMemo<Set<IssueFilter>>(() => {
+    const set = new Set<IssueFilter>();
+    for (const raw of details.split(",")) {
+      const s = raw.trim();
+      if (s === "all" || s === "missing" || s === "prompt_version" || s === "random_seed") {
+        set.add(s);
+      }
+    }
+    return set;
+  }, [details]);
+  const detailsForCurrent = detailsSet.has(filter);
+  const serializeDetails = (set: Set<IssueFilter>) =>
+    set.size === 0 ? undefined : Array.from(set).join(",");
+
   const setFilter = (next: IssueFilter) => {
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
+      search: (prev: { filter?: IssueFilter; details?: string }) => ({
         ...prev,
         filter: next === "all" ? undefined : next,
       }),
@@ -684,17 +705,22 @@ function CaseMetaDevPanel() {
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
-  const toggleDetails = () =>
+  const toggleDetails = () => {
+    const nextSet = new Set(detailsSet);
+    if (nextSet.has(filter)) nextSet.delete(filter);
+    else nextSet.add(filter);
+    const nextDetails = serializeDetails(nextSet);
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string }) => ({
+      search: (prev: { filter?: IssueFilter; details?: string; q?: string }) => ({
         ...prev,
-        details: prev.details ? undefined : true,
+        details: nextDetails,
       }),
       replace: true,
     });
+  };
   const setQuery = (next: string) =>
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
+      search: (prev: { filter?: IssueFilter; details?: string; q?: string; severity?: SeverityFilter }) => ({
         ...prev,
         q: next.trim() === "" ? undefined : next,
       }),
@@ -702,7 +728,7 @@ function CaseMetaDevPanel() {
     });
   const setSeverity = (next: SeverityFilter) => {
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
+      search: (prev: { filter?: IssueFilter; details?: string; q?: string; severity?: SeverityFilter }) => ({
         ...prev,
         severity: next === "any" ? undefined : next,
       }),
@@ -956,11 +982,11 @@ function CaseMetaDevPanel() {
           </button>
           <label
             className="flex cursor-pointer items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
-            title="Show or hide the full validation message under each invalid field"
+            title={`Show or hide the full validation message under each invalid field (saved per filter — currently "${filter}")`}
           >
             <input
               type="checkbox"
-              checked={!!details}
+              checked={detailsForCurrent}
               onChange={toggleDetails}
               className="h-3 w-3 cursor-pointer accent-amber-400"
               aria-label="Show full invalid messages"
@@ -1078,7 +1104,7 @@ function CaseMetaDevPanel() {
                         >
                           {slug}
                         </a>
-                        {details ? (
+                        {detailsForCurrent ? (
                           <div className="ml-5 mt-0.5 flex items-start gap-1.5">
                             <div className="break-words font-mono text-[11px] leading-snug text-amber-100/75">
                               {msg}
