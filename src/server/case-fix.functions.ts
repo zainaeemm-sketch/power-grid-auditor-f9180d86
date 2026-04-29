@@ -219,10 +219,21 @@ export const suggestCaseMetaFix = createServerFn({ method: "POST" })
     return result;
   });
 
+const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(JsonValueSchema),
+    z.record(z.string(), JsonValueSchema),
+  ]),
+);
+
 const AcceptInput = z.object({
   caseKey: z.string().min(1).max(64),
   field: z.string().min(1).max(64),
-  value: z.unknown(),
+  value: JsonValueSchema,
   source: z.enum(["ai_suggested", "manual"]).default("ai_suggested"),
   rationale: z.string().max(2000).nullable().optional(),
   model: z.string().max(128).nullable().optional(),
