@@ -377,15 +377,20 @@ function CaseMetaDevPanel() {
         <span className="font-semibold">CASE_META validation issues ({issues.length})</span>
       </div>
       <ul className="list-disc space-y-1 pl-5">
-        {issues.map(({ key, missing }) => (
+        {issues.map(({ key, missing, invalid }) => (
           <li key={key}>
             <a
               href={`#case-${key}`}
               className="font-mono text-amber-200 underline-offset-4 hover:underline"
             >
               {key}
-            </a>{" "}
-            <span className="text-amber-100/80">— missing: {missing.join(", ")}</span>
+            </a>
+            {missing.length > 0 && (
+              <span className="text-amber-100/80"> — missing: {missing.join(", ")}</span>
+            )}
+            {invalid.length > 0 && (
+              <span className="text-amber-100/80"> — invalid: {invalid.join(", ")}</span>
+            )}
           </li>
         ))}
       </ul>

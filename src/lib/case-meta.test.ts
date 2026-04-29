@@ -28,7 +28,7 @@ describe("findCaseMetaIssues", () => {
       caseA: { ...validMeta, standardized: [], simplified: [] },
     });
     expect(issues).toEqual([
-      { key: "caseA", missing: ["standardized notes", "simplified notes"] },
+      { key: "caseA", missing: ["standardized notes", "simplified notes"], invalid: [] },
     ]);
   });
 
@@ -42,6 +42,40 @@ describe("findCaseMetaIssues", () => {
       "simplified notes",
     ]);
   });
+
+  it("accepts well-formed prompt_version and random_seed", () => {
+    expect(
+      findCaseMetaIssues({
+        ok: { ...validMeta, prompt_version: "case5-baseline@1.2.0", random_seed: 42 },
+        ok2: { ...validMeta, prompt_version: "x@0.0.1-rc.1", random_seed: 0 },
+      }),
+    ).toEqual([]);
+  });
+
+  it("flags malformed prompt_version", () => {
+    const issues = findCaseMetaIssues({
+      a: { ...validMeta, prompt_version: "no-version" },
+      b: { ...validMeta, prompt_version: "name@1.2" },
+      c: { ...validMeta, prompt_version: "" },
+    });
+    expect(issues).toHaveLength(3);
+    expect(issues.every((i) => i.invalid[0]?.startsWith("prompt_version"))).toBe(true);
+  });
+
+  it("flags malformed random_seed", () => {
+    const issues = findCaseMetaIssues({
+      neg: { ...validMeta, random_seed: -1 },
+      float: { ...validMeta, random_seed: 1.5 },
+      // @ts-expect-error — intentional bad type
+      str: { ...validMeta, random_seed: "42" },
+    });
+    expect(issues).toHaveLength(3);
+    expect(issues.every((i) => i.invalid[0]?.startsWith("random_seed"))).toBe(true);
+  });
+
+  it("does not flag absent optional fields", () => {
+    expect(findCaseMetaIssues({ ok: validMeta })).toEqual([]);
+  });
 });
 
 describe("validateCaseMeta", () => {
@@ -53,7 +87,17 @@ describe("validateCaseMeta", () => {
     );
     expect(issues).toHaveLength(1);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]?.[0]).toMatch(/CASE_META\.bad.*dataset_version/);
+    expect(warn.mock.calls[0]?.[0]).toMatch(/CASE_META\.bad.*missing: dataset_version/);
+  });
+
+  it("warns about invalid optional fields with `invalid:` label", () => {
+    const warn = vi.fn();
+    validateCaseMeta(
+      { bad: { ...validMeta, prompt_version: "nope" } },
+      { context: "test", warn },
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toMatch(/invalid: prompt_version/);
   });
 
   it("throws an aggregated error in strict mode", () => {
@@ -62,6 +106,7 @@ describe("validateCaseMeta", () => {
         {
           a: { ...validMeta, dataset_version: "" },
           b: { ...validMeta, simplified: [] },
+          c: { ...validMeta, random_seed: -5 },
         },
         { context: "test", strict: true },
       ),
@@ -71,7 +116,10 @@ describe("validateCaseMeta", () => {
   it("does not warn or throw when all entries are valid", () => {
     const warn = vi.fn();
     expect(() =>
-      validateCaseMeta({ ok: validMeta }, { strict: true, warn }),
+      validateCaseMeta(
+        { ok: { ...validMeta, prompt_version: "p@1.0.0", random_seed: 7 } },
+        { strict: true, warn },
+      ),
     ).not.toThrow();
     expect(warn).not.toHaveBeenCalled();
   });
