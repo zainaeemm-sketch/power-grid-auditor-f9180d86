@@ -1398,6 +1398,44 @@ function CaseMetaDevPanel() {
         <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">Esc</kbd> clear search
       </p>
     </aside>
+    <OverridesSection overrides={overrides} onChanged={refreshOverrides} />
+    {filtered.length > 0 && (
+      <div className="not-prose my-2 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="rounded border border-emerald-400/50 bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold text-emerald-100 hover:bg-emerald-500/25"
+        >
+          Suggest AI fixes for visible ({viewTotals.errors + viewTotals.warnings})
+        </button>
+      </div>
+    )}
+    {drawerOpen && (
+      <SuggestionReviewDrawer
+        targets={(() => {
+          const out: SuggestTarget[] = [];
+          for (const i of filtered) {
+            for (const f of i.missing) {
+              out.push({ caseKey: i.key, field: f, severity: "error", message: "", currentValue: undefined });
+            }
+            for (const msg of i.invalid) {
+              const field = msg.split(/[=\s(]/, 1)[0] ?? "";
+              out.push({
+                caseKey: i.key,
+                field,
+                severity: "warning",
+                message: msg,
+                currentValue: (mergedMeta[i.key] as Record<string, JsonValue> | undefined)?.[field],
+              });
+            }
+          }
+          return out;
+        })()}
+        currentMetaByCase={mergedMeta as unknown as Record<string, Record<string, JsonValue>>}
+        onClose={() => setDrawerOpen(false)}
+        onApplied={refreshOverrides}
+      />
+    )}
     {preview !== null && (
       <ExportPreviewModal
         scope={preview.scope}
