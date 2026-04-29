@@ -514,7 +514,18 @@ function CaseMetaDevPanel() {
           </button>
         </div>
       </div>
-      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues">
+      <p className="mb-3 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[11px] leading-relaxed text-amber-100/80">
+        <span className="font-semibold text-amber-100">Non-blocking in dev:</span> these
+        warnings never fail the page or block flows like saving experiment presets.{" "}
+        <span className="font-semibold text-amber-100">CI is strict:</span> the{" "}
+        <code className="rounded bg-amber-500/15 px-1 py-px font-mono">case-meta</code>{" "}
+        test runs{" "}
+        <code className="rounded bg-amber-500/15 px-1 py-px font-mono">
+          validateCaseMeta(…, &#123; strict: true &#125;)
+        </code>{" "}
+        and fails the build on any of the issues listed below.
+      </p>
+      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues"></div>
         {filterOptions.map((opt) => {
           const active = filter === opt.id;
           const disabled = opt.count === 0 && opt.id !== "all";
