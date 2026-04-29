@@ -452,61 +452,31 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
 type ExportScope = "all" | "errors" | "warnings";
 
-function exportIssues(
-  issues: ExportableIssue[],
-  filter: IssueFilter,
-  format: "json" | "csv",
-  options: { scope?: ExportScope } = {},
-) {
-  const { scope = "all" } = options;
-  const ts = new Date().toISOString().replace(/[:.]/g, "-");
-  const base = `case-meta-issues_${filter}_${scope}_${ts}`;
+type IssueRow = {
+  display_order: number;
+  case_key: string;
+  severity: "error" | "warning";
+  problem_type: "missing" | "invalid";
+  field: string;
+  message: string;
+};
 
-  // Narrow the issue set to the requested scope. "errors" keeps only
-  // missing-required-field rows; "warnings" keeps only invalid-format rows.
-  const scoped: ExportableIssue[] =
-    scope === "errors"
-      ? issues
-          .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
-          .filter((i) => i.missing.length > 0)
-      : scope === "warnings"
-        ? issues
-            .map((i) => ({ key: i.key, missing: [] as string[], invalid: i.invalid }))
-            .filter((i) => i.invalid.length > 0)
-        : issues;
-
-  if (format === "json") {
-    const payload = {
-      generated_at: new Date().toISOString(),
-      filter,
-      scope,
-      total_entries: scoped.length,
-      total_missing: scoped.reduce((n, i) => n + i.missing.length, 0),
-      total_invalid: scoped.reduce((n, i) => n + i.invalid.length, 0),
-      issues: scoped,
-    };
-    downloadBlob(`${base}.json`, "application/json", JSON.stringify(payload, null, 2));
-    return;
+function scopeIssues(issues: ExportableIssue[], scope: ExportScope): ExportableIssue[] {
+  if (scope === "errors") {
+    return issues
+      .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
+      .filter((i) => i.missing.length > 0);
   }
+  if (scope === "warnings") {
+    return issues
+      .map((i) => ({ key: i.key, missing: [] as string[], invalid: i.invalid }))
+      .filter((i) => i.invalid.length > 0);
+  }
+  return issues;
+}
 
-  // CSV: one row per individual problem (missing field or invalid message).
-  // Rows are emitted in the SAME order they appear in the dev panel:
-  //   1. Outer order = order of `scoped` (which is `filtered` from the panel,
-  //      so search/field/severity filtering is already baked in and the
-  //      original case discovery order is preserved by `.map`/`.filter`).
-  //   2. Within each case, missing-field rows come first (rendered above
-  //      invalid-format rows in the UI), each in the order produced by
-  //      `findCaseMetaIssues`.
-  // A `display_order` column is added so re-imports keep this exact ordering
-  // even if a tool re-sorts the rows (e.g. spreadsheet auto-sort).
-  // Columns:
-  //   display_order — stable on-screen ordering (survives spreadsheet re-sort)
-  //   case_key      — the CASE_META key / ID this row belongs to (e.g. "case14")
-  //   severity      — "error" for missing required fields, "warning" for invalid format
-  //   problem_type  — "missing" | "invalid" (kept for backward compatibility)
-  //   field         — the offending CASE_META field slug (e.g. "prompt_version")
-  //   message       — full validation message text (empty for missing-field rows)
-  const rows: Array<Record<string, string | number>> = [];
+function buildIssueRows(scoped: ExportableIssue[]): IssueRow[] {
+  const rows: IssueRow[] = [];
   let order = 0;
   for (const { key, missing, invalid } of scoped) {
     for (const field of missing) {
@@ -531,9 +501,41 @@ function exportIssues(
       });
     }
   }
+  return rows;
+}
+
+
+function exportIssues(
+  issues: ExportableIssue[],
+  filter: IssueFilter,
+  format: "json" | "csv",
+  options: { scope?: ExportScope } = {},
+) {
+  const { scope = "all" } = options;
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const base = `case-meta-issues_${filter}_${scope}_${ts}`;
+  const scoped = scopeIssues(issues, scope);
+
+  if (format === "json") {
+    const payload = {
+      generated_at: new Date().toISOString(),
+      filter,
+      scope,
+      total_entries: scoped.length,
+      total_missing: scoped.reduce((n, i) => n + i.missing.length, 0),
+      total_invalid: scoped.reduce((n, i) => n + i.invalid.length, 0),
+      issues: scoped,
+    };
+    downloadBlob(`${base}.json`, "application/json", JSON.stringify(payload, null, 2));
+    return;
+  }
+
+  // CSV: one row per individual problem (missing field or invalid message).
+  // See `buildIssueRows` for column documentation and ordering guarantees.
+  const rows = buildIssueRows(scoped);
   const csv =
     rows.length > 0
-      ? toCsv(rows)
+      ? toCsv(rows as unknown as Array<Record<string, string | number>>)
       : "display_order,case_key,severity,problem_type,field,message\n";
   downloadBlob(`${base}.csv`, "text/csv", csv);
 }
@@ -701,6 +703,139 @@ function ViewStatusBar({
   );
 }
 
+function ExportPreviewModal({
+  scope,
+  filter,
+  issues,
+  onCancel,
+  onConfirm,
+}: {
+  scope: ExportScope;
+  filter: IssueFilter;
+  issues: ExportableIssue[];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const rows = useMemo(() => buildIssueRows(scopeIssues(issues, scope)), [issues, scope]);
+  const PREVIEW_LIMIT = 50;
+  const shown = rows.slice(0, PREVIEW_LIMIT);
+  const hidden = Math.max(0, rows.length - shown.length);
+
+  // Close on Escape for keyboard parity with the rest of the panel.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  const scopeLabel =
+    scope === "errors" ? "Errors only" : scope === "warnings" ? "Warnings only" : "All";
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="CSV export preview"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-amber-500/40 bg-slate-900 text-xs text-amber-50 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-amber-500/30 px-4 py-2">
+          <div>
+            <div className="text-sm font-semibold">CSV export preview</div>
+            <div className="text-[11px] text-amber-100/70">
+              Scope: <span className="font-mono">{scopeLabel}</span> · Field filter:{" "}
+              <span className="font-mono">{filter}</span> · {rows.length} row
+              {rows.length === 1 ? "" : "s"}
+              {hidden > 0 ? ` (showing first ${shown.length})` : ""}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Close preview"
+            className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] hover:bg-amber-500/20"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto">
+          {rows.length === 0 ? (
+            <div className="px-4 py-6 text-center text-amber-100/60">
+              No rows match the current scope.
+            </div>
+          ) : (
+            <table className="w-full border-collapse text-[11px]">
+              <thead className="sticky top-0 bg-slate-800 text-amber-100/80">
+                <tr>
+                  <th className="px-2 py-1 text-left font-semibold">#</th>
+                  <th className="px-2 py-1 text-left font-semibold">case_key</th>
+                  <th className="px-2 py-1 text-left font-semibold">severity</th>
+                  <th className="px-2 py-1 text-left font-semibold">field</th>
+                  <th className="px-2 py-1 text-left font-semibold">message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((r) => (
+                  <tr
+                    key={r.display_order}
+                    className="border-t border-amber-500/10 even:bg-slate-800/40"
+                  >
+                    <td className="px-2 py-1 font-mono tabular-nums text-amber-100/60">
+                      {r.display_order}
+                    </td>
+                    <td className="px-2 py-1 font-mono">{r.case_key}</td>
+                    <td className="px-2 py-1">
+                      <span
+                        className={`rounded border px-1 py-px text-[10px] font-semibold uppercase ${
+                          r.severity === "error"
+                            ? "border-red-400/50 bg-red-500/20 text-red-100"
+                            : "border-amber-300/50 bg-amber-400/20 text-amber-100"
+                        }`}
+                      >
+                        {r.severity}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1 font-mono">{r.field}</td>
+                    <td className="px-2 py-1 break-words text-amber-100/80">{r.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-amber-500/30 px-4 py-2">
+          {hidden > 0 && (
+            <span className="mr-auto text-[11px] text-amber-100/60">
+              + {hidden} more row{hidden === 1 ? "" : "s"} will be included in the download
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded border border-amber-500/30 bg-amber-500/5 px-3 py-1 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={rows.length === 0}
+            className="rounded border border-emerald-400/50 bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-50 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Download CSV
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
@@ -721,6 +856,11 @@ function CaseMetaDevPanel() {
     return set;
   }, [details]);
   const detailsForCurrent = detailsSet.has(filter);
+
+  // CSV export preview state: when set, the panel renders a modal showing
+  // the rows that would be written to disk so the user can confirm before
+  // committing the download.
+  const [previewScope, setPreviewScope] = useState<ExportScope | null>(null);
   const serializeDetails = (set: Set<IssueFilter>) =>
     set.size === 0 ? undefined : Array.from(set).join(",");
 
@@ -923,6 +1063,7 @@ function CaseMetaDevPanel() {
   ];
 
   return (
+    <>
     <aside
       role="alert"
       className={`not-prose my-4 rounded-md border px-4 py-3 text-xs ${
@@ -1011,7 +1152,7 @@ function CaseMetaDevPanel() {
               onChange={(e) => {
                 const v = e.target.value as ExportScope | "";
                 if (v === "") return;
-                exportIssues(filtered, filter, "csv", { scope: v });
+                setPreviewScope(v);
                 e.target.value = "";
               }}
               className="cursor-pointer rounded border border-amber-500/30 bg-amber-500/10 px-1 py-px text-[11px] font-medium text-amber-100 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed"
@@ -1185,6 +1326,19 @@ function CaseMetaDevPanel() {
         <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">Esc</kbd> clear search
       </p>
     </aside>
+    {previewScope !== null && (
+      <ExportPreviewModal
+        scope={previewScope}
+        filter={filter}
+        issues={filtered}
+        onCancel={() => setPreviewScope(null)}
+        onConfirm={() => {
+          exportIssues(filtered, filter, "csv", { scope: previewScope });
+          setPreviewScope(null);
+        }}
+      />
+    )}
+    </>
   );
 }
 
