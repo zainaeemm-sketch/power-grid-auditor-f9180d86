@@ -930,6 +930,7 @@ function CaseMetaDevPanel() {
   ];
 
   return (
+    <>
     <aside
       role="alert"
       className={`not-prose my-4 rounded-md border px-4 py-3 text-xs ${
