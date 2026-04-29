@@ -75,6 +75,7 @@ const casesSearchSchema = z.object({
   ).default("all"),
   details: fallback(z.boolean(), false).default(false),
   q: fallback(z.string(), "").default(""),
+  severity: fallback(z.enum(["any", "errors", "warnings"]), "any").default("any"),
 });
 
 const casesRouteApi = getRouteApi("/docs/cases");
@@ -414,6 +415,7 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
 }
 
 type IssueFilter = "all" | "missing" | "prompt_version" | "random_seed";
+type SeverityFilter = "any" | "errors" | "warnings";
 
 type ExportableIssue = { key: string; missing: string[]; invalid: string[] };
 
@@ -505,7 +507,7 @@ function SeverityBadge({
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
-  const { filter, details, q } = casesRouteApi.useSearch();
+  const { filter, details, q, severity } = casesRouteApi.useSearch();
   const navigate = useNavigate({ from: "/docs/cases" });
   const setFilter = (next: IssueFilter) => {
     navigate({
@@ -535,9 +537,17 @@ function CaseMetaDevPanel() {
     });
   const setQuery = (next: string) =>
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string }) => ({
+      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
         ...prev,
         q: next.trim() === "" ? undefined : next,
+      }),
+      replace: true,
+    });
+  const setSeverity = (next: SeverityFilter) =>
+    navigate({
+      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
+        ...prev,
+        severity: next === "any" ? undefined : next,
       }),
       replace: true,
     });
@@ -559,17 +569,24 @@ function CaseMetaDevPanel() {
     return allIssues
       .filter((i) => (needle === "" ? true : i.key.toLowerCase().includes(needle)))
       .map(({ key, missing, invalid }) => {
-        if (filter === "all") return { key, missing, invalid };
-        if (filter === "missing") return { key, missing, invalid: [] as string[] };
-        const prefix = filter; // "prompt_version" | "random_seed"
-        return {
-          key,
-          missing: [] as string[],
-          invalid: invalid.filter((m) => m.startsWith(prefix)),
-        };
+        // Field-level filter (which slot does the issue belong to).
+        let m = missing;
+        let inv = invalid;
+        if (filter === "missing") inv = [];
+        else if (filter === "prompt_version") {
+          m = [];
+          inv = invalid.filter((x) => x.startsWith("prompt_version"));
+        } else if (filter === "random_seed") {
+          m = [];
+          inv = invalid.filter((x) => x.startsWith("random_seed"));
+        }
+        // Severity-level filter (errors = missing, warnings = invalid).
+        if (severity === "errors") inv = [];
+        else if (severity === "warnings") m = [];
+        return { key, missing: m, invalid: inv };
       })
       .filter((i) => i.missing.length > 0 || i.invalid.length > 0);
-  }, [allIssues, filter, q]);
+  }, [allIssues, filter, q, severity]);
 
   if (allIssues.length === 0) return null;
 
@@ -612,9 +629,52 @@ function CaseMetaDevPanel() {
           Dev only
         </span>
         <span className="font-semibold">CASE_META validation issues ({allIssues.length})</span>
-        <span className="flex items-center gap-1">
-          <SeverityBadge severity="error" count={totals.errors} />
-          <SeverityBadge severity="warning" count={totals.warnings} />
+        <span
+          className="flex items-center gap-1"
+          role="group"
+          aria-label="Filter by severity"
+        >
+          <button
+            type="button"
+            onClick={() => setSeverity("any")}
+            aria-pressed={severity === "any"}
+            title="Show errors and warnings"
+            className={`rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              severity === "any"
+                ? "border-amber-200 bg-amber-400/30 text-amber-50"
+                : "border-amber-500/30 bg-amber-500/5 text-amber-200 hover:bg-amber-500/15"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setSeverity("errors")}
+            aria-pressed={severity === "errors"}
+            disabled={totals.errors === 0}
+            title="Show only required-field errors (these fail strict CI)"
+            className={`rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              severity === "errors"
+                ? "border-red-300 bg-red-500/40 text-red-50"
+                : "border-red-400/50 bg-red-500/15 text-red-100 hover:bg-red-500/25"
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            Errors <span className="tabular-nums">{totals.errors}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSeverity("warnings")}
+            aria-pressed={severity === "warnings"}
+            disabled={totals.warnings === 0}
+            title="Show only invalid-format warnings (non-blocking)"
+            className={`rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              severity === "warnings"
+                ? "border-amber-200 bg-amber-400/40 text-amber-50"
+                : "border-amber-400/50 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25"
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            Warnings <span className="tabular-nums">{totals.warnings}</span>
+          </button>
         </span>
         <div className="ml-auto flex gap-1.5">
           <button
