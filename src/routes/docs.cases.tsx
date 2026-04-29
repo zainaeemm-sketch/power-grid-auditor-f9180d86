@@ -1350,15 +1350,16 @@ function CaseMetaDevPanel() {
         <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">Esc</kbd> clear search
       </p>
     </aside>
-    {previewScope !== null && (
+    {preview !== null && (
       <ExportPreviewModal
-        scope={previewScope}
+        scope={preview.scope}
+        format={preview.format}
         filter={filter}
         issues={filtered}
-        onCancel={() => setPreviewScope(null)}
+        onCancel={() => setPreview(null)}
         onConfirm={() => {
-          exportIssues(filtered, filter, "csv", { scope: previewScope });
-          setPreviewScope(null);
+          exportIssues(filtered, filter, preview.format, { scope: preview.scope });
+          setPreview(null);
         }}
       />
     )}
