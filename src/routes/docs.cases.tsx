@@ -539,6 +539,88 @@ function ciCheckTitle(severity: "error" | "warning", message: string): string {
   return `Non-blocking warning (does not fail CI): CASE_META.<key>.${slug} — ${detail}.`;
 }
 
+/**
+ * Compact run-quality summary for the panel's current filtered view.
+ *
+ * Status:
+ * - "pass" — no errors and no warnings in scope (CI-clean).
+ * - "warn" — warnings only (non-blocking; CI still passes).
+ * - "fail" — at least one error (would fail strict CI).
+ *
+ * Also surfaces whether the view is narrowed: `viewTotals` reflects the
+ * issues currently visible after filter+search+severity, while `totals`
+ * reflects the full project. When they differ we tell the user.
+ */
+function ViewStatusBar({
+  viewTotals,
+  totals,
+}: {
+  viewTotals: { errors: number; warnings: number; cases: number };
+  totals: { errors: number; warnings: number };
+}) {
+  const status: "pass" | "warn" | "fail" =
+    viewTotals.errors > 0 ? "fail" : viewTotals.warnings > 0 ? "warn" : "pass";
+
+  const cfg = {
+    pass: {
+      label: "Pass",
+      detail: "No errors or warnings in this view — strict CI would pass.",
+      cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-100",
+      dot: "bg-emerald-400",
+    },
+    warn: {
+      label: "Warn",
+      detail: "Warnings only — non-blocking, strict CI still passes.",
+      cls: "border-amber-500/40 bg-amber-500/10 text-amber-100",
+      dot: "bg-amber-400",
+    },
+    fail: {
+      label: "Fail",
+      detail: "At least one required field is missing — strict CI would fail.",
+      cls: "border-red-500/50 bg-red-500/10 text-red-100",
+      dot: "bg-red-400",
+    },
+  }[status];
+
+  const isNarrowed =
+    viewTotals.errors !== totals.errors || viewTotals.warnings !== totals.warnings;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`mb-3 flex flex-wrap items-center gap-2 rounded border px-2 py-1.5 text-[11px] leading-snug ${cfg.cls}`}
+    >
+      <span className="flex items-center gap-1.5">
+        <span className={`inline-block h-2 w-2 rounded-full ${cfg.dot}`} aria-hidden />
+        <span className="font-semibold uppercase tracking-wider">{cfg.label}</span>
+      </span>
+      <span className="opacity-90">{cfg.detail}</span>
+      <span className="ml-auto flex items-center gap-2 font-mono text-[10.5px] opacity-90">
+        <span title="Errors visible in this view">
+          err <span className="tabular-nums">{viewTotals.errors}</span>
+        </span>
+        <span aria-hidden>·</span>
+        <span title="Warnings visible in this view">
+          warn <span className="tabular-nums">{viewTotals.warnings}</span>
+        </span>
+        <span aria-hidden>·</span>
+        <span title="Cases shown in this view">
+          cases <span className="tabular-nums">{viewTotals.cases}</span>
+        </span>
+        {isNarrowed && (
+          <span
+            className="rounded border border-current/40 px-1 py-px text-[9.5px] uppercase tracking-wider opacity-80"
+            title={`Filtered view (project total: ${totals.errors} errors, ${totals.warnings} warnings)`}
+          >
+            filtered
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
