@@ -16,9 +16,12 @@ reachable, renders without runtime errors, and shows expected case content.
 
 ## Running
 
+On a normal CI runner (Debian/Ubuntu) you also need the system libs that
+chromium links against — run with `--with-deps` once:
+
 ```bash
-# one-time
-bunx playwright install chromium
+# one-time, on a fresh CI runner
+npx playwright install --with-deps chromium
 
 # against the default published URL
 bun run test:e2e
