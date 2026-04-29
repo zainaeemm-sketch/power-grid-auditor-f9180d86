@@ -847,7 +847,7 @@ function ExportPreviewModal({
             disabled={rows.length === 0}
             className="rounded border border-emerald-400/50 bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-50 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Download CSV
+            Download {format.toUpperCase()}
           </button>
         </div>
       </div>
