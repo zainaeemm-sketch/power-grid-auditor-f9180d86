@@ -17,10 +17,19 @@ export function OverridesSection({
   loading?: boolean;
 }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // Optimistically-removed override ids. Hidden from the rendered list
+  // immediately on click; restored if the server action fails.
+  const [optimisticallyRemoved, setOptimisticallyRemoved] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  // Drop ids from the optimistic-remove set once the parent confirms they're
+  // gone from the canonical `overrides` list (avoids stale entries).
+  const visibleOverrides = overrides.filter((o) => !optimisticallyRemoved.has(o.id));
 
   // Loading skeleton — only shown the first time we load (no rows yet) so
   // that subsequent refreshes don't make the visible list flicker.
-  if (loading && overrides.length === 0) {
+  if (loading && visibleOverrides.length === 0 && overrides.length === 0) {
     return (
       <aside
         role="status"
