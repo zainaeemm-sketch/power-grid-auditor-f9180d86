@@ -632,7 +632,7 @@ function CaseMetaDevPanel() {
                     const slug = fieldSlug(msg);
                     return (
                       <li key={msg} className="text-amber-100/80">
-                        <span className="font-semibold text-amber-100">invalid:</span>{" "}
+                        <SeverityBadge severity="warning" />{" "}
                         <a
                           href={`#case-${key}-${slug}`}
                           className="font-mono text-amber-200 underline-offset-4 hover:underline"
