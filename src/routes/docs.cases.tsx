@@ -864,7 +864,6 @@ function ExportPreviewModal({
 }
 
 function CaseMetaDevPanel() {
-  if (!import.meta.env.DEV) return null;
   const [overrides, setOverrides] = useState<CaseMetaOverrideRow[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const refreshOverrides = async () => {
