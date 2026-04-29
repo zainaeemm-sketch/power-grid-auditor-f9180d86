@@ -362,39 +362,104 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
   );
 }
 
+type IssueFilter = "all" | "missing" | "prompt_version" | "random_seed";
+
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
-  const issues = findCaseMetaIssues(CASE_META);
-  if (issues.length === 0) return null;
+  const allIssues = findCaseMetaIssues(CASE_META);
+  const [filter, setFilter] = useState<IssueFilter>("all");
+
+  const counts = useMemo(() => {
+    let missing = 0;
+    let promptVersion = 0;
+    let randomSeed = 0;
+    for (const issue of allIssues) {
+      if (issue.missing.length > 0) missing++;
+      if (issue.invalid.some((m) => m.startsWith("prompt_version"))) promptVersion++;
+      if (issue.invalid.some((m) => m.startsWith("random_seed"))) randomSeed++;
+    }
+    return { all: allIssues.length, missing, prompt_version: promptVersion, random_seed: randomSeed };
+  }, [allIssues]);
+
+  const filtered = useMemo(() => {
+    return allIssues
+      .map(({ key, missing, invalid }) => {
+        if (filter === "all") return { key, missing, invalid };
+        if (filter === "missing") return { key, missing, invalid: [] as string[] };
+        const prefix = filter; // "prompt_version" | "random_seed"
+        return {
+          key,
+          missing: [] as string[],
+          invalid: invalid.filter((m) => m.startsWith(prefix)),
+        };
+      })
+      .filter((i) => i.missing.length > 0 || i.invalid.length > 0);
+  }, [allIssues, filter]);
+
+  if (allIssues.length === 0) return null;
+
+  const filterOptions: Array<{ id: IssueFilter; label: string; count: number }> = [
+    { id: "all", label: "All", count: counts.all },
+    { id: "missing", label: "Missing fields", count: counts.missing },
+    { id: "prompt_version", label: "Invalid prompt_version", count: counts.prompt_version },
+    { id: "random_seed", label: "Invalid random_seed", count: counts.random_seed },
+  ];
+
   return (
     <aside
       role="alert"
       className="not-prose my-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100"
     >
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-200">
           Dev only
         </span>
-        <span className="font-semibold">CASE_META validation issues ({issues.length})</span>
+        <span className="font-semibold">CASE_META validation issues ({allIssues.length})</span>
       </div>
-      <ul className="list-disc space-y-1 pl-5">
-        {issues.map(({ key, missing, invalid }) => (
-          <li key={key}>
-            <a
-              href={`#case-${key}`}
-              className="font-mono text-amber-200 underline-offset-4 hover:underline"
+      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues">
+        {filterOptions.map((opt) => {
+          const active = filter === opt.id;
+          const disabled = opt.count === 0 && opt.id !== "all";
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setFilter(opt.id)}
+              disabled={disabled}
+              aria-pressed={active}
+              className={`rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                active
+                  ? "border-amber-300 bg-amber-400/30 text-amber-50"
+                  : "border-amber-500/30 bg-amber-500/5 text-amber-200 hover:bg-amber-500/15"
+              } ${disabled ? "cursor-not-allowed opacity-40 hover:bg-amber-500/5" : ""}`}
             >
-              {key}
-            </a>
-            {missing.length > 0 && (
-              <span className="text-amber-100/80"> — missing: {missing.join(", ")}</span>
-            )}
-            {invalid.length > 0 && (
-              <span className="text-amber-100/80"> — invalid: {invalid.join(", ")}</span>
-            )}
-          </li>
-        ))}
-      </ul>
+              {opt.label} <span className="opacity-70">({opt.count})</span>
+            </button>
+          );
+        })}
+      </div>
+      {filtered.length === 0 ? (
+        <p className="italic text-amber-100/70">No issues match the current filter.</p>
+      ) : (
+        <ul className="list-disc space-y-1 pl-5">
+          {filtered.map(({ key, missing, invalid }) => (
+            <li key={key}>
+              <a
+                href={`#case-${key}`}
+                className="font-mono text-amber-200 underline-offset-4 hover:underline"
+              >
+                {key}
+              </a>
+              {missing.length > 0 && (
+                <span className="text-amber-100/80"> — missing: {missing.join(", ")}</span>
+              )}
+              {invalid.length > 0 && (
+                <span className="text-amber-100/80"> — invalid: {invalid.join(", ")}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </aside>
   );
 }
