@@ -772,6 +772,22 @@ function ExportPreviewModal({
             <div className="px-4 py-6 text-center text-amber-100/60">
               No rows match the current scope.
             </div>
+          ) : format === "json" ? (
+            <pre className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-[11px] leading-snug text-amber-100/85">
+              {JSON.stringify(
+                {
+                  generated_at: "<set at download time>",
+                  filter,
+                  scope,
+                  total_entries: scoped.length,
+                  total_missing: scoped.reduce((n, i) => n + i.missing.length, 0),
+                  total_invalid: scoped.reduce((n, i) => n + i.invalid.length, 0),
+                  issues: scoped,
+                },
+                null,
+                2,
+              )}
+            </pre>
           ) : (
             <table className="w-full border-collapse text-[11px]">
               <thead className="sticky top-0 bg-slate-800 text-amber-100/80">
