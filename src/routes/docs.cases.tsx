@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { Download } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { TopologyDiagram } from "@/components/docs/TopologyDiagram";
 import { CASES } from "@/server/simulation/cases";
@@ -66,7 +68,17 @@ function exportCaseCsv(c: PowerSystemCase) {
   downloadBlob(`${c.name}.csv`, "text/csv", sections.join("\n"));
 }
 
+const casesSearchSchema = z.object({
+  filter: fallback(
+    z.enum(["all", "missing", "prompt_version", "random_seed"]),
+    "all",
+  ).default("all"),
+});
+
+const casesRouteApi = getRouteApi("/docs/cases");
+
 export const Route = createFileRoute("/docs/cases")({
+  validateSearch: zodValidator(casesSearchSchema),
   head: () => ({
     meta: [
       { title: "Test Systems — GridArena Docs" },
@@ -445,7 +457,16 @@ function exportIssues(
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
-  const [filter, setFilter] = useState<IssueFilter>("all");
+  const { filter } = casesRouteApi.useSearch();
+  const navigate = useNavigate({ from: "/docs/cases" });
+  const setFilter = (next: IssueFilter) =>
+    navigate({
+      search: (prev: { filter?: IssueFilter }) => ({
+        ...prev,
+        filter: next === "all" ? undefined : next,
+      }),
+      replace: true,
+    });
 
   const counts = useMemo(() => {
     let missing = 0;
