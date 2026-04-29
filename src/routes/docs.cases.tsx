@@ -816,7 +816,7 @@ function CaseMetaDevPanel() {
       ) : (
         <ul className="list-disc space-y-1.5 pl-5">
           {filtered.map(({ key, missing, invalid }) => (
-            <li key={key}>
+            <li key={key} id={`dev-issue-${key}`} className="scroll-mt-24">
               <a
                 href={`#case-${key}`}
                 className="font-mono text-amber-200 underline-offset-4 hover:underline"
