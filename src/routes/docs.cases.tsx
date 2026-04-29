@@ -74,6 +74,7 @@ const casesSearchSchema = z.object({
     "all",
   ).default("all"),
   details: fallback(z.boolean(), false).default(false),
+  q: fallback(z.string(), "").default(""),
 });
 
 const casesRouteApi = getRouteApi("/docs/cases");
