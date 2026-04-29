@@ -977,8 +977,11 @@ function CaseMetaDevPanel() {
                           {slug}
                         </a>
                         {details ? (
-                          <div className="ml-5 mt-0.5 break-words font-mono text-[11px] leading-snug text-amber-100/75">
-                            {msg}
+                          <div className="ml-5 mt-0.5 flex items-start gap-1.5">
+                            <div className="break-words font-mono text-[11px] leading-snug text-amber-100/75">
+                              {msg}
+                            </div>
+                            <CopyButton value={msg} label={`Copy ${slug} validation message`} />
                           </div>
                         ) : (
                           <span className="sr-only"> — {msg}</span>
