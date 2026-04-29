@@ -452,6 +452,59 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
 type ExportScope = "all" | "errors" | "warnings";
 
+type IssueRow = {
+  display_order: number;
+  case_key: string;
+  severity: "error" | "warning";
+  problem_type: "missing" | "invalid";
+  field: string;
+  message: string;
+};
+
+function scopeIssues(issues: ExportableIssue[], scope: ExportScope): ExportableIssue[] {
+  if (scope === "errors") {
+    return issues
+      .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
+      .filter((i) => i.missing.length > 0);
+  }
+  if (scope === "warnings") {
+    return issues
+      .map((i) => ({ key: i.key, missing: [] as string[], invalid: i.invalid }))
+      .filter((i) => i.invalid.length > 0);
+  }
+  return issues;
+}
+
+function buildIssueRows(scoped: ExportableIssue[]): IssueRow[] {
+  const rows: IssueRow[] = [];
+  let order = 0;
+  for (const { key, missing, invalid } of scoped) {
+    for (const field of missing) {
+      rows.push({
+        display_order: order++,
+        case_key: key,
+        severity: "error",
+        problem_type: "missing",
+        field,
+        message: "",
+      });
+    }
+    for (const message of invalid) {
+      const field = message.split(/[=\s(]/, 1)[0] ?? "";
+      rows.push({
+        display_order: order++,
+        case_key: key,
+        severity: "warning",
+        problem_type: "invalid",
+        field,
+        message,
+      });
+    }
+  }
+  return rows;
+}
+
+
 function exportIssues(
   issues: ExportableIssue[],
   filter: IssueFilter,
