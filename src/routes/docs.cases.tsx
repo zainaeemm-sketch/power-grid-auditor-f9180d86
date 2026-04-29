@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { TopologyDiagram } from "@/components/docs/TopologyDiagram";
 import { CASES } from "@/server/simulation/cases";
 import type { PowerSystemCase } from "@/server/simulation/types";
+import { SuggestionReviewDrawer, type SuggestTarget } from "@/components/docs/SuggestionReviewDrawer";
+import { OverridesSection } from "@/components/docs/OverridesSection";
+import {
+  listCaseMetaOverrides,
+  type CaseMetaOverrideRow,
+  type JsonValue,
+} from "@/server/case-fix.functions";
+import { mergeOverrides } from "@/lib/case-meta";
 
 function downloadBlob(filename: string, mime: string, content: string) {
   const blob = new Blob([content], { type: mime });
