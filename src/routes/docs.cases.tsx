@@ -752,6 +752,29 @@ function fieldSlug(message: string): string {
   return head || "dataset_version";
 }
 
+/**
+ * Resolve the DOM id to scroll to when a given filter chip is activated.
+ * Returns the most specific anchor that matches the filter, or null when
+ * no issue matches (in which case scrolling is skipped).
+ */
+function firstMatchingAnchorId(
+  issues: ReadonlyArray<{ key: string; missing: string[]; invalid: string[] }>,
+  filter: IssueFilter,
+): string | null {
+  if (filter === "all") {
+    const first = issues[0];
+    return first ? `case-${first.key}` : null;
+  }
+  if (filter === "missing") {
+    const first = issues.find((i) => i.missing.length > 0);
+    if (!first) return null;
+    return `case-${first.key}-${fieldSlug(first.missing[0]!)}`;
+  }
+  // "prompt_version" | "random_seed"
+  const first = issues.find((i) => i.invalid.some((m) => m.startsWith(filter)));
+  if (!first) return null;
+  return `case-${first.key}-${filter}`;
+
 function CasesPage() {
   return (
     <>
