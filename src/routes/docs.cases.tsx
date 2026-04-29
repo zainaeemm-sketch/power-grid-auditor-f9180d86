@@ -447,7 +447,13 @@ function exportIssues(
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
-  const [filter, setFilter] = useState<IssueFilter>("all");
+  const { filter } = casesRouteApi.useSearch();
+  const navigate = useNavigate({ from: "/docs/cases" });
+  const setFilter = (next: IssueFilter) =>
+    navigate({
+      search: (prev) => ({ ...prev, filter: next === "all" ? undefined : next }),
+      replace: true,
+    });
 
   const counts = useMemo(() => {
     let missing = 0;
