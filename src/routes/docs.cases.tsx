@@ -814,12 +814,15 @@ function CaseMetaDevPanel() {
                 {key}
               </a>
               {missing.length > 0 && (
-                <div className="ml-1 mt-0.5 text-amber-100/80">
-                  <SeverityBadge severity="error" />{" "}
-                  {missing.map((m, idx) => {
+                <ul className="ml-1 mt-0.5 list-none space-y-0.5">
+                  {missing.map((m) => {
                     const slug = fieldSlug(m);
                     return (
-                      <span key={m}>
+                      <li key={m} className="text-amber-100/80">
+                        <SeverityBadge
+                          severity="error"
+                          title={ciCheckTitle("error", m)}
+                        />{" "}
                         <a
                           href={`#case-${key}-${slug}`}
                           className="font-mono text-amber-200 underline-offset-4 hover:underline"
@@ -827,11 +830,10 @@ function CaseMetaDevPanel() {
                         >
                           {m}
                         </a>
-                        {idx < missing.length - 1 ? ", " : ""}
-                      </span>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               )}
               {invalid.length > 0 && (
                 <ul className="ml-1 mt-0.5 list-none space-y-0.5">
