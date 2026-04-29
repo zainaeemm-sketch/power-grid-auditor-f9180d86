@@ -645,6 +645,16 @@ function CaseMetaDevPanel() {
     return { errors, warnings };
   }, [allIssues]);
 
+  const viewTotals = useMemo(() => {
+    let errors = 0;
+    let warnings = 0;
+    for (const i of filtered) {
+      errors += i.missing.length;
+      warnings += i.invalid.length;
+    }
+    return { errors, warnings, cases: filtered.length };
+  }, [filtered]);
+
   const hasErrors = totals.errors > 0;
 
   const filterOptions: Array<{ id: IssueFilter; label: string; count: number }> = [
