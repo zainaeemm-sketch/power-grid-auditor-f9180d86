@@ -525,7 +525,7 @@ function CaseMetaDevPanel() {
         </code>{" "}
         and fails the build on any of the issues listed below.
       </p>
-      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues"></div>
+      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues">
         {filterOptions.map((opt) => {
           const active = filter === opt.id;
           const disabled = opt.count === 0 && opt.id !== "all";
