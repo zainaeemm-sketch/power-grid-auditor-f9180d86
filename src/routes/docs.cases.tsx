@@ -73,7 +73,10 @@ const casesSearchSchema = z.object({
     z.enum(["all", "missing", "prompt_version", "random_seed"]),
     "all",
   ).default("all"),
-  details: fallback(z.boolean(), false).default(false),
+  // Per-filter "show details" persistence: comma-separated list of filter ids
+  // that currently have details enabled (e.g. "missing,prompt_version").
+  // Stored as a string for URL compactness; parsed/serialized in the panel.
+  details: fallback(z.string(), "").default(""),
   q: fallback(z.string(), "").default(""),
   severity: fallback(z.enum(["any", "errors", "warnings"]), "any").default("any"),
 });
