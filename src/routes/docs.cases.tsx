@@ -829,7 +829,7 @@ function ExportPreviewModal({
           )}
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-amber-500/30 px-4 py-2">
-          {hidden > 0 && (
+          {format === "csv" && hidden > 0 && (
             <span className="mr-auto text-[11px] text-amber-100/60">
               + {hidden} more row{hidden === 1 ? "" : "s"} will be included in the download
             </span>
