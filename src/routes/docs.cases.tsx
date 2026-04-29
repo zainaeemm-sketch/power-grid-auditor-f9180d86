@@ -132,7 +132,7 @@ function MetaField({ label, children }: { label: string; children: React.ReactNo
 
 import { type CaseMeta, findCaseMetaIssues, validateCaseMeta } from "@/lib/case-meta";
 
-const CASE_META: Record<string, CaseMeta> = {
+export const CASE_META: Record<string, CaseMeta> = {
   case5: {
     dataset_version: "gridarena-case5@1.0.0",
     source: "PJM 5-bus educational example (Li & Bo, 2010)",
