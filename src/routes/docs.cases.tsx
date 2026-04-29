@@ -450,24 +450,30 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+type ExportScope = "all" | "errors" | "warnings";
+
 function exportIssues(
   issues: ExportableIssue[],
   filter: IssueFilter,
   format: "json" | "csv",
-  options: { errorsOnly?: boolean } = {},
+  options: { scope?: ExportScope } = {},
 ) {
-  const { errorsOnly = false } = options;
+  const { scope = "all" } = options;
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
-  const scope = errorsOnly ? "errors" : "all";
   const base = `case-meta-issues_${filter}_${scope}_${ts}`;
 
-  // When errorsOnly, drop invalid-format warnings entirely (and any entries
-  // that have no remaining missing-field errors).
-  const scoped: ExportableIssue[] = errorsOnly
-    ? issues
-        .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
-        .filter((i) => i.missing.length > 0)
-    : issues;
+  // Narrow the issue set to the requested scope. "errors" keeps only
+  // missing-required-field rows; "warnings" keeps only invalid-format rows.
+  const scoped: ExportableIssue[] =
+    scope === "errors"
+      ? issues
+          .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
+          .filter((i) => i.missing.length > 0)
+      : scope === "warnings"
+        ? issues
+            .map((i) => ({ key: i.key, missing: [] as string[], invalid: i.invalid }))
+            .filter((i) => i.invalid.length > 0)
+        : issues;
 
   if (format === "json") {
     const payload = {
