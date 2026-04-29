@@ -864,7 +864,6 @@ function ExportPreviewModal({
 }
 
 function CaseMetaDevPanel() {
-  if (!import.meta.env.DEV) return null;
   const [overrides, setOverrides] = useState<CaseMetaOverrideRow[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const refreshOverrides = async () => {
@@ -1526,7 +1525,7 @@ function CasesPage() {
   return (
     <>
       <h1>Test Systems</h1>
-      <CaseMetaDevPanel />
+      {import.meta.env.DEV && <CaseMetaDevPanel />}
 
       <h2 id="exporting-invalid-items">Exporting invalid items</h2>
       <p>
