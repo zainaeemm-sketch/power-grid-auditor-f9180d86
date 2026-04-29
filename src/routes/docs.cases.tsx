@@ -569,17 +569,24 @@ function CaseMetaDevPanel() {
     return allIssues
       .filter((i) => (needle === "" ? true : i.key.toLowerCase().includes(needle)))
       .map(({ key, missing, invalid }) => {
-        if (filter === "all") return { key, missing, invalid };
-        if (filter === "missing") return { key, missing, invalid: [] as string[] };
-        const prefix = filter; // "prompt_version" | "random_seed"
-        return {
-          key,
-          missing: [] as string[],
-          invalid: invalid.filter((m) => m.startsWith(prefix)),
-        };
+        // Field-level filter (which slot does the issue belong to).
+        let m = missing;
+        let inv = invalid;
+        if (filter === "missing") inv = [];
+        else if (filter === "prompt_version") {
+          m = [];
+          inv = invalid.filter((x) => x.startsWith("prompt_version"));
+        } else if (filter === "random_seed") {
+          m = [];
+          inv = invalid.filter((x) => x.startsWith("random_seed"));
+        }
+        // Severity-level filter (errors = missing, warnings = invalid).
+        if (severity === "errors") inv = [];
+        else if (severity === "warnings") m = [];
+        return { key, missing: m, invalid: inv };
       })
       .filter((i) => i.missing.length > 0 || i.invalid.length > 0);
-  }, [allIssues, filter, q]);
+  }, [allIssues, filter, q, severity]);
 
   if (allIssues.length === 0) return null;
 
