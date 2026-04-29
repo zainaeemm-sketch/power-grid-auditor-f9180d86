@@ -499,21 +499,42 @@ function exportIssues(
   //      `findCaseMetaIssues`.
   // A `display_order` column is added so re-imports keep this exact ordering
   // even if a tool re-sorts the rows (e.g. spreadsheet auto-sort).
+  // Columns:
+  //   display_order — stable on-screen ordering (survives spreadsheet re-sort)
+  //   case_key      — the CASE_META key / ID this row belongs to (e.g. "case14")
+  //   severity      — "error" for missing required fields, "warning" for invalid format
+  //   problem_type  — "missing" | "invalid" (kept for backward compatibility)
+  //   field         — the offending CASE_META field slug (e.g. "prompt_version")
+  //   message       — full validation message text (empty for missing-field rows)
   const rows: Array<Record<string, string | number>> = [];
   let order = 0;
   for (const { key, missing, invalid } of scoped) {
     for (const field of missing) {
-      rows.push({ display_order: order++, case_key: key, problem_type: "missing", field, message: "" });
+      rows.push({
+        display_order: order++,
+        case_key: key,
+        severity: "error",
+        problem_type: "missing",
+        field,
+        message: "",
+      });
     }
     for (const message of invalid) {
       const field = message.split(/[=\s(]/, 1)[0] ?? "";
-      rows.push({ display_order: order++, case_key: key, problem_type: "invalid", field, message });
+      rows.push({
+        display_order: order++,
+        case_key: key,
+        severity: "warning",
+        problem_type: "invalid",
+        field,
+        message,
+      });
     }
   }
   const csv =
     rows.length > 0
       ? toCsv(rows)
-      : "display_order,case_key,problem_type,field,message\n";
+      : "display_order,case_key,severity,problem_type,field,message\n";
   downloadBlob(`${base}.csv`, "text/csv", csv);
 }
 
