@@ -131,4 +131,15 @@ describe("project CASE_META (smoke)", () => {
     const issues = findCaseMetaIssues(CASE_META);
     expect(issues, JSON.stringify(issues, null, 2)).toEqual([]);
   });
+
+  // Mirrors what the docs page would do in "strict" mode. Kept as a separate
+  // test so the failure message is the aggregated Error from validateCaseMeta,
+  // making CI logs immediately actionable. The browser dev panel intentionally
+  // never throws — strict enforcement lives here, in CI.
+  it("strict validation passes for the live CASE_META (CI gate)", async () => {
+    const { CASE_META } = await import("@/routes/docs.cases");
+    expect(() =>
+      validateCaseMeta(CASE_META, { context: "ci", strict: true }),
+    ).not.toThrow();
+  });
 });
