@@ -950,6 +950,8 @@ function firstMatchingIssueKey(
   }
   return null;
 }
+
+function CasesPage() {
   return (
     <>
       <h1>Test Systems</h1>
