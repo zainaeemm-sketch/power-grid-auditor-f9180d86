@@ -163,8 +163,10 @@ export function SuggestionReviewDrawer({
               type="button"
               onClick={suggestAll}
               disabled={busy || pendingCount === 0}
-              className="rounded border border-emerald-400/50 bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-busy={busy}
+              className="inline-flex items-center gap-1 rounded border border-emerald-400/50 bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
             >
+              {busy && <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />}
               {busy ? "Suggesting…" : `Suggest all (${pendingCount})`}
             </button>
             <button
@@ -236,7 +238,14 @@ export function SuggestionReviewDrawer({
                 ) : null}
 
                 {row.status === "loading" && (
-                  <div className="text-[11px] italic text-emerald-100/60">Asking OpenAI…</div>
+                  <div
+                    className="inline-flex items-center gap-1.5 text-[11px] italic text-emerald-100/60"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                    Asking OpenAI…
+                  </div>
                 )}
 
                 {(row.status === "ready" || row.status === "applied") && row.suggestion && (
@@ -264,21 +273,28 @@ export function SuggestionReviewDrawer({
                         <button
                           type="button"
                           onClick={() => acceptOne(idx)}
-                          className="rounded border border-emerald-400/60 bg-emerald-500/30 px-2.5 py-0.5 text-[11px] font-semibold hover:bg-emerald-500/40"
+                          disabled={row.accepting}
+                          aria-busy={row.accepting}
+                          className="inline-flex items-center gap-1 rounded border border-emerald-400/60 bg-emerald-500/30 px-2.5 py-0.5 text-[11px] font-semibold hover:bg-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Accept & save
+                          {row.accepting && (
+                            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                          )}
+                          {row.accepting ? "Saving…" : "Accept & save"}
                         </button>
                         <button
                           type="button"
                           onClick={() => reject(idx)}
-                          className="rounded border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[11px] hover:bg-emerald-500/15"
+                          disabled={row.accepting}
+                          className="rounded border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[11px] hover:bg-emerald-500/15 disabled:opacity-50"
                         >
                           Reject
                         </button>
                         <button
                           type="button"
                           onClick={() => suggestOne(idx)}
-                          className="rounded border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[11px] hover:bg-emerald-500/15"
+                          disabled={row.accepting}
+                          className="rounded border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[11px] hover:bg-emerald-500/15 disabled:opacity-50"
                         >
                           Re-roll
                         </button>
