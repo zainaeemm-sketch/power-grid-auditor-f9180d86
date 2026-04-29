@@ -608,7 +608,7 @@ function CaseMetaDevPanel() {
               </a>
               {missing.length > 0 && (
                 <div className="ml-1 mt-0.5 text-amber-100/80">
-                  <span className="font-semibold text-amber-100">missing:</span>{" "}
+                  <SeverityBadge severity="error" />{" "}
                   {missing.map((m, idx) => {
                     const slug = fieldSlug(m);
                     return (
