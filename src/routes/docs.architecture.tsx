@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArchitectureDiagram } from "@/components/docs/ArchitectureDiagram";
+import { ValidationFeedbackDiagram } from "@/components/docs/ValidationFeedbackDiagram";
 
 export const Route = createFileRoute("/docs/architecture")({
   head: () => ({
