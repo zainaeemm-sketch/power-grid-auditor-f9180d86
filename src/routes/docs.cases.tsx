@@ -454,6 +454,52 @@ function exportIssues(
   downloadBlob(`${base}.csv`, "text/csv", csv);
 }
 
+/**
+ * Severity legend for the dev panel:
+ * - `error`   → required field missing (blocks CI via strict validation).
+ * - `warning` → optional field present but malformed (does not block CI).
+ *
+ * `count` is optional: when omitted the badge renders as a plain inline label
+ * (used next to each list item); when provided it renders as a header chip
+ * showing the total of that severity (e.g. "3 errors").
+ */
+function SeverityBadge({
+  severity,
+  count,
+}: {
+  severity: "error" | "warning";
+  count?: number;
+}) {
+  const isError = severity === "error";
+  const label = isError ? "error" : "warning";
+  const cls = isError
+    ? "border-red-400/50 bg-red-500/25 text-red-50"
+    : "border-amber-400/50 bg-amber-500/25 text-amber-50";
+  const title = isError
+    ? "Required field missing — fails strict CI validation"
+    : "Optional field has invalid format — warns only, does not fail CI";
+  if (count === undefined) {
+    return (
+      <span
+        title={title}
+        className={`inline-block rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider ${cls}`}
+      >
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider ${cls} ${
+        count === 0 ? "opacity-40" : ""
+      }`}
+    >
+      {label}s <span className="tabular-nums">{count}</span>
+    </span>
+  );
+}
+
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
@@ -497,6 +543,18 @@ function CaseMetaDevPanel() {
 
   if (allIssues.length === 0) return null;
 
+  const totals = useMemo(() => {
+    let errors = 0;
+    let warnings = 0;
+    for (const i of allIssues) {
+      errors += i.missing.length;
+      warnings += i.invalid.length;
+    }
+    return { errors, warnings };
+  }, [allIssues]);
+
+  const hasErrors = totals.errors > 0;
+
   const filterOptions: Array<{ id: IssueFilter; label: string; count: number }> = [
     { id: "all", label: "All", count: counts.all },
     { id: "missing", label: "Missing fields", count: counts.missing },
@@ -507,13 +565,27 @@ function CaseMetaDevPanel() {
   return (
     <aside
       role="alert"
-      className="not-prose my-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100"
+      className={`not-prose my-4 rounded-md border px-4 py-3 text-xs ${
+        hasErrors
+          ? "border-red-500/50 bg-red-500/10 text-red-100"
+          : "border-amber-500/40 bg-amber-500/10 text-amber-100"
+      }`}
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-200">
+        <span
+          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+            hasErrors
+              ? "bg-red-500/25 text-red-100"
+              : "bg-amber-500/20 text-amber-200"
+          }`}
+        >
           Dev only
         </span>
         <span className="font-semibold">CASE_META validation issues ({allIssues.length})</span>
+        <span className="flex items-center gap-1">
+          <SeverityBadge severity="error" count={totals.errors} />
+          <SeverityBadge severity="warning" count={totals.warnings} />
+        </span>
         <div className="ml-auto flex gap-1.5">
           <button
             type="button"
@@ -582,7 +654,7 @@ function CaseMetaDevPanel() {
               </a>
               {missing.length > 0 && (
                 <div className="ml-1 mt-0.5 text-amber-100/80">
-                  <span className="font-semibold text-amber-100">missing:</span>{" "}
+                  <SeverityBadge severity="error" />{" "}
                   {missing.map((m, idx) => {
                     const slug = fieldSlug(m);
                     return (
@@ -606,7 +678,7 @@ function CaseMetaDevPanel() {
                     const slug = fieldSlug(msg);
                     return (
                       <li key={msg} className="text-amber-100/80">
-                        <span className="font-semibold text-amber-100">invalid:</span>{" "}
+                        <SeverityBadge severity="warning" />{" "}
                         <a
                           href={`#case-${key}-${slug}`}
                           className="font-mono text-amber-200 underline-offset-4 hover:underline"
