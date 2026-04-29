@@ -765,6 +765,7 @@ function CaseMetaDevPanel() {
           </label>
         </div>
       </div>
+      <ViewStatusBar viewTotals={viewTotals} totals={totals} />
       <p className="mb-3 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[11px] leading-relaxed text-amber-100/80">
         <span className="font-semibold text-amber-100">Non-blocking in dev:</span> these
         warnings never fail the page or block flows like saving experiment presets.{" "}
