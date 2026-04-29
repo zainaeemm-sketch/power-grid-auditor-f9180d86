@@ -703,6 +703,139 @@ function ViewStatusBar({
   );
 }
 
+function ExportPreviewModal({
+  scope,
+  filter,
+  issues,
+  onCancel,
+  onConfirm,
+}: {
+  scope: ExportScope;
+  filter: IssueFilter;
+  issues: ExportableIssue[];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const rows = useMemo(() => buildIssueRows(scopeIssues(issues, scope)), [issues, scope]);
+  const PREVIEW_LIMIT = 50;
+  const shown = rows.slice(0, PREVIEW_LIMIT);
+  const hidden = Math.max(0, rows.length - shown.length);
+
+  // Close on Escape for keyboard parity with the rest of the panel.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  const scopeLabel =
+    scope === "errors" ? "Errors only" : scope === "warnings" ? "Warnings only" : "All";
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="CSV export preview"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-amber-500/40 bg-slate-900 text-xs text-amber-50 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-amber-500/30 px-4 py-2">
+          <div>
+            <div className="text-sm font-semibold">CSV export preview</div>
+            <div className="text-[11px] text-amber-100/70">
+              Scope: <span className="font-mono">{scopeLabel}</span> · Field filter:{" "}
+              <span className="font-mono">{filter}</span> · {rows.length} row
+              {rows.length === 1 ? "" : "s"}
+              {hidden > 0 ? ` (showing first ${shown.length})` : ""}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Close preview"
+            className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] hover:bg-amber-500/20"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto">
+          {rows.length === 0 ? (
+            <div className="px-4 py-6 text-center text-amber-100/60">
+              No rows match the current scope.
+            </div>
+          ) : (
+            <table className="w-full border-collapse text-[11px]">
+              <thead className="sticky top-0 bg-slate-800 text-amber-100/80">
+                <tr>
+                  <th className="px-2 py-1 text-left font-semibold">#</th>
+                  <th className="px-2 py-1 text-left font-semibold">case_key</th>
+                  <th className="px-2 py-1 text-left font-semibold">severity</th>
+                  <th className="px-2 py-1 text-left font-semibold">field</th>
+                  <th className="px-2 py-1 text-left font-semibold">message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((r) => (
+                  <tr
+                    key={r.display_order}
+                    className="border-t border-amber-500/10 even:bg-slate-800/40"
+                  >
+                    <td className="px-2 py-1 font-mono tabular-nums text-amber-100/60">
+                      {r.display_order}
+                    </td>
+                    <td className="px-2 py-1 font-mono">{r.case_key}</td>
+                    <td className="px-2 py-1">
+                      <span
+                        className={`rounded border px-1 py-px text-[10px] font-semibold uppercase ${
+                          r.severity === "error"
+                            ? "border-red-400/50 bg-red-500/20 text-red-100"
+                            : "border-amber-300/50 bg-amber-400/20 text-amber-100"
+                        }`}
+                      >
+                        {r.severity}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1 font-mono">{r.field}</td>
+                    <td className="px-2 py-1 break-words text-amber-100/80">{r.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-amber-500/30 px-4 py-2">
+          {hidden > 0 && (
+            <span className="mr-auto text-[11px] text-amber-100/60">
+              + {hidden} more row{hidden === 1 ? "" : "s"} will be included in the download
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded border border-amber-500/30 bg-amber-500/5 px-3 py-1 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={rows.length === 0}
+            className="rounded border border-emerald-400/50 bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-50 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Download CSV
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
