@@ -32,6 +32,20 @@ export type CaseMetaOverrideRow = {
   updated_at: string;
 };
 
+export type CaseMetaOverrideAuditRow = {
+  id: string;
+  override_id: string | null;
+  case_key: string;
+  field: string;
+  action: "accept" | "revert";
+  source: "ai_suggested" | "manual" | null;
+  previous_value: JsonValue | null;
+  new_value: JsonValue | null;
+  ai_model: string | null;
+  ai_rationale: string | null;
+  created_at: string;
+};
+
 /* ------------------------------------------------------- in-memory rate limit
  * Per-user token bucket: 20 suggest calls per rolling 60 s window.
  * Server functions in this codebase run inside a long-lived Worker, so a
