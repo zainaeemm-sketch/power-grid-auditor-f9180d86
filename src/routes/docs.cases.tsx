@@ -578,7 +578,7 @@ function CaseMetaDevPanel() {
       }),
       replace: true,
     });
-  const setSeverity = (next: SeverityFilter) =>
+  const setSeverity = (next: SeverityFilter) => {
     navigate({
       search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
         ...prev,
@@ -586,6 +586,16 @@ function CaseMetaDevPanel() {
       }),
       replace: true,
     });
+    // Jump to the first issue row inside the panel that matches the
+    // newly chosen severity (combined with the current field filter and
+    // search query, so what we scroll to is what the user will actually see).
+    requestAnimationFrame(() => {
+      const target = firstMatchingIssueKey(allIssues, filter, q, next);
+      if (!target) return;
+      const el = document.getElementById(`dev-issue-${target}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
 
   const counts = useMemo(() => {
     let missing = 0;
@@ -806,7 +816,7 @@ function CaseMetaDevPanel() {
       ) : (
         <ul className="list-disc space-y-1.5 pl-5">
           {filtered.map(({ key, missing, invalid }) => (
-            <li key={key}>
+            <li key={key} id={`dev-issue-${key}`} className="scroll-mt-24">
               <a
                 href={`#case-${key}`}
                 className="font-mono text-amber-200 underline-offset-4 hover:underline"
@@ -908,6 +918,37 @@ function firstMatchingAnchorId(
   const first = issues.find((i) => i.invalid.some((m) => m.startsWith(filter)));
   if (!first) return null;
   return `case-${first.key}-${filter}`;
+}
+
+/**
+ * Find the case key of the first issue that survives the panel's combined
+ * filter pipeline (field filter + search query + severity). Returns null
+ * when nothing matches, in which case the caller should skip scrolling.
+ */
+function firstMatchingIssueKey(
+  issues: ReadonlyArray<{ key: string; missing: string[]; invalid: string[] }>,
+  filter: IssueFilter,
+  q: string,
+  severity: SeverityFilter,
+): string | null {
+  const needle = q.trim().toLowerCase();
+  for (const i of issues) {
+    if (needle !== "" && !i.key.toLowerCase().includes(needle)) continue;
+    let m = i.missing;
+    let inv = i.invalid;
+    if (filter === "missing") inv = [];
+    else if (filter === "prompt_version") {
+      m = [];
+      inv = inv.filter((x) => x.startsWith("prompt_version"));
+    } else if (filter === "random_seed") {
+      m = [];
+      inv = inv.filter((x) => x.startsWith("random_seed"));
+    }
+    if (severity === "errors") inv = [];
+    else if (severity === "warnings") m = [];
+    if (m.length > 0 || inv.length > 0) return i.key;
+  }
+  return null;
 }
 
 function CasesPage() {
