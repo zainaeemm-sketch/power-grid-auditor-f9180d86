@@ -461,7 +461,10 @@ function CaseMetaDevPanel() {
   const navigate = useNavigate({ from: "/docs/cases" });
   const setFilter = (next: IssueFilter) =>
     navigate({
-      search: (prev) => ({ ...prev, filter: next === "all" ? undefined : next }),
+      search: (prev: { filter?: IssueFilter }) => ({
+        ...prev,
+        filter: next === "all" ? undefined : next,
+      }),
       replace: true,
     });
 
