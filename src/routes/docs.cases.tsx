@@ -229,7 +229,7 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
 
       <div className="my-4 rounded-md border border-border bg-muted/20 px-4 py-3 text-xs">
         <div className="grid gap-2 sm:grid-cols-3">
-          <MetaField label="Dataset version">
+          <MetaField label="Dataset version" anchorId={`case-${id.replace(/^case-/, "")}-dataset_version`}>
             <code className="text-foreground">{meta.dataset_version}</code>
           </MetaField>
           <MetaField label="Source">
@@ -250,8 +250,33 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
             <span className="text-foreground tabular-nums">{meta.last_reviewed}</span>
           </MetaField>
         </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <MetaField
+            label="Prompt version"
+            anchorId={`case-${id.replace(/^case-/, "")}-prompt_version`}
+          >
+            {meta.prompt_version ? (
+              <code className="text-foreground">{meta.prompt_version}</code>
+            ) : (
+              <span className="text-muted-foreground italic">— not set</span>
+            )}
+          </MetaField>
+          <MetaField
+            label="Random seed"
+            anchorId={`case-${id.replace(/^case-/, "")}-random_seed`}
+          >
+            {meta.random_seed !== undefined ? (
+              <code className="text-foreground tabular-nums">{meta.random_seed}</code>
+            ) : (
+              <span className="text-muted-foreground italic">— not set</span>
+            )}
+          </MetaField>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div>
+          <div
+            id={`case-${id.replace(/^case-/, "")}-standardized`}
+            className="scroll-mt-24"
+          >
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400/90">
               Standardized
             </div>
@@ -261,7 +286,10 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
               ))}
             </ul>
           </div>
-          <div>
+          <div
+            id={`case-${id.replace(/^case-/, "")}-simplified`}
+            className="scroll-mt-24"
+          >
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400/90">
               Simplified
             </div>
