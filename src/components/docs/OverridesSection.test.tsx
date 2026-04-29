@@ -54,6 +54,7 @@ const overrides: CaseMetaOverrideRow[] = [
 
 beforeEach(() => {
   revertCaseMetaOverride.mockReset();
+  bulkRevertCaseMetaOverrides.mockReset();
   toastError.mockReset();
   toastSuccess.mockReset();
 });
