@@ -6,11 +6,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const revertCaseMetaOverride = vi.fn();
+const bulkRevertCaseMetaOverrides = vi.fn();
 const toastError = vi.fn();
 const toastSuccess = vi.fn();
 
 vi.mock("@/server/case-fix.functions", () => ({
   revertCaseMetaOverride: (...args: unknown[]) => revertCaseMetaOverride(...args),
+  bulkRevertCaseMetaOverrides: (...args: unknown[]) => bulkRevertCaseMetaOverrides(...args),
   suggestCaseMetaFix: vi.fn(),
   acceptCaseMetaFix: vi.fn(),
 }));
