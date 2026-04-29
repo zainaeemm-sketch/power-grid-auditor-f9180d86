@@ -504,13 +504,21 @@ function SeverityBadge({
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
-  const { filter } = casesRouteApi.useSearch();
+  const { filter, details } = casesRouteApi.useSearch();
   const navigate = useNavigate({ from: "/docs/cases" });
   const setFilter = (next: IssueFilter) =>
     navigate({
-      search: (prev: { filter?: IssueFilter }) => ({
+      search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
         ...prev,
         filter: next === "all" ? undefined : next,
+      }),
+      replace: true,
+    });
+  const toggleDetails = () =>
+    navigate({
+      search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
+        ...prev,
+        details: prev.details ? undefined : true,
       }),
       replace: true,
     });
