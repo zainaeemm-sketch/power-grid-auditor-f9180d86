@@ -364,6 +364,47 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
 
 type IssueFilter = "all" | "missing" | "prompt_version" | "random_seed";
 
+type ExportableIssue = { key: string; missing: string[]; invalid: string[] };
+
+function exportIssues(
+  issues: ExportableIssue[],
+  filter: IssueFilter,
+  format: "json" | "csv",
+) {
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const base = `case-meta-issues_${filter}_${ts}`;
+
+  if (format === "json") {
+    const payload = {
+      generated_at: new Date().toISOString(),
+      filter,
+      total_entries: issues.length,
+      total_missing: issues.reduce((n, i) => n + i.missing.length, 0),
+      total_invalid: issues.reduce((n, i) => n + i.invalid.length, 0),
+      issues,
+    };
+    downloadBlob(`${base}.json`, "application/json", JSON.stringify(payload, null, 2));
+    return;
+  }
+
+  // CSV: one row per individual problem (missing field or invalid message)
+  const rows: Array<Record<string, string | number>> = [];
+  for (const { key, missing, invalid } of issues) {
+    for (const field of missing) {
+      rows.push({ case_key: key, problem_type: "missing", field, message: "" });
+    }
+    for (const message of invalid) {
+      const field = message.split(/[=\s(]/, 1)[0] ?? "";
+      rows.push({ case_key: key, problem_type: "invalid", field, message });
+    }
+  }
+  const csv =
+    rows.length > 0
+      ? toCsv(rows)
+      : "case_key,problem_type,field,message\n";
+  downloadBlob(`${base}.csv`, "text/csv", csv);
+}
+
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
@@ -415,6 +456,26 @@ function CaseMetaDevPanel() {
           Dev only
         </span>
         <span className="font-semibold">CASE_META validation issues ({allIssues.length})</span>
+        <div className="ml-auto flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => exportIssues(filtered, filter, "json")}
+            disabled={filtered.length === 0}
+            className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Download filtered issues as JSON"
+          >
+            Export JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => exportIssues(filtered, filter, "csv")}
+            disabled={filtered.length === 0}
+            className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Download filtered issues as CSV"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
       <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter issues">
         {filterOptions.map((opt) => {
