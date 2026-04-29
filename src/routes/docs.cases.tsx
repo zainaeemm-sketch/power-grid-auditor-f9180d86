@@ -614,6 +614,19 @@ function CaseMetaDevPanel() {
           >
             Export CSV
           </button>
+          <label
+            className="flex cursor-pointer items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
+            title="Show or hide the full validation message under each invalid field"
+          >
+            <input
+              type="checkbox"
+              checked={!!details}
+              onChange={toggleDetails}
+              className="h-3 w-3 cursor-pointer accent-amber-400"
+              aria-label="Show full invalid messages"
+            />
+            Show details
+          </label>
         </div>
       </div>
       <p className="mb-3 rounded border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[11px] leading-relaxed text-amber-100/80">
