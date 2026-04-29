@@ -669,9 +669,27 @@ function CaseMetaDevPanel() {
   const allIssues = findCaseMetaIssues(CASE_META);
   const { filter, details, q, severity } = casesRouteApi.useSearch();
   const navigate = useNavigate({ from: "/docs/cases" });
+
+  // Parse the URL `details` token list into a Set of filter ids that have
+  // "Show details" turned on. Each field filter (all/missing/prompt_version/
+  // random_seed) keeps its own independent visibility choice.
+  const detailsSet = useMemo(() => {
+    return new Set(
+      details
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s): s is IssueFilter =>
+          s === "all" || s === "missing" || s === "prompt_version" || s === "random_seed",
+        ),
+    );
+  }, [details]);
+  const detailsForCurrent = detailsSet.has(filter);
+  const serializeDetails = (set: Set<IssueFilter>) =>
+    set.size === 0 ? undefined : Array.from(set).join(",");
+
   const setFilter = (next: IssueFilter) => {
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean }) => ({
+      search: (prev: { filter?: IssueFilter; details?: string }) => ({
         ...prev,
         filter: next === "all" ? undefined : next,
       }),
@@ -687,17 +705,22 @@ function CaseMetaDevPanel() {
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
-  const toggleDetails = () =>
+  const toggleDetails = () => {
+    const nextSet = new Set(detailsSet);
+    if (nextSet.has(filter)) nextSet.delete(filter);
+    else nextSet.add(filter);
+    const nextDetails = serializeDetails(nextSet);
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string }) => ({
+      search: (prev: { filter?: IssueFilter; details?: string; q?: string }) => ({
         ...prev,
-        details: prev.details ? undefined : true,
+        details: nextDetails,
       }),
       replace: true,
     });
+  };
   const setQuery = (next: string) =>
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
+      search: (prev: { filter?: IssueFilter; details?: string; q?: string; severity?: SeverityFilter }) => ({
         ...prev,
         q: next.trim() === "" ? undefined : next,
       }),
@@ -705,7 +728,7 @@ function CaseMetaDevPanel() {
     });
   const setSeverity = (next: SeverityFilter) => {
     navigate({
-      search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
+      search: (prev: { filter?: IssueFilter; details?: string; q?: string; severity?: SeverityFilter }) => ({
         ...prev,
         severity: next === "any" ? undefined : next,
       }),
