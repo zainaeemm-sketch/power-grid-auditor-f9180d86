@@ -364,6 +364,47 @@ function CaseSection({ c, title, origin, meta, id }: CaseSectionProps) {
 
 type IssueFilter = "all" | "missing" | "prompt_version" | "random_seed";
 
+type ExportableIssue = { key: string; missing: string[]; invalid: string[] };
+
+function exportIssues(
+  issues: ExportableIssue[],
+  filter: IssueFilter,
+  format: "json" | "csv",
+) {
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const base = `case-meta-issues_${filter}_${ts}`;
+
+  if (format === "json") {
+    const payload = {
+      generated_at: new Date().toISOString(),
+      filter,
+      total_entries: issues.length,
+      total_missing: issues.reduce((n, i) => n + i.missing.length, 0),
+      total_invalid: issues.reduce((n, i) => n + i.invalid.length, 0),
+      issues,
+    };
+    downloadBlob(`${base}.json`, "application/json", JSON.stringify(payload, null, 2));
+    return;
+  }
+
+  // CSV: one row per individual problem (missing field or invalid message)
+  const rows: Array<Record<string, string | number>> = [];
+  for (const { key, missing, invalid } of issues) {
+    for (const field of missing) {
+      rows.push({ case_key: key, problem_type: "missing", field, message: "" });
+    }
+    for (const message of invalid) {
+      const field = message.split(/[=\s(]/, 1)[0] ?? "";
+      rows.push({ case_key: key, problem_type: "invalid", field, message });
+    }
+  }
+  const csv =
+    rows.length > 0
+      ? toCsv(rows)
+      : "case_key,problem_type,field,message\n";
+  downloadBlob(`${base}.csv`, "text/csv", csv);
+}
+
 function CaseMetaDevPanel() {
   if (!import.meta.env.DEV) return null;
   const allIssues = findCaseMetaIssues(CASE_META);
