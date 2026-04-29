@@ -514,19 +514,7 @@ function exportIssues(
   const { scope = "all" } = options;
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const base = `case-meta-issues_${filter}_${scope}_${ts}`;
-
-  // Narrow the issue set to the requested scope. "errors" keeps only
-  // missing-required-field rows; "warnings" keeps only invalid-format rows.
-  const scoped: ExportableIssue[] =
-    scope === "errors"
-      ? issues
-          .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
-          .filter((i) => i.missing.length > 0)
-      : scope === "warnings"
-        ? issues
-            .map((i) => ({ key: i.key, missing: [] as string[], invalid: i.invalid }))
-            .filter((i) => i.invalid.length > 0)
-        : issues;
+  const scoped = scopeIssues(issues, scope);
 
   if (format === "json") {
     const payload = {
@@ -543,50 +531,11 @@ function exportIssues(
   }
 
   // CSV: one row per individual problem (missing field or invalid message).
-  // Rows are emitted in the SAME order they appear in the dev panel:
-  //   1. Outer order = order of `scoped` (which is `filtered` from the panel,
-  //      so search/field/severity filtering is already baked in and the
-  //      original case discovery order is preserved by `.map`/`.filter`).
-  //   2. Within each case, missing-field rows come first (rendered above
-  //      invalid-format rows in the UI), each in the order produced by
-  //      `findCaseMetaIssues`.
-  // A `display_order` column is added so re-imports keep this exact ordering
-  // even if a tool re-sorts the rows (e.g. spreadsheet auto-sort).
-  // Columns:
-  //   display_order — stable on-screen ordering (survives spreadsheet re-sort)
-  //   case_key      — the CASE_META key / ID this row belongs to (e.g. "case14")
-  //   severity      — "error" for missing required fields, "warning" for invalid format
-  //   problem_type  — "missing" | "invalid" (kept for backward compatibility)
-  //   field         — the offending CASE_META field slug (e.g. "prompt_version")
-  //   message       — full validation message text (empty for missing-field rows)
-  const rows: Array<Record<string, string | number>> = [];
-  let order = 0;
-  for (const { key, missing, invalid } of scoped) {
-    for (const field of missing) {
-      rows.push({
-        display_order: order++,
-        case_key: key,
-        severity: "error",
-        problem_type: "missing",
-        field,
-        message: "",
-      });
-    }
-    for (const message of invalid) {
-      const field = message.split(/[=\s(]/, 1)[0] ?? "";
-      rows.push({
-        display_order: order++,
-        case_key: key,
-        severity: "warning",
-        problem_type: "invalid",
-        field,
-        message,
-      });
-    }
-  }
+  // See `buildIssueRows` for column documentation and ordering guarantees.
+  const rows = buildIssueRows(scoped);
   const csv =
     rows.length > 0
-      ? toCsv(rows)
+      ? toCsv(rows as unknown as Array<Record<string, string | number>>)
       : "display_order,case_key,severity,problem_type,field,message\n";
   downloadBlob(`${base}.csv`, "text/csv", csv);
 }
