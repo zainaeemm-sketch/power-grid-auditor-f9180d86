@@ -78,13 +78,9 @@ describe("validateCaseMeta", () => {
 });
 
 describe("project CASE_META (smoke)", () => {
-  it("the live docs/cases CASE_META has no missing required fields", async () => {
-    // Import from the route module so the test fails if real data regresses.
-    const mod = await import("@/routes/docs.cases");
-    // CASE_META isn't exported; re-validate via the same source of truth used
-    // by the docs page by re-importing the validator against the cases file.
-    // If CASE_META is not exported, fall back to verifying the validator
-    // is wired by checking the module loaded successfully.
-    expect(mod).toBeTruthy();
+  it("live CASE_META in docs/cases has no missing required fields", async () => {
+    const { CASE_META } = await import("@/routes/docs.cases");
+    const issues = findCaseMetaIssues(CASE_META);
+    expect(issues, JSON.stringify(issues, null, 2)).toEqual([]);
   });
 });
