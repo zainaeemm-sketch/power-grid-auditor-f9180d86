@@ -673,15 +673,15 @@ function CaseMetaDevPanel() {
   // Parse the URL `details` token list into a Set of filter ids that have
   // "Show details" turned on. Each field filter (all/missing/prompt_version/
   // random_seed) keeps its own independent visibility choice.
-  const detailsSet = useMemo(() => {
-    return new Set(
-      details
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s): s is IssueFilter =>
-          s === "all" || s === "missing" || s === "prompt_version" || s === "random_seed",
-        ),
-    );
+  const detailsSet = useMemo<Set<IssueFilter>>(() => {
+    const set = new Set<IssueFilter>();
+    for (const raw of details.split(",")) {
+      const s = raw.trim();
+      if (s === "all" || s === "missing" || s === "prompt_version" || s === "random_seed") {
+        set.add(s);
+      }
+    }
+    return set;
   }, [details]);
   const detailsForCurrent = detailsSet.has(filter);
   const serializeDetails = (set: Set<IssueFilter>) =>
