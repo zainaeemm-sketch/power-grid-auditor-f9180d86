@@ -1018,7 +1018,7 @@ function CaseMetaDevPanel() {
               onChange={(e) => {
                 const v = e.target.value as ExportScope | "";
                 if (v === "") return;
-                exportIssues(filtered, filter, "csv", { scope: v });
+                setPreviewScope(v);
                 e.target.value = "";
               }}
               className="cursor-pointer rounded border border-amber-500/30 bg-amber-500/10 px-1 py-px text-[11px] font-medium text-amber-100 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed"
