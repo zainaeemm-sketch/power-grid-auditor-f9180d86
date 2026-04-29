@@ -10,6 +10,7 @@ import { CASES } from "@/server/simulation/cases";
 import type { PowerSystemCase } from "@/server/simulation/types";
 import { SuggestionReviewDrawer, type SuggestTarget } from "@/components/docs/SuggestionReviewDrawer";
 import { OverridesSection } from "@/components/docs/OverridesSection";
+import { OverrideAuditSection } from "@/components/docs/OverrideAuditSection";
 import {
   listCaseMetaOverrides,
   type CaseMetaOverrideRow,
@@ -868,11 +869,14 @@ function CaseMetaDevPanel() {
   const [overrides, setOverrides] = useState<CaseMetaOverrideRow[]>([]);
   const [overridesLoading, setOverridesLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Bumped after every accept/revert so the audit panel re-pulls fresh rows.
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
   const refreshOverrides = async () => {
     setOverridesLoading(true);
     try {
       const rows = await listCaseMetaOverrides();
       setOverrides(rows);
+      setAuditRefreshKey((k) => k + 1);
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Failed to load overrides",
@@ -1405,6 +1409,7 @@ function CaseMetaDevPanel() {
       </p>
     </aside>
     <OverridesSection overrides={overrides} onChanged={refreshOverrides} loading={overridesLoading} />
+    <OverrideAuditSection refreshKey={auditRefreshKey} />
     {filtered.length > 0 && (
       <div className="not-prose my-2 flex justify-end">
         <button
