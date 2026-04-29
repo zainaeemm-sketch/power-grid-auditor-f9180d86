@@ -423,18 +423,30 @@ function exportIssues(
   issues: ExportableIssue[],
   filter: IssueFilter,
   format: "json" | "csv",
+  options: { errorsOnly?: boolean } = {},
 ) {
+  const { errorsOnly = false } = options;
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
-  const base = `case-meta-issues_${filter}_${ts}`;
+  const scope = errorsOnly ? "errors" : "all";
+  const base = `case-meta-issues_${filter}_${scope}_${ts}`;
+
+  // When errorsOnly, drop invalid-format warnings entirely (and any entries
+  // that have no remaining missing-field errors).
+  const scoped: ExportableIssue[] = errorsOnly
+    ? issues
+        .map((i) => ({ key: i.key, missing: i.missing, invalid: [] as string[] }))
+        .filter((i) => i.missing.length > 0)
+    : issues;
 
   if (format === "json") {
     const payload = {
       generated_at: new Date().toISOString(),
       filter,
-      total_entries: issues.length,
-      total_missing: issues.reduce((n, i) => n + i.missing.length, 0),
-      total_invalid: issues.reduce((n, i) => n + i.invalid.length, 0),
-      issues,
+      scope,
+      total_entries: scoped.length,
+      total_missing: scoped.reduce((n, i) => n + i.missing.length, 0),
+      total_invalid: scoped.reduce((n, i) => n + i.invalid.length, 0),
+      issues: scoped,
     };
     downloadBlob(`${base}.json`, "application/json", JSON.stringify(payload, null, 2));
     return;
@@ -442,7 +454,7 @@ function exportIssues(
 
   // CSV: one row per individual problem (missing field or invalid message)
   const rows: Array<Record<string, string | number>> = [];
-  for (const { key, missing, invalid } of issues) {
+  for (const { key, missing, invalid } of scoped) {
     for (const field of missing) {
       rows.push({ case_key: key, problem_type: "missing", field, message: "" });
     }
@@ -831,6 +843,15 @@ function CaseMetaDevPanel() {
             title="Download filtered issues as CSV"
           >
             Export CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => exportIssues(filtered, filter, "csv", { errorsOnly: true })}
+            disabled={totals.errors === 0}
+            className="rounded border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Download CSV containing only missing-required-field errors (excludes warnings)"
+          >
+            Export Errors CSV
           </button>
           <label
             className="flex cursor-pointer items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15"
