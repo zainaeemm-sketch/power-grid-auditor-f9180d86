@@ -920,7 +920,36 @@ function firstMatchingAnchorId(
   return `case-${first.key}-${filter}`;
 }
 
-function CasesPage() {
+/**
+ * Find the case key of the first issue that survives the panel's combined
+ * filter pipeline (field filter + search query + severity). Returns null
+ * when nothing matches, in which case the caller should skip scrolling.
+ */
+function firstMatchingIssueKey(
+  issues: ReadonlyArray<{ key: string; missing: string[]; invalid: string[] }>,
+  filter: IssueFilter,
+  q: string,
+  severity: SeverityFilter,
+): string | null {
+  const needle = q.trim().toLowerCase();
+  for (const i of issues) {
+    if (needle !== "" && !i.key.toLowerCase().includes(needle)) continue;
+    let m = i.missing;
+    let inv = i.invalid;
+    if (filter === "missing") inv = [];
+    else if (filter === "prompt_version") {
+      m = [];
+      inv = inv.filter((x) => x.startsWith("prompt_version"));
+    } else if (filter === "random_seed") {
+      m = [];
+      inv = inv.filter((x) => x.startsWith("random_seed"));
+    }
+    if (severity === "errors") inv = [];
+    else if (severity === "warnings") m = [];
+    if (m.length > 0 || inv.length > 0) return i.key;
+  }
+  return null;
+}
   return (
     <>
       <h1>Test Systems</h1>
