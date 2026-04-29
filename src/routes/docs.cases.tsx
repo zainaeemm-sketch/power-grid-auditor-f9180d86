@@ -719,6 +719,79 @@ function CaseMetaDevPanel() {
     });
   };
 
+  // Ref to the search input so the `/` shortcut can focus it.
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Global keyboard shortcuts for the dev panel (DEV-only render so this
+  // listener never ships to production). Skips when the user is typing in
+  // any input/textarea/contentEditable so we don't hijack normal text entry.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const isTyping =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target?.isContentEditable === true;
+
+      if (e.key === "/" && !isTyping) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (e.key === "Escape" && document.activeElement === searchInputRef.current) {
+        if (q !== "") setQuery("");
+        searchInputRef.current?.blur();
+        return;
+      }
+
+      if (isTyping) return;
+
+      switch (e.key.toLowerCase()) {
+        case "d":
+          e.preventDefault();
+          toggleDetails();
+          break;
+        case "1":
+          e.preventDefault();
+          setFilter("all");
+          break;
+        case "2":
+          e.preventDefault();
+          setFilter("missing");
+          break;
+        case "3":
+          e.preventDefault();
+          setFilter("prompt_version");
+          break;
+        case "4":
+          e.preventDefault();
+          setFilter("random_seed");
+          break;
+        case "a":
+          e.preventDefault();
+          setSeverity("any");
+          break;
+        case "e":
+          e.preventDefault();
+          setSeverity("errors");
+          break;
+        case "w":
+          e.preventDefault();
+          setSeverity("warnings");
+          break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, filter, severity]);
+
+
   const counts = useMemo(() => {
     let missing = 0;
     let promptVersion = 0;
