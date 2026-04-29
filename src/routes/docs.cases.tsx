@@ -2,7 +2,7 @@ import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-route
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { Download } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TopologyDiagram } from "@/components/docs/TopologyDiagram";
 import { CASES } from "@/server/simulation/cases";
@@ -719,6 +719,79 @@ function CaseMetaDevPanel() {
     });
   };
 
+  // Ref to the search input so the `/` shortcut can focus it.
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Global keyboard shortcuts for the dev panel (DEV-only render so this
+  // listener never ships to production). Skips when the user is typing in
+  // any input/textarea/contentEditable so we don't hijack normal text entry.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const isTyping =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target?.isContentEditable === true;
+
+      if (e.key === "/" && !isTyping) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (e.key === "Escape" && document.activeElement === searchInputRef.current) {
+        if (q !== "") setQuery("");
+        searchInputRef.current?.blur();
+        return;
+      }
+
+      if (isTyping) return;
+
+      switch (e.key.toLowerCase()) {
+        case "d":
+          e.preventDefault();
+          toggleDetails();
+          break;
+        case "1":
+          e.preventDefault();
+          setFilter("all");
+          break;
+        case "2":
+          e.preventDefault();
+          setFilter("missing");
+          break;
+        case "3":
+          e.preventDefault();
+          setFilter("prompt_version");
+          break;
+        case "4":
+          e.preventDefault();
+          setFilter("random_seed");
+          break;
+        case "a":
+          e.preventDefault();
+          setSeverity("any");
+          break;
+        case "e":
+          e.preventDefault();
+          setSeverity("errors");
+          break;
+        case "w":
+          e.preventDefault();
+          setSeverity("warnings");
+          break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, filter, severity]);
+
+
   const counts = useMemo(() => {
     let missing = 0;
     let promptVersion = 0;
@@ -912,10 +985,11 @@ function CaseMetaDevPanel() {
         <label className="flex items-center gap-2">
           <span className="sr-only">Filter case IDs</span>
           <input
+            ref={searchInputRef}
             type="search"
             value={q}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter case IDs (e.g. case14)"
+            placeholder="Filter case IDs (press / to focus)"
             aria-label="Filter case IDs"
             className="w-full rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-50 placeholder:text-amber-100/40 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300"
           />
@@ -1023,6 +1097,17 @@ function CaseMetaDevPanel() {
           ))}
         </ul>
       )}
+      <p className="mt-2 border-t border-amber-500/20 pt-1.5 text-[10px] text-amber-100/60">
+        Shortcuts:{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">/</kbd> search ·{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">d</kbd> details ·{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">1</kbd>–
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">4</kbd> field filter ·{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">a</kbd>/
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">e</kbd>/
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">w</kbd> any/errors/warnings ·{" "}
+        <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">Esc</kbd> clear search
+      </p>
     </aside>
   );
 }
