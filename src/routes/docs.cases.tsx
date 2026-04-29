@@ -985,10 +985,11 @@ function CaseMetaDevPanel() {
         <label className="flex items-center gap-2">
           <span className="sr-only">Filter case IDs</span>
           <input
+            ref={searchInputRef}
             type="search"
             value={q}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter case IDs (e.g. case14)"
+            placeholder="Filter case IDs (press / to focus)"
             aria-label="Filter case IDs"
             className="w-full rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-50 placeholder:text-amber-100/40 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300"
           />
