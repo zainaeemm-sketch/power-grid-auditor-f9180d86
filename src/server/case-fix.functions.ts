@@ -5,8 +5,16 @@ import { withAuthHeaders } from "@/middleware/auth-headers";
 
 /* ------------------------------------------------------------------ types */
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 export type CaseFixSuggestion = {
-  value: unknown;
+  value: JsonValue;
   rationale: string;
   confidence: "low" | "medium" | "high";
   model: string;
@@ -16,7 +24,7 @@ export type CaseMetaOverrideRow = {
   id: string;
   case_key: string;
   field: string;
-  value: unknown;
+  value: JsonValue;
   source: "ai_suggested" | "manual";
   ai_rationale: string | null;
   ai_model: string | null;
