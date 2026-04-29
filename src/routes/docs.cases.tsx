@@ -578,7 +578,7 @@ function CaseMetaDevPanel() {
       }),
       replace: true,
     });
-  const setSeverity = (next: SeverityFilter) =>
+  const setSeverity = (next: SeverityFilter) => {
     navigate({
       search: (prev: { filter?: IssueFilter; details?: boolean; q?: string; severity?: SeverityFilter }) => ({
         ...prev,
@@ -586,6 +586,16 @@ function CaseMetaDevPanel() {
       }),
       replace: true,
     });
+    // Jump to the first issue row inside the panel that matches the
+    // newly chosen severity (combined with the current field filter and
+    // search query, so what we scroll to is what the user will actually see).
+    requestAnimationFrame(() => {
+      const target = firstMatchingIssueKey(allIssues, filter, q, next);
+      if (!target) return;
+      const el = document.getElementById(`dev-issue-${target}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
 
   const counts = useMemo(() => {
     let missing = 0;
