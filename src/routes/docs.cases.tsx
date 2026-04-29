@@ -755,7 +755,7 @@ function ExportPreviewModal({
               Scope: <span className="font-mono">{scopeLabel}</span> · Field filter:{" "}
               <span className="font-mono">{filter}</span> · {rows.length} row
               {rows.length === 1 ? "" : "s"}
-              {hidden > 0 ? ` (showing first ${shown.length})` : ""}
+              {format === "csv" && hidden > 0 ? ` (showing first ${shown.length})` : ""}
             </div>
           </div>
           <button
