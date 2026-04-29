@@ -705,18 +705,21 @@ function ViewStatusBar({
 
 function ExportPreviewModal({
   scope,
+  format,
   filter,
   issues,
   onCancel,
   onConfirm,
 }: {
   scope: ExportScope;
+  format: "csv" | "json";
   filter: IssueFilter;
   issues: ExportableIssue[];
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const rows = useMemo(() => buildIssueRows(scopeIssues(issues, scope)), [issues, scope]);
+  const scoped = useMemo(() => scopeIssues(issues, scope), [issues, scope]);
+  const rows = useMemo(() => buildIssueRows(scoped), [scoped]);
   const PREVIEW_LIMIT = 50;
   const shown = rows.slice(0, PREVIEW_LIMIT);
   const hidden = Math.max(0, rows.length - shown.length);
@@ -737,7 +740,7 @@ function ExportPreviewModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="CSV export preview"
+      aria-label={`${format.toUpperCase()} export preview`}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={onCancel}
     >
@@ -747,12 +750,12 @@ function ExportPreviewModal({
       >
         <div className="flex items-center justify-between border-b border-amber-500/30 px-4 py-2">
           <div>
-            <div className="text-sm font-semibold">CSV export preview</div>
+            <div className="text-sm font-semibold">{format.toUpperCase()} export preview</div>
             <div className="text-[11px] text-amber-100/70">
               Scope: <span className="font-mono">{scopeLabel}</span> · Field filter:{" "}
               <span className="font-mono">{filter}</span> · {rows.length} row
               {rows.length === 1 ? "" : "s"}
-              {hidden > 0 ? ` (showing first ${shown.length})` : ""}
+              {format === "csv" && hidden > 0 ? ` (showing first ${shown.length})` : ""}
             </div>
           </div>
           <button
@@ -769,6 +772,22 @@ function ExportPreviewModal({
             <div className="px-4 py-6 text-center text-amber-100/60">
               No rows match the current scope.
             </div>
+          ) : format === "json" ? (
+            <pre className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-[11px] leading-snug text-amber-100/85">
+              {JSON.stringify(
+                {
+                  generated_at: "<set at download time>",
+                  filter,
+                  scope,
+                  total_entries: scoped.length,
+                  total_missing: scoped.reduce((n, i) => n + i.missing.length, 0),
+                  total_invalid: scoped.reduce((n, i) => n + i.invalid.length, 0),
+                  issues: scoped,
+                },
+                null,
+                2,
+              )}
+            </pre>
           ) : (
             <table className="w-full border-collapse text-[11px]">
               <thead className="sticky top-0 bg-slate-800 text-amber-100/80">
@@ -810,7 +829,7 @@ function ExportPreviewModal({
           )}
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-amber-500/30 px-4 py-2">
-          {hidden > 0 && (
+          {format === "csv" && hidden > 0 && (
             <span className="mr-auto text-[11px] text-amber-100/60">
               + {hidden} more row{hidden === 1 ? "" : "s"} will be included in the download
             </span>
@@ -828,7 +847,7 @@ function ExportPreviewModal({
             disabled={rows.length === 0}
             className="rounded border border-emerald-400/50 bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-50 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Download CSV
+            Download {format.toUpperCase()}
           </button>
         </div>
       </div>
@@ -860,7 +879,9 @@ function CaseMetaDevPanel() {
   // CSV export preview state: when set, the panel renders a modal showing
   // the rows that would be written to disk so the user can confirm before
   // committing the download.
-  const [previewScope, setPreviewScope] = useState<ExportScope | null>(null);
+  const [preview, setPreview] = useState<{ scope: ExportScope; format: "csv" | "json" } | null>(
+    null,
+  );
   const serializeDetails = (set: Set<IssueFilter>) =>
     set.size === 0 ? undefined : Array.from(set).join(",");
 
@@ -1131,15 +1152,37 @@ function CaseMetaDevPanel() {
           </button>
         </span>
         <div className="ml-auto flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => exportIssues(filtered, filter, "json")}
-            disabled={filtered.length === 0}
-            className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Download filtered issues as JSON"
+          <label
+            className="flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40"
+            title="Download a JSON file of the filtered issues, choosing whether to include all rows, only errors, or only warnings"
           >
-            Export JSON
-          </button>
+            <span>Export JSON:</span>
+            <select
+              aria-label="Export JSON scope"
+              disabled={filtered.length === 0}
+              value=""
+              onChange={(e) => {
+                const v = e.target.value as ExportScope | "";
+                if (v === "") return;
+                setPreview({ scope: v, format: "json" });
+                e.target.value = "";
+              }}
+              className="cursor-pointer rounded border border-amber-500/30 bg-amber-500/10 px-1 py-px text-[11px] font-medium text-amber-100 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed"
+            >
+              <option value="" disabled>
+                Choose scope…
+              </option>
+              <option value="all" disabled={filtered.length === 0}>
+                All ({viewTotals.errors + viewTotals.warnings})
+              </option>
+              <option value="errors" disabled={viewTotals.errors === 0}>
+                Errors only ({viewTotals.errors})
+              </option>
+              <option value="warnings" disabled={viewTotals.warnings === 0}>
+                Warnings only ({viewTotals.warnings})
+              </option>
+            </select>
+          </label>
           <label
             className="flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40"
             title="Download a CSV of the filtered issues, choosing whether to include all rows, only errors, or only warnings"
@@ -1152,7 +1195,7 @@ function CaseMetaDevPanel() {
               onChange={(e) => {
                 const v = e.target.value as ExportScope | "";
                 if (v === "") return;
-                setPreviewScope(v);
+                setPreview({ scope: v, format: "csv" });
                 e.target.value = "";
               }}
               className="cursor-pointer rounded border border-amber-500/30 bg-amber-500/10 px-1 py-px text-[11px] font-medium text-amber-100 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed"
@@ -1326,15 +1369,16 @@ function CaseMetaDevPanel() {
         <kbd className="rounded border border-amber-500/30 bg-amber-500/10 px-1 font-mono">Esc</kbd> clear search
       </p>
     </aside>
-    {previewScope !== null && (
+    {preview !== null && (
       <ExportPreviewModal
-        scope={previewScope}
+        scope={preview.scope}
+        format={preview.format}
         filter={filter}
         issues={filtered}
-        onCancel={() => setPreviewScope(null)}
+        onCancel={() => setPreview(null)}
         onConfirm={() => {
-          exportIssues(filtered, filter, "csv", { scope: previewScope });
-          setPreviewScope(null);
+          exportIssues(filtered, filter, preview.format, { scope: preview.scope });
+          setPreview(null);
         }}
       />
     )}
