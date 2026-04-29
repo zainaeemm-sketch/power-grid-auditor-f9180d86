@@ -97,6 +97,32 @@ export function findCaseMetaIssues(
   return issues;
 }
 
+/* -------------------------------------------------------- override merge --
+ * A single user-accepted override for one (case, field). Stored in the
+ * `case_meta_overrides` table; each row patches one field on top of the
+ * baseline CASE_META used by `findCaseMetaIssues` so accepted fixes
+ * immediately resolve the corresponding issue in the docs panel.
+ */
+export type CaseMetaOverride = {
+  case_key: string;
+  field: string;
+  value: unknown;
+};
+
+export function mergeOverrides(
+  meta: Readonly<Record<string, CaseMeta>>,
+  overrides: ReadonlyArray<CaseMetaOverride>,
+): Record<string, CaseMeta> {
+  if (overrides.length === 0) return { ...meta };
+  const out: Record<string, CaseMeta> = {};
+  for (const [k, v] of Object.entries(meta)) out[k] = { ...v };
+  for (const o of overrides) {
+    const target = out[o.case_key] ?? ({} as CaseMeta);
+    out[o.case_key] = { ...target, [o.field]: o.value as never };
+  }
+  return out;
+}
+
 /**
  * Validate a CASE_META-shaped record. In non-strict mode, logs a warning per
  * offending entry. In strict mode, throws a single aggregated Error.
