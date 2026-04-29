@@ -723,6 +723,11 @@ function CaseMetaDevPanel() {
     return set;
   }, [details]);
   const detailsForCurrent = detailsSet.has(filter);
+
+  // CSV export preview state: when set, the panel renders a modal showing
+  // the rows that would be written to disk so the user can confirm before
+  // committing the download.
+  const [previewScope, setPreviewScope] = useState<ExportScope | null>(null);
   const serializeDetails = (set: Set<IssueFilter>) =>
     set.size === 0 ? undefined : Array.from(set).join(",");
 
