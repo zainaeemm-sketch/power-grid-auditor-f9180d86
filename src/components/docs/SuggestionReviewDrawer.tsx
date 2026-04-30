@@ -7,6 +7,7 @@ import {
   type CaseFixSuggestion,
   type JsonValue,
 } from "@/server/case-fix.functions";
+import { normalizeServerFnError } from "@/lib/server-fn-errors";
 
 export type SuggestTarget = {
   caseKey: string;
