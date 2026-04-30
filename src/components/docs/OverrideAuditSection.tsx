@@ -48,12 +48,26 @@ export function OverrideAuditSection({ refreshKey = 0 }: { refreshKey?: number }
     setLoading(true);
     listCaseMetaOverrideAudit({ data: { limit: 50 } })
       .then((r) => {
-        if (!cancelled) setRows(r);
+        if (!cancelled) setRows(Array.isArray(r) ? r : []);
       })
-      .catch((e) => {
-        if (!cancelled) {
-          toast.error(e instanceof Error ? e.message : "Failed to load audit log");
+      .catch(async (e) => {
+        if (cancelled) return;
+        // Server-fn middleware throws `Response` (e.g. 401 for anon visitors
+        // on this public docs page). Stringifying yields "[object Response]"
+        // and surfaces as a blank-screen runtime error, so handle it here.
+        if (e instanceof Response) {
+          if (e.status === 401) return; // silent: not signed in
+          let msg = `Failed to load audit log (HTTP ${e.status})`;
+          try {
+            const text = await e.text();
+            if (text) msg = text;
+          } catch {
+            /* ignore */
+          }
+          toast.error(msg);
+          return;
         }
+        toast.error(e instanceof Error ? e.message : "Failed to load audit log");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
