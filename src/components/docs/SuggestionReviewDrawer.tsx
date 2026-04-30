@@ -132,8 +132,12 @@ export function SuggestionReviewDrawer({
       toast.success(`Override saved for ${row.target.caseKey}.${row.target.field}`);
       onApplied();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to save override";
-      toast.error(msg);
+      const err = await normalizeServerFnError(e, "Failed to save override");
+      toast.error(
+        err.status === 401 || err.status === 403
+          ? "Sign in to save overrides"
+          : err.message,
+      );
       updateRow(idx, { accepting: false });
     }
   }
