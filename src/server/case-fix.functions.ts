@@ -309,16 +309,79 @@ export const acceptCaseMetaFix = createServerFn({ method: "POST" })
     return result as CaseMetaOverrideRow;
   });
 
+/**
+ * Discriminated-union envelope returned by `listCaseMetaOverrides`.
+ *
+ * The frontend used to receive a thrown `Response` (e.g. 401 for anon
+ * visitors on the public docs page) which surfaced as the dreaded
+ * `[object Response]` runtime error. This envelope makes every outcome a
+ * plain JSON object so callers never have to special-case throws.
+ */
+export type ListCaseMetaOverridesResult =
+  | { ok: true; overrides: CaseMetaOverrideRow[] }
+  | {
+      ok: false;
+      /** Stable machine-readable code for branching logic. */
+      error: "unauthenticated" | "config_missing" | "db_error";
+      /** Human-readable description; safe to surface in a toast. */
+      message: string;
+    };
+
+/**
+ * Read every override owned by the current user.
+ *
+ * Unlike most server fns in this file, this handler does NOT use
+ * `requireSupabaseAuth` middleware — the middleware throws raw `Response`
+ * objects on auth failure, and we want to keep this endpoint "always
+ * returns JSON" so the docs page never blanks out for signed-out visitors.
+ */
 export const listCaseMetaOverrides = createServerFn({ method: "GET" })
-  .middleware([withAuthHeaders, requireSupabaseAuth])
-  .handler(async ({ context }): Promise<CaseMetaOverrideRow[]> => {
-    const { data, error } = await context.supabase
+  .middleware([withAuthHeaders])
+  .handler(async (): Promise<ListCaseMetaOverridesResult> => {
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+      return {
+        ok: false,
+        error: "config_missing",
+        message: "Server is missing Supabase configuration.",
+      };
+    }
+
+    // `withAuthHeaders` (client) attaches `Authorization: Bearer <token>` if
+    // the user has a session. Anonymous visitors simply won't have one, and
+    // we surface that as a typed `unauthenticated` result instead of a 401.
+    const authHeader = getRequestHeader("authorization");
+    if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
+      return { ok: true, overrides: [] };
+    }
+    const token = authHeader.slice("bearer ".length).trim();
+    if (!token) return { ok: true, overrides: [] };
+
+    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+    });
+
+    const claims = await supabase.auth.getClaims(token);
+    if (claims.error || !claims.data?.claims?.sub) {
+      // Token expired / invalid — treat the same as anonymous so the docs
+      // page renders cleanly. The client can refresh the session and retry.
+      return { ok: true, overrides: [] };
+    }
+    const userId = claims.data.claims.sub;
+
+    const { data, error } = await supabase
       .from("case_meta_overrides")
-      .select("id, case_key, field, value, source, ai_rationale, ai_model, created_at, updated_at")
-      .eq("user_id", context.userId)
+      .select(
+        "id, case_key, field, value, source, ai_rationale, ai_model, created_at, updated_at",
+      )
+      .eq("user_id", userId)
       .order("updated_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return (data ?? []) as CaseMetaOverrideRow[];
+    if (error) {
+      return { ok: false, error: "db_error", message: error.message };
+    }
+    return { ok: true, overrides: (data ?? []) as CaseMetaOverrideRow[] };
   });
 
 const RevertInput = z.object({ id: z.string().uuid() });
