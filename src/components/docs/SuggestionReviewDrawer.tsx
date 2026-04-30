@@ -89,7 +89,11 @@ export function SuggestionReviewDrawer({
         editedValue: valueToText(result.value),
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to get suggestion";
+      const err = await normalizeServerFnError(e, "Failed to get suggestion");
+      const msg =
+        err.status === 401 || err.status === 403
+          ? "Sign in to request AI suggestions"
+          : err.message;
       updateRow(idx, { status: "error", error: msg });
       toast.error(msg);
     }
