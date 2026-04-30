@@ -13,7 +13,7 @@ afterEach(() => {
   consoleErrorSpy.mockRestore();
 });
 
-function Boom({ message = "kaboom" }: { message?: string }) {
+function Boom({ message = "kaboom" }: { message?: string }): JSX.Element {
   throw new Error(message);
 }
 
