@@ -1,4 +1,4 @@
-import { Link, Outlet } from "@tanstack/react-router";
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import {
   BookOpen,
   Download,
@@ -10,6 +10,7 @@ import {
   Compass,
   Cpu,
 } from "lucide-react";
+import { DocsErrorBoundary } from "@/components/docs/DocsErrorBoundary";
 
 const docsNav = [
   { to: "/docs" as const, label: "Overview", icon: BookOpen, exact: true },
