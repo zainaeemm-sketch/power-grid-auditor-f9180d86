@@ -132,7 +132,12 @@ export function OverridesSection({
         next.delete(id);
         return next;
       });
-      toast.error(e instanceof Error ? e.message : "Failed to revert override");
+      const err = await normalizeServerFnError(e, "Failed to revert override");
+      toast.error(
+        err.status === 401 || err.status === 403
+          ? "Sign in to revert overrides"
+          : err.message,
+      );
     } finally {
       setPendingId(null);
     }
