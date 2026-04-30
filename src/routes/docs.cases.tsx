@@ -875,13 +875,20 @@ function CaseMetaDevPanel() {
   const refreshOverrides = async () => {
     setOverridesLoading(true);
     try {
-      const rows = await listCaseMetaOverrides();
-      // Defensive: server fn should always return an array, but guard against
-      // unexpected shapes (e.g. error Response, null) so the UI never crashes
-      // on `overrides.map is not a function`.
-      setOverrides(Array.isArray(rows) ? rows : []);
-      setAuditRefreshKey((k) => k + 1);
+      const result = await listCaseMetaOverrides();
+      if (result.ok) {
+        setOverrides(result.overrides);
+        setAuditRefreshKey((k) => k + 1);
+      } else {
+        setOverrides([]);
+        // `unauthenticated` no longer happens (the server returns an empty
+        // list for anon visitors), so any `ok: false` here is a real failure
+        // worth toasting (config_missing / db_error).
+        toast.error(result.message);
+      }
     } catch (e) {
+      // Belt-and-braces: any unexpected throw (network blip, etc.) still
+      // gets normalized so we never surface "[object Response]".
       setOverrides([]);
       const err = await normalizeServerFnError(e, "Failed to load overrides");
       if (!err.silent) toast.error(err.message);
