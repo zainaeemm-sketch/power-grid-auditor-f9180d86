@@ -78,6 +78,47 @@ describe("OverrideAuditSection", () => {
     expect(screen.queryByRole("button", { name: /^Show$/ })).not.toBeInTheDocument();
   });
 
+  // Integration-style regression test for the original bug:
+  // anonymous visitors hit the audit endpoint, middleware throws a raw
+  // `Response` (401), and the UI rendered "[object Response]" / blank-screened.
+  // We simulate both failure shapes the server fn might surface to make sure
+  // neither crashes the component nor leaks the stringified Response.
+  it("survives anonymous access without crashing or showing '[object Response]'", async () => {
+    // Shape 1: server fn returns the typed envelope (current behavior).
+    listCaseMetaOverrideAudit.mockResolvedValueOnce({
+      ok: false,
+      error: "unauthenticated",
+      message: "Sign in to view audit logs.",
+    });
+    const { unmount } = render(<OverrideAuditSection />);
+    await waitFor(() =>
+      expect(screen.getByText(/Sign in to view audit logs\./i)).toBeInTheDocument(),
+    );
+    expect(document.body.textContent).not.toMatch(/\[object Response\]/);
+    expect(toastError).not.toHaveBeenCalled();
+    unmount();
+
+    // Shape 2: middleware throws a raw 401 Response (the original failure
+    // mode, in case a future refactor reintroduces it). The catch branch
+    // must normalize it instead of letting React render the thrown value.
+    toastError.mockReset();
+    const resp = new Response("Unauthorized", {
+      status: 401,
+      headers: { "content-type": "text/plain" },
+    });
+    listCaseMetaOverrideAudit.mockRejectedValueOnce(resp);
+    render(<OverrideAuditSection />);
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText(/Case-meta override audit trail/i),
+      ).toHaveAttribute("aria-busy", "false"),
+    );
+    // No crash, no leaked Response stringification anywhere on screen.
+    expect(document.body.textContent).not.toMatch(/\[object Response\]/);
+    // 401 is treated as silent — no toast spam for anonymous visitors.
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
   it("renders the row count and a Show toggle when loaded with data", async () => {
     listCaseMetaOverrideAudit.mockResolvedValueOnce({
       ok: true,
