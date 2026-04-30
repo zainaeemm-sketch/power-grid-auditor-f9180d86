@@ -883,25 +883,8 @@ function CaseMetaDevPanel() {
       setAuditRefreshKey((k) => k + 1);
     } catch (e) {
       setOverrides([]);
-      // Server fn middlewares throw `Response` objects (e.g. 401 when the user
-      // isn't signed in). Stringifying those yields "[object Response]", so
-      // we read the body text when available and otherwise fall back to a
-      // friendly default. 401s are silenced on this public docs page.
-      let message = "Failed to load overrides";
-      if (e instanceof Response) {
-        if (e.status === 401) {
-          setOverridesLoading(false);
-          return;
-        }
-        try {
-          message = (await e.text()) || `Failed to load overrides (HTTP ${e.status})`;
-        } catch {
-          message = `Failed to load overrides (HTTP ${e.status})`;
-        }
-      } else if (e instanceof Error) {
-        message = e.message;
-      }
-      toast.error(message);
+      const err = await normalizeServerFnError(e, "Failed to load overrides");
+      if (!err.silent) toast.error(err.message);
     } finally {
       setOverridesLoading(false);
     }
