@@ -5,6 +5,7 @@ import {
   listCaseMetaOverrideAudit,
   type CaseMetaOverrideAuditRow,
 } from "@/server/case-fix.functions";
+import { normalizeServerFnError } from "@/lib/server-fn-errors";
 
 function formatTime(iso: string): string {
   try {
@@ -52,22 +53,8 @@ export function OverrideAuditSection({ refreshKey = 0 }: { refreshKey?: number }
       })
       .catch(async (e) => {
         if (cancelled) return;
-        // Server-fn middleware throws `Response` (e.g. 401 for anon visitors
-        // on this public docs page). Stringifying yields "[object Response]"
-        // and surfaces as a blank-screen runtime error, so handle it here.
-        if (e instanceof Response) {
-          if (e.status === 401) return; // silent: not signed in
-          let msg = `Failed to load audit log (HTTP ${e.status})`;
-          try {
-            const text = await e.text();
-            if (text) msg = text;
-          } catch {
-            /* ignore */
-          }
-          toast.error(msg);
-          return;
-        }
-        toast.error(e instanceof Error ? e.message : "Failed to load audit log");
+        const err = await normalizeServerFnError(e, "Failed to load audit log");
+        if (!err.silent) toast.error(err.message);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

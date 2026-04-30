@@ -7,6 +7,7 @@ import {
   type CaseFixSuggestion,
   type JsonValue,
 } from "@/server/case-fix.functions";
+import { normalizeServerFnError } from "@/lib/server-fn-errors";
 
 export type SuggestTarget = {
   caseKey: string;
@@ -88,7 +89,11 @@ export function SuggestionReviewDrawer({
         editedValue: valueToText(result.value),
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to get suggestion";
+      const err = await normalizeServerFnError(e, "Failed to get suggestion");
+      const msg =
+        err.status === 401 || err.status === 403
+          ? "Sign in to request AI suggestions"
+          : err.message;
       updateRow(idx, { status: "error", error: msg });
       toast.error(msg);
     }
@@ -127,8 +132,12 @@ export function SuggestionReviewDrawer({
       toast.success(`Override saved for ${row.target.caseKey}.${row.target.field}`);
       onApplied();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to save override";
-      toast.error(msg);
+      const err = await normalizeServerFnError(e, "Failed to save override");
+      toast.error(
+        err.status === 401 || err.status === 403
+          ? "Sign in to save overrides"
+          : err.message,
+      );
       updateRow(idx, { accepting: false });
     }
   }

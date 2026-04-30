@@ -6,6 +6,7 @@ import {
   revertCaseMetaOverride,
   type CaseMetaOverrideRow,
 } from "@/server/case-fix.functions";
+import { normalizeServerFnError } from "@/lib/server-fn-errors";
 
 export function OverridesSection({
   overrides,
@@ -131,7 +132,12 @@ export function OverridesSection({
         next.delete(id);
         return next;
       });
-      toast.error(e instanceof Error ? e.message : "Failed to revert override");
+      const err = await normalizeServerFnError(e, "Failed to revert override");
+      toast.error(
+        err.status === 401 || err.status === 403
+          ? "Sign in to revert overrides"
+          : err.message,
+      );
     } finally {
       setPendingId(null);
     }
@@ -182,7 +188,12 @@ export function OverridesSection({
         for (const id of ids) next.delete(id);
         return next;
       });
-      toast.error(e instanceof Error ? e.message : "Failed to revert selected overrides");
+      const err = await normalizeServerFnError(e, "Failed to revert selected overrides");
+      toast.error(
+        err.status === 401 || err.status === 403
+          ? "Sign in to revert overrides"
+          : err.message,
+      );
     } finally {
       setBulkPending(false);
     }
