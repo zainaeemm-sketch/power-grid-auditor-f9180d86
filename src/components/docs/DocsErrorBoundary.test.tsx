@@ -14,7 +14,7 @@ afterEach(() => {
   consoleErrorSpy.mockRestore();
 });
 
-function Boom({ message = "kaboom" }: { message?: string }): JSX.Element {
+function Boom({ message = "kaboom" }: { message?: string }): ReactElement {
   throw new Error(message);
 }
 
