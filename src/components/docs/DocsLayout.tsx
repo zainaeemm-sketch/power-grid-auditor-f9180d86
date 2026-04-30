@@ -25,6 +25,9 @@ const docsNav = [
 ];
 
 export function DocsLayout() {
+  // Reset the boundary whenever we navigate to a different docs route, so a
+  // stuck error on /docs/cases doesn't follow the user to /docs/usage.
+  const { pathname } = useLocation();
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
@@ -50,7 +53,9 @@ export function DocsLayout() {
         </aside>
         <main className="min-w-0">
           <article className="prose prose-invert max-w-none [&_h1]:mb-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h2]:mb-3 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_p]:my-3 [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:text-muted-foreground [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:text-muted-foreground [&_li]:my-1 [&_a]:text-primary [&_a]:underline-offset-4 hover:[&_a]:underline [&_strong]:text-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_code]:font-mono">
-            <Outlet />
+            <DocsErrorBoundary key={pathname} area="this docs page">
+              <Outlet />
+            </DocsErrorBoundary>
           </article>
         </main>
       </div>
