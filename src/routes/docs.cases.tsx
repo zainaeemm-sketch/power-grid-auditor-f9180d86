@@ -875,9 +875,13 @@ function CaseMetaDevPanel() {
     setOverridesLoading(true);
     try {
       const rows = await listCaseMetaOverrides();
-      setOverrides(rows);
+      // Defensive: server fn should always return an array, but guard against
+      // unexpected shapes (e.g. error Response, null) so the UI never crashes
+      // on `overrides.map is not a function`.
+      setOverrides(Array.isArray(rows) ? rows : []);
       setAuditRefreshKey((k) => k + 1);
     } catch (e) {
+      setOverrides([]);
       toast.error(
         e instanceof Error ? e.message : "Failed to load overrides",
       );
@@ -889,11 +893,13 @@ function CaseMetaDevPanel() {
     refreshOverrides();
   }, []);
   const mergedMeta = useMemo(
-    () =>
-      mergeOverrides(
+    () => {
+      const safe = Array.isArray(overrides) ? overrides : [];
+      return mergeOverrides(
         CASE_META,
-        overrides.map((o) => ({ case_key: o.case_key, field: o.field, value: o.value })),
-      ),
+        safe.map((o) => ({ case_key: o.case_key, field: o.field, value: o.value })),
+      );
+    },
     [overrides],
   );
   const allIssues = findCaseMetaIssues(mergedMeta);
