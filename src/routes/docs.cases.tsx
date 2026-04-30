@@ -17,6 +17,7 @@ import {
   type JsonValue,
 } from "@/server/case-fix.functions";
 import { mergeOverrides } from "@/lib/case-meta";
+import { normalizeServerFnError } from "@/lib/server-fn-errors";
 
 function downloadBlob(filename: string, mime: string, content: string) {
   const blob = new Blob([content], { type: mime });
