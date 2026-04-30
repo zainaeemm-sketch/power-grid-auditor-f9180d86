@@ -6,6 +6,7 @@ import {
   revertCaseMetaOverride,
   type CaseMetaOverrideRow,
 } from "@/server/case-fix.functions";
+import { normalizeServerFnError } from "@/lib/server-fn-errors";
 
 export function OverridesSection({
   overrides,
