@@ -530,66 +530,78 @@ export type ListCaseMetaOverrideAuditResult =
       message: string;
     };
 
+/**
+ * Pure handler logic for `listCaseMetaOverrideAudit`, exported separately so
+ * contract tests can exercise every branch without going through the
+ * `createServerFn` client/server bridge (which rewrites return values and
+ * makes raw-Response regressions hard to detect from a unit test).
+ *
+ * MUST match the behavior of the wrapped server fn 1:1.
+ */
+export async function listCaseMetaOverrideAuditHandler(
+  data: { caseKey?: string; field?: string; limit: number },
+): Promise<ListCaseMetaOverrideAuditResult> {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return {
+      ok: false,
+      error: "config_missing",
+      message: "Server is missing Supabase configuration.",
+    };
+  }
+
+  const authHeader = getRequestHeader("authorization");
+  if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
+    return {
+      ok: false,
+      error: "unauthenticated",
+      message: "Sign in to view audit logs.",
+    };
+  }
+  const token = authHeader.slice("bearer ".length).trim();
+  if (!token) {
+    return {
+      ok: false,
+      error: "unauthenticated",
+      message: "Sign in to view audit logs.",
+    };
+  }
+
+  const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+
+  const claims = await supabase.auth.getClaims(token);
+  if (claims.error || !claims.data?.claims?.sub) {
+    return {
+      ok: false,
+      error: "unauthenticated",
+      message: "Your session has expired — sign in again to view audit logs.",
+    };
+  }
+  const userId = claims.data.claims.sub;
+
+  let q = supabase
+    .from("case_meta_override_audit")
+    .select(
+      "id, override_id, case_key, field, action, source, previous_value, new_value, ai_model, ai_rationale, created_at",
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(data.limit);
+  if (data.caseKey) q = q.eq("case_key", data.caseKey);
+  if (data.field) q = q.eq("field", data.field);
+  const { data: rows, error } = await q;
+  if (error) {
+    return { ok: false, error: "db_error", message: error.message };
+  }
+  return { ok: true, rows: (rows ?? []) as CaseMetaOverrideAuditRow[] };
+}
+
 export const listCaseMetaOverrideAudit = createServerFn({ method: "POST" })
   .middleware([withAuthHeaders])
   .inputValidator((input: unknown) => ListAuditInput.parse(input ?? {}))
-  .handler(async ({ data }): Promise<ListCaseMetaOverrideAuditResult> => {
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-      return {
-        ok: false,
-        error: "config_missing",
-        message: "Server is missing Supabase configuration.",
-      };
-    }
-
-    const authHeader = getRequestHeader("authorization");
-    if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
-      return {
-        ok: false,
-        error: "unauthenticated",
-        message: "Sign in to view audit logs.",
-      };
-    }
-    const token = authHeader.slice("bearer ".length).trim();
-    if (!token) {
-      return {
-        ok: false,
-        error: "unauthenticated",
-        message: "Sign in to view audit logs.",
-      };
-    }
-
-    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    });
-
-    const claims = await supabase.auth.getClaims(token);
-    if (claims.error || !claims.data?.claims?.sub) {
-      return {
-        ok: false,
-        error: "unauthenticated",
-        message: "Your session has expired — sign in again to view audit logs.",
-      };
-    }
-    const userId = claims.data.claims.sub;
-
-    let q = supabase
-      .from("case_meta_override_audit")
-      .select(
-        "id, override_id, case_key, field, action, source, previous_value, new_value, ai_model, ai_rationale, created_at",
-      )
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(data.limit);
-    if (data.caseKey) q = q.eq("case_key", data.caseKey);
-    if (data.field) q = q.eq("field", data.field);
-    const { data: rows, error } = await q;
-    if (error) {
-      return { ok: false, error: "db_error", message: error.message };
-    }
-    return { ok: true, rows: (rows ?? []) as CaseMetaOverrideAuditRow[] };
-  });
+  .handler(({ data }) => listCaseMetaOverrideAuditHandler(data));
 
