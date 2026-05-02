@@ -24,10 +24,21 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
+  // Cross-browser coverage so visual/runtime contracts (e.g. the audit panel
+  // never showing "[object Response]") are verified on all three engines.
+  // Install browsers with `bunx playwright install` before running locally.
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
     },
   ],
 });
