@@ -164,18 +164,22 @@ export function runDcEvaluation(
   const postCase = applyAction(baseCase, action);
   const postLoadings = runDcPf(postCase);
   if (!postLoadings) {
-    // Action made the system unsolvable → mark infeasible
+    // The action made the network unsolvable (islanded it or produced a singular
+    // Bbus). We cannot quantify post-action violations on the same scale, so we
+    // report infeasible WITHOUT inventing a violation count.
     return {
       engine: "dc_powerflow",
       feasibility: "infeasible",
       baseline_violations,
-      post_action_violations: baseline_violations + 5,
-      violations_found: baseline_violations + 5,
-      violation_improvement: -5,
+      post_action_violations: baseline_violations,
+      violations_found: baseline_violations,
+      violation_improvement: 0,
       line_loadings: baseLoadings,
       voltage_violations: [],
       generator_violations: generatorViolations(postCase),
-      notes: "Post-action DC power flow could not converge (system disconnected or singular).",
+      notes:
+        "Post-action DC power flow did not converge: the action disconnected the " +
+        "network or produced a singular system. Marked infeasible.",
     };
   }
   const postOverloads = postLoadings.filter((l) => l.overloaded).length;
@@ -183,9 +187,13 @@ export function runDcEvaluation(
   const post_action_violations = postOverloads + genViolations.length;
 
   const isApplicable = action.enabled && action.action_type && action.action_type !== "none";
+  // Feasible = the corrective action leaves the system with NO violations
+  // (all branch loadings <= 100% of rating and all generators within limits).
+  // This matches the task objective; no tolerance band, which would let an
+  // action that still leaves violations count as "feasible".
   const feasibility: SimulationResult["feasibility"] = !isApplicable
     ? "not_applicable"
-    : post_action_violations <= baseline_violations + 2
+    : post_action_violations === 0
       ? "feasible"
       : "infeasible";
 
