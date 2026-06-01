@@ -62,43 +62,26 @@ export function applyParsedAction(parseResult: RunParseResult | null): ActionRes
 }
 
 export function computeEvaluation(parseResult: RunParseResult | null, actionResult: ActionResult): EvaluationFields {
-  const baseline = 10;
-  let post = baseline;
-  let improvement = 0;
-  let feasibility = "not_applicable";
-  let confidence = "low";
-  let grounding = "ungrounded";
-
-  if (actionResult.application_status === "success" && parseResult) {
-    const { action_type, value, source_text } = parseResult;
-    feasibility = "feasible";
-    confidence = "high";
-    if (source_text) grounding = "grounded";
-
-    if (action_type === "scale_all_loads" && value != null) {
-      if (value < 1) { improvement = 2; post = 8; }
-      else { improvement = -1; post = 11; }
-    } else if (action_type === "set_generator_p_mw") {
-      improvement = 1; post = 9;
-    } else if (action_type === "line_outage") {
-      improvement = -3; post = 13;
-    }
-  } else if (actionResult.application_status === "failed") {
-    feasibility = "infeasible";
-    confidence = "medium";
-    if (parseResult?.source_text) grounding = "grounded";
-  }
+  // Rule-based mode does NOT run a power flow. Rather than emit physically
+  // meaningless violation counts that look like simulation output, we report
+  // only the parse/application status and mark feasibility as "unknown".
+  // All grounded violation metrics come exclusively from the DC/AC path.
+  const grounding = parseResult?.source_text ? "grounded" : "ungrounded";
 
   return {
-    feasibility,
-    violations_found: post,
-    baseline_violations: baseline,
-    post_action_violations: post,
-    violation_improvement: improvement,
-    confidence,
+    feasibility: "unknown",
+    violations_found: 0,
+    baseline_violations: 0,
+    post_action_violations: 0,
+    violation_improvement: 0,
+    confidence: "low",
     grounding_quality: grounding,
     action_applied: actionResult.action_applied,
-    notes: actionResult.application_notes,
+    notes:
+      `${actionResult.application_notes} No power-flow simulation was run ` +
+      `(rule_based mode or unsupported case), so violation metrics are not ` +
+      `physically grounded. Re-run in "auto" or "simulation" mode on ` +
+      `case5/case14/case30 for grounded results.`.trim(),
     engine_used: "rule_based",
   };
 }
@@ -170,7 +153,7 @@ export const evaluateRun = createServerFn({ method: "POST" })
       .from("runs").select("case_name").eq("id", runId).single();
     const { data: meta } = await (supabase as any)
       .from("run_metadata").select("evaluation_mode").eq("run_id", runId).maybeSingle();
-    const mode: EvaluationMode = (meta?.evaluation_mode as EvaluationMode) || "rule_based";
+    const mode: EvaluationMode = (meta?.evaluation_mode as EvaluationMode) || "auto";
 
     const evalFields = await evaluateWithSimulation(
       parseResult as RunParseResult | null,
@@ -236,7 +219,7 @@ export const reparseAndEvaluate = createServerFn({ method: "POST" })
       .from("runs").select("case_name").eq("id", run_id).single();
     const { data: meta } = await (supabase as any)
       .from("run_metadata").select("evaluation_mode").eq("run_id", run_id).maybeSingle();
-    const mode: EvaluationMode = (meta?.evaluation_mode as EvaluationMode) || "rule_based";
+    const mode: EvaluationMode = (meta?.evaluation_mode as EvaluationMode) || "auto";
 
     const fullParseResult = { ...parseResult, id: "", run_id, created_at: "", updated_at: "" } as RunParseResult;
     const evalFields = await evaluateWithSimulation(fullParseResult, run?.case_name ?? "", mode);
@@ -361,7 +344,7 @@ export const backfillEvaluations = createServerFn({ method: "POST" })
       }
 
       const parseResult = parseMap.get(runId) ?? null;
-      const mode = (metaMap.get(runId) as EvaluationMode) || "rule_based";
+      const mode = (metaMap.get(runId) as EvaluationMode) || "auto";
 
       try {
         const evalFields = await evaluateWithSimulation(parseResult, run.case_name ?? "", mode);
