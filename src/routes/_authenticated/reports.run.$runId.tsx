@@ -7,6 +7,7 @@ import { ReportSection } from "@/components/reports/ReportSection";
 import { ReportTable } from "@/components/reports/ReportTable";
 import { ReportToolbar } from "@/components/reports/ReportToolbar";
 import { exportRunCsv } from "@/lib/csv-export";
+import { exportRunResearchJson } from "@/lib/research-export";
 import { exportRunLatex } from "@/lib/latex-export";
 
 export const Route = createFileRoute("/_authenticated/reports/run/$runId")({
@@ -53,6 +54,7 @@ function RunReportPage() {
           backTo="/runs/$runId"
           backLabel="Back to Run"
           onCsv={() => exportRunCsv(details)}
+          onResearchJson={() => exportRunResearchJson(details)}
           onLatex={() => exportRunLatex(details)}
         />
       </div>

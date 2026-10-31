@@ -8,9 +8,10 @@ interface Props {
   onPrint?: () => void;
   onCsv?: () => void;
   onLatex?: () => void;
+  onResearchJson?: () => void;
 }
 
-export function ReportToolbar({ backTo, backLabel = "Back", onPrint, onCsv, onLatex }: Props) {
+export function ReportToolbar({ backTo, backLabel = "Back", onPrint, onCsv, onLatex, onResearchJson }: Props) {
   return (
     <div className="report-toolbar sticky top-0 z-30 mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/90 py-3 backdrop-blur print:hidden">
       <Button variant="ghost" size="sm" asChild>
@@ -20,6 +21,11 @@ export function ReportToolbar({ backTo, backLabel = "Back", onPrint, onCsv, onLa
         </Link>
       </Button>
       <div className="flex flex-wrap items-center gap-2">
+        {onResearchJson && (
+          <Button variant="outline" size="sm" onClick={onResearchJson}>
+            <FileDown className="mr-1.5 h-3.5 w-3.5" /> Research JSON
+          </Button>
+        )}
         {onCsv && (
           <Button variant="outline" size="sm" onClick={onCsv}>
             <FileDown className="mr-1.5 h-3.5 w-3.5" /> CSV
