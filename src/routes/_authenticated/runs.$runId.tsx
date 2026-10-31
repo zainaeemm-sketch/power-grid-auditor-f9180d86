@@ -13,6 +13,7 @@ import { listCounterfactuals } from "@/server/counterfactual.functions";
 import { listPerturbationTests } from "@/server/perturbation.functions";
 import type { RunDetails, RunStatus } from "@/types/grid-arena";
 import { exportRunCsv } from "@/lib/csv-export";
+import { exportRunResearchJson } from "@/lib/research-export";
 import { exportAuditReportPdf } from "@/lib/pdf-export";
 
 import { RunHeader } from "@/components/run-details/RunHeader";
@@ -143,7 +144,7 @@ function RunDetailPage() {
       <RunHeader run={run} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <RunStatusControls runId={run.id} status={run.status as RunStatus} />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleRerun} disabled={rerunning}>
             <RotateCw className={`mr-1.5 h-3.5 w-3.5 ${rerunning ? "animate-spin" : ""}`} />
             {rerunning ? "Cloning…" : "Re-run with Same Configuration"}
@@ -157,6 +158,10 @@ function RunDetailPage() {
           <Button variant="outline" size="sm" onClick={() => exportRunCsv(details)}>
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Export Run CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportRunResearchJson(details)}>
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            Export Research JSON
           </Button>
           <Button variant="default" size="sm" onClick={handleExportPdf} disabled={exportingPdf}>
             <FileDown className={`mr-1.5 h-3.5 w-3.5 ${exportingPdf ? "animate-pulse" : ""}`} />
